@@ -10,9 +10,12 @@ public static class Program
         ProbeLog.Open(ArgValue(args, "--log") ?? "logs");
 
         var uiaTitle = ArgValue(args, "--uia");
-        if (uiaTitle is { Length: > 0 })
+        var uiaHwndText = ArgValue(args, "--uia-hwnd");
+        if (uiaTitle is { Length: > 0 } || uiaHwndText is { Length: > 0 })
         {
-            var hwnd = AutoRunner.Find(uiaTitle);
+            var hwnd = uiaHwndText is { Length: > 0 }
+                ? new IntPtr(Convert.ToInt64(uiaHwndText, 16))
+                : AutoRunner.Find(uiaTitle!);
             if (hwnd == IntPtr.Zero)
             {
                 ProbeLog.Log("uia_abort", ("reason", "not_found"), ("title", uiaTitle));
