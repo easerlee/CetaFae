@@ -9,6 +9,21 @@ public static class Program
     {
         ProbeLog.Open(ArgValue(args, "--log") ?? "logs");
 
+        var captureTitle = ArgValue(args, "--capture");
+        if (captureTitle is { Length: > 0 })
+        {
+            var hwnd = AutoRunner.Find(captureTitle);
+            if (hwnd == IntPtr.Zero)
+            {
+                ProbeLog.Log("capture_abort", ("reason", "not_found"), ("title", captureTitle));
+                return;
+            }
+            var shots = int.TryParse(ArgValue(args, "--shots"), out var s) ? s : 2;
+            var interval = int.TryParse(ArgValue(args, "--interval"), out var itv) ? itv : 400;
+            Capture.Shoot(hwnd, ArgValue(args, "--out") ?? "", shots, interval);
+            return;
+        }
+
         var uiaTitle = ArgValue(args, "--uia");
         var uiaHwndText = ArgValue(args, "--uia-hwnd");
         if (uiaTitle is { Length: > 0 } || uiaHwndText is { Length: > 0 })
