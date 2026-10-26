@@ -56,6 +56,10 @@ public static class UiaProbe
             ("depthLimit", maxDepth),
             ("elapsedMs", clock.ElapsedMilliseconds));
 
+        // 窗口已关闭或句柄失效时，FromHandle 不报错，只返回一个空壳。少于 10 个节点一律当失效处理。
+        if (rows.Count < 10)
+            ProbeLog.Log("uia_suspect", ("nodes", rows.Count), ("reason", "tree_too_small"), ("window", Native.Hex(hwnd)));
+
         return rows.Count;
     }
 
