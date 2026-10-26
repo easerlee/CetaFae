@@ -22,6 +22,9 @@ public sealed class BallWindow : Window
     IntPtr _hwnd;
     IntPtr _target;
     bool _dragging;
+    bool _redrawPending;
+    long _pendingTicks;
+    long _coalesced;
     Native.POINT _dragOriginCursor;
     double _dragOriginLeft, _dragOriginTop;
     double _scale = 1;
@@ -30,6 +33,8 @@ public sealed class BallWindow : Window
     public IntPtr TargetHwnd => _target;
     public double Scale => _scale;
     public int OverlayUpdates => _overlayUpdates;
+    public long MaxLatencyMs { get; private set; }
+    public long Coalesced => _coalesced;
     public bool OverlayVisible => _overlay.IsVisible;
 
     public BallWindow()
@@ -222,7 +227,9 @@ public sealed class BallWindow : Window
 
     void StartTracking()
     {
-        UpdateOverlay(initial: true);
+        MaxLatencyMs = 0;
+        _coalesced = 0;
+        UpdateOverlay(-1);
         _overlay.Show();
         _overlayUpdates = 0;
         _settle.Restart();
@@ -243,13 +250,25 @@ public sealed class BallWindow : Window
     void OnWinEvent(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
         if (hwnd != _target || idObject != Native.OBJID_WINDOW) return;
-        long sinceEvent = _settle.ElapsedMilliseconds;
-        Dispatcher.BeginInvoke(new Action(() => UpdateOverlay(sinceEvent)), DispatcherPriority.Background);
+
+        // 一次绘制覆盖多条事件：拖动窗口时事件连发，逐条重绘会积压成肉眼可见的滞后。
+        _pendingTicks = _settle.ElapsedTicks;
+        if (_redrawPending)
+        {
+            _coalesced++;
+            return;
+        }
+        _redrawPending = true;
+        Dispatcher.BeginInvoke(new Action(DrainRedraw), DispatcherPriority.Render);
     }
 
-    void UpdateOverlay(bool initial = false) => UpdateOverlay(-1);
+    void DrainRedraw()
+    {
+        _redrawPending = false;
+        UpdateOverlay(_pendingTicks);
+    }
 
-    void UpdateOverlay(long sinceEventMs)
+    void UpdateOverlay(long eventTicks)
     {
         if (_target == IntPtr.Zero) return;
         if (!Native.IsWindow(_target))
@@ -265,13 +284,27 @@ public sealed class BallWindow : Window
         _overlay.Height = Math.Max(1, (r.Bottom - r.Top) / _scale);
         _overlayUpdates++;
 
+        long sinceEventMs = -1;
+        if (eventTicks >= 0)
+        {
+            sinceEventMs = (long)((_settle.ElapsedTicks - eventTicks) * 1000.0 / Stopwatch.Frequency);
+            if (sinceEventMs > MaxLatencyMs) MaxLatencyMs = sinceEventMs;
+        }
+
         ProbeLog.Log("overlay",
             ("target", Native.Hex(_target)),
             ("targetRectPx", RectPx(r)),
             ("overlayDip", FrameDipOf(_overlay)),
-            ("overlayPx", OverlayRectPxString()),
+            ("overlayPx", OverlayPx()),
             ("sinceEventMs", sinceEventMs),
             ("n", _overlayUpdates));
+    }
+
+    public void TrackWindow(IntPtr hwnd)
+    {
+        if (_target != IntPtr.Zero) StopTracking("retrack");
+        _target = hwnd;
+        StartTracking();
     }
 
     public void StopTracking(string reason)
@@ -313,6 +346,11 @@ public sealed class BallWindow : Window
     }
 
     string OverlayRectPxString()
+    {
+        return OverlayPx();
+    }
+
+    public string OverlayPx()
     {
         return $"{Math.Round(_overlay.Left * _scale)},{Math.Round(_overlay.Top * _scale)},{Math.Round(_overlay.Width * _scale)},{Math.Round(_overlay.Height * _scale)}";
     }

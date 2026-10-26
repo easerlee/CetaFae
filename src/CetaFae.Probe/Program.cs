@@ -10,6 +10,7 @@ public static class Program
         ProbeLog.Open(ArgValue(args, "--log") ?? "logs");
 
         var autoTitle = ArgValue(args, "--auto");
+        var trackTitle = ArgValue(args, "--track");
         var trials = int.TryParse(ArgValue(args, "--trials"), out var n) ? n : 3;
         var dwell = int.TryParse(ArgValue(args, "--dwell"), out var d) ? d : 700;
         var exitAfter = int.TryParse(ArgValue(args, "--exit-after"), out var ea) ? ea : 0;
@@ -25,6 +26,25 @@ public static class Program
             {
                 await Task.Delay(500);
                 await AutoRunner.RunAsync(ball, autoTitle, trials, dwell);
+                app.Shutdown();
+            });
+        }
+        else if (trackTitle is { Length: > 0 })
+        {
+            app.Dispatcher.InvokeAsync(async () =>
+            {
+                await Task.Delay(400);
+                var target = AutoRunner.Find(trackTitle);
+                if (target == IntPtr.Zero)
+                {
+                    ProbeLog.Log("track_abort", ("reason", "not_found"), ("title", trackTitle));
+                }
+                else
+                {
+                    ball.TrackWindow(target);
+                    await Task.Delay(300);
+                    await AutoRunner.FollowOnly(ball, target);
+                }
                 app.Shutdown();
             });
         }
