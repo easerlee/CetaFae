@@ -1,0 +1,1542 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 正文是模型产出经 marked 渲染的 HTML（没有净化）。角色读过的资料、社区模板、抓来的网页都可能夹带
+     <script> / onerror=。这页会被 Studio 在同源打开、也会被转发给别人，所以用 CSP 把脚本一刀切掉：
+     本页自己没有脚本，样式全在 <style> 里，图片 / 音视频全是内联的 data:。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'; font-src data:; form-action 'none'; base-uri 'none'">
+<title>Windows 桌面悬浮助手 1.0 产品可行性研究工作流 · AO 运行报告</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1d2530; --muted: #5d6b7e;
+    --line: #e3e7ee; --accent: #4056c7; --accent-soft: #eef1fc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11151c; --card: #191f29; --ink: #e6ebf2; --muted: #93a0b3;
+      --line: #2a3341; --accent: #8ea2f0; --accent-soft: #202942;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px 48px; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    line-height: 1.75; font-size: 15.5px;
+  }
+  .page { max-width: 860px; margin: 0 auto; }
+  .hero { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 28px 30px; }
+  .emojis { font-size: 22px; letter-spacing: 6px; margin: 0 0 10px; }
+  h1 { font-size: 26px; line-height: 1.35; margin: 0 0 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .chips li {
+    font-size: 12.5px; color: var(--muted); background: var(--accent-soft);
+    border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px;
+  }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-top: 18px; overflow: hidden; }
+  .step.final { border-color: var(--accent); }
+  .step > header {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 14px 22px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--accent-soft) 45%, var(--card));
+  }
+  .step .no {
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 999px; width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center; align-self: center; flex-shrink: 0;
+  }
+  .step h2 { font-size: 17px; margin: 0; }
+  .step .star { font-size: 12.5px; color: var(--accent); font-weight: 600; margin-left: 4px; }
+  .step .meta { font-size: 12.5px; color: var(--muted); margin-left: auto; }
+  .step .body { padding: 8px 26px 20px; overflow-wrap: break-word; }
+  .body img { max-width: 100%; border-radius: 8px; }
+  .body pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 13px; }
+  .body code { font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+  .body table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 14px; }
+  .body th, .body td { border: 1px solid var(--line); padding: 6px 12px; text-align: left; }
+  .body blockquote { margin: 12px 0; padding: 2px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
+  .body a { color: var(--accent); }
+  footer {
+    margin-top: 28px; padding: 18px 6px 0; border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer code { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; font-size: 12px; }
+  @media print { body { background: #fff; } .step, .hero { border-color: #ccc; break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <p class="emojis">📦 🖥️ 🏛️ 🛡️ 🔭 📈 🐑 ⚖️ ✍️ 🧭 📊 ⚖️ 👔</p>
+    <h1>Windows 桌面悬浮助手 1.0 产品可行性研究工作流</h1>
+    <ul class="chips"><li>14 个专家步骤</li><li>总耗时 399.6s</li><li>335,090 tokens</li><li>✅ 全部完成</li></ul>
+  </header>
+
+    <section class="step">
+      <header>
+        <span class="no">1</span>
+        <h2>📦 产品经理</h2>
+        <span class="meta">product/product-manager · 36.5s · 24,572 tokens</span>
+      </header>
+      <div class="body"><h2>需求基线摘要｜鲸汐 CetaFae 1.0</h2>
+<p><strong>标注约定</strong>：未标注＝原文直述；「推」＝本摘要的推断或映射。</p>
+<p><strong>1 定位与目标用户</strong></p>
+<ul>
+<li>用户：卡在某个 Windows 窗口前、只想过去、不想研究的普通使用者。（原文）</li>
+<li>场景：系统错误弹窗、Windows 11 设置页、Edge 固定任务、WPS .docx 日期统一替换。（原文）</li>
+<li>痛点：不知道这是什么、能不能点、点了会怎样。（原文）</li>
+<li>定位：把卡住的那一步送过去；四档动作按<strong>可逆代价</strong>而非用户偏好自动选定，档位对用户不可见。（原文）</li>
+</ul>
+<p><strong>2 功能清单</strong>（原文用 P0/P1/后续版本；Must/Should/Could 为映射「推」）</p>
+<ul>
+<li><strong>Must</strong>：FR-01 拖拽吸附｜FR-02 零输入识别｜FR-03 解释｜FR-04 描边指路｜FR-05 常驻输入框｜FR-06 自动分档＋一句话披露｜FR-07 快照后执行并高亮｜FR-08 一步还原／冲突态｜FR-09 做不到就说｜FR-10 一键消失＋Esc 中断三项清单｜FR-11 指不准兜底｜FR-12 首次授权</li>
+<li><strong>Should</strong>：FR-13 多步引导｜FR-14 改完复查｜FR-15 不遮挡自动换边</li>
+<li><strong>Could</strong>：图片／PDF／票据识别｜中英即时翻译｜多显示器与高 DPI｜语音提问｜本地模型推理</li>
+</ul>
+<p><strong>3 核心交互与关键机制</strong></p>
+<ul>
+<li>无全局唤起：悬浮球常驻屏幕边缘，<strong>仅在用户拖动后</strong>才开始工作。（原文）</li>
+<li>主链路：拖至目标窗口（描边高亮）→ 释放吸附 → 立即识别 → 浮出解释＋按需标记 → 原位追问 → 定「做」则先快照、再改、滚动高亮 → 提示条「已修改该文档 N 处，可还原」展开 15 秒收起，入口常驻菜单。（原文）</li>
+<li>退出：拖走／Esc／还原；标记消失但提示条保留（R-6）。（原文）</li>
+<li><strong>不与其他应用做集成</strong>，只读被拖放的单一窗口，不跨会话记忆。（原文）</li>
+</ul>
+<p><strong>4 非目标／1.0 不做</strong>
+不主动发起、无后台巡检与意图推测；不做通用电脑操作代理；不做跨会话记忆；不做多显示器与高 DPI；不做本地模型推理；不支持 macOS／Linux；全程无模态对话框、不请求管理员权限。（原文）</p>
+<p><strong>5 技术约束／平台约束</strong></p>
+<ul>
+<li>平台：Windows、单屏、显示缩放 100%、任务栏无刘海。（原文）</li>
+<li>四条强制约束：C-1 永不主动｜C-2 永远可退｜C-3 默认最轻｜C-4 指不准不猜。（原文）</li>
+<li>权限：读＝屏幕录制＋辅助功能，拖放时申请、脱离即停；写＝文件写入，快照完整时申请、任务结束释放，<strong>非系统级隔离</strong>（PV-3）。（原文）</li>
+<li>性能：NFR-01 ≤3s｜NFR-03 静默损坏 0｜NFR-04 还原 100% 且失败可见｜NFR-05 标记残留 0｜NFR-06 待命近零｜NFR-08 崩溃不影响目标应用。（原文）</li>
+<li>TC-1～TC-5 任一未通过即关闭对应档位。（原文）</li>
+</ul>
+<p><strong>6 空白与矛盾点</strong></p>
+<ol>
+<li><strong>缺验收目标值</strong>：NFR-02、NFR-07 仅「建立基线」，AC-1／AC-2 亦无量化阈值 → 无判定依据。</li>
+<li><strong>合规信息缺失</strong>：无服务商名称、具体保留期限、备案号、跨境条款、用户协议与 SLA；PV-4～PV-7 仅为原则表述。</li>
+<li><strong>自相矛盾</strong>：TC-3 尚未验证快照完整性可判定，FR-07 已列 P0；TC-2 不过则 FR-11 不得上线，FR-11 亦已列 P0。</li>
+<li><strong>披露粒度未定义</strong>：6.1 称档位「对用户不可见」，6.2 又要求「说明本次采用哪一档」。</li>
+<li><strong>支持清单未落地</strong>：5.2 的「固定任务清单」具体条目缺失（Win11 设置、Edge 各含哪些任务），测试无法用例化；亦无可用性、无障碍、多语言、崩溃恢复时长指标。</li>
+<li><strong>商业与运营</strong>：2.2 明确排除，全文无内容。</li>
+</ol>
+<p><strong>7 商业化与运营设想</strong>
+文档<strong>未提供</strong>。2.2 显式将商业模式、定价、运营活动、品牌视觉、分发渠道排除在外。「已备案云端接口」暗示存在调用成本，但无计费、配额、免费额度说明「推」，亦无获客／留存／转化路径「推」。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">2</span>
+        <h2>ask_constraints</h2>
+        <span class="meta">0.0s</span>
+      </header>
+      <div class="body"><p>以下为项目方对硬约束问题的原话，未列出的项一律视为「未提供」，不得自行填补具体数字：</p>
+<ol>
+<li>团队规模与角色：纯 vibe coding（原话；未给出人数与分工）。</li>
+<li>预算上限：未提供。项目方表示不考虑任何商业化，这是开源项目。</li>
+<li>期望的 1.0 上线时间：未提供。</li>
+<li>商业化模式设想：不考虑任何商业化，开源项目。</li>
+<li>是否已有可复用的技术资产：全新项目，没有任何可复用资产。</li>
+</ol>
+<p>对第 2、3 两项，请在成本、周期与最终结论中显式标注为未知，并说明该缺口会怎样影响判断；不要假设一个人力配置、不要假设预算上限、不要假设上线日期。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">3</span>
+        <h2>🖥️ 桌面客户端技术专家</h2>
+        <span class="meta">engineering/engineering-pc-host-engineer · 83.3s · 15,143 tokens</span>
+      </header>
+      <div class="body"><h1>鲸汐 CetaFae 1.0 — Windows 客户端技术可行性评估</h1>
+<h2>一、关键技术点：难度与工作量</h2>
+<table>
+<thead>
+<tr>
+<th>技术点</th>
+<th>难度</th>
+<th>实现路径与要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>无边框、置顶与透明悬浮窗</td>
+<td>低、3 人日</td>
+<td>WPF <code>WindowStyle=None</code>+<code>AllowsTransparency</code>+<code>Topmost</code>+<code>ShowActivated=false</code>；扩展样式 <code>WS_EX_TOOLWINDOW</code>（不进任务栏和 Alt-Tab）、<code>WS_EX_NOACTIVATE</code>（不抢焦点）</td>
+</tr>
+<tr>
+<td>多屏、DPI 与任务栏</td>
+<td>中、4 人日</td>
+<td>PRD 已将多屏和非 100% 缩放列为非目标，工作量大幅下降；但 manifest 仍须声明 PerMonitorV2，否则 DPI 虚拟化会导致 <code>WindowFromPoint</code>/<code>GetWindowRect</code> 坐标错位，描边偏移。2.0 补齐需重写全部坐标逻辑（+15 人日）</td>
+</tr>
+<tr>
+<td>全局热键（仅作为 Esc 中断）</td>
+<td>低、2 人日</td>
+<td>无修饰键 <code>RegisterHotKey</code> 会全局劫持 Esc、干扰其他应用，不可取；改用 <code>WH_KEYBOARD_LL</code>（有杀毒软件误报风险）或仅在自身窗口有焦点时处理</td>
+</tr>
+<tr>
+<td>开机自启、托盘常驻、安装与卸载</td>
+<td>低、5 人日</td>
+<td><code>HKCU\...\Run</code> + <code>Shell_NotifyIcon</code>；Inno Setup 或 MSIX。残留集中在 <code>%APPDATA%</code> 与 Run 键，卸载脚本必须显式清理。托盘“退出”要真正退出，不要只是隐藏</td>
+</tr>
+<tr>
+<td><strong>焦点与非激活输入</strong></td>
+<td><strong>高、10–15 人日</strong></td>
+<td>拖拽全程不得激活自身窗口（否则目标窗口失焦、标题栏变色、“滚动高亮”失效）；识别后追问框又需可输入 →“延迟激活＋跟随定位”。全项目最容易出问题的地方</td>
+</tr>
+<tr>
+<td>截屏、OCR 与 UIA 读窗口</td>
+<td>中到高、15 人日</td>
+<td><code>Windows.Graphics.Capture</code>（Win10 1803+，有系统同意弹窗）优于 BitBlt；Edge/Chromium 须 <code>PrintWindow(PW_RENDERFULLCONTENT)</code> 否则黑屏。OCR 用 <code>Windows.Media.Ocr</code> 或本地 RapidOCR。Win11 设置页与 Edge 的 UIA 树可用，但 Chromium 需先触发无障碍激活，元素定位易受版本影响</td>
+</tr>
+<tr>
+<td><strong>.docx 日期替换</strong></td>
+<td><strong>高、10–15 人日</strong></td>
+<td>只能走 OOXML 解包改 <code>document.xml</code> + 整文件备份原子替换（可 100% 还原）；UI 模拟键击不可逆、不可校验</td>
+</tr>
+<tr>
+<td>自动更新</td>
+<td>低、2 人日</td>
+<td>GitHub Releases + Velopack；开源项目自研更新器无意义。无代码签名会被 SmartScreen 拦截</td>
+</tr>
+</tbody></table>
+<h2>二、Win10/11 兼容性与系统限制</h2>
+<ul>
+<li>Win10 需 ≥1809 才有 <code>Windows.Graphics.Capture</code>；Win10/Win11 的 UIA 树差异需两套用例。</li>
+<li><strong>UIPI</strong>：普通权限进程无法对管理员窗口做 UIA、发消息或拖放：与“不请求管理员权限”直接冲突（见 B1）。</li>
+<li>全屏独占 DirectX、UAC 安全桌面、锁屏：悬浮层不可见、不可交互。</li>
+<li>DRM/受保护内容窗口截图为黑屏。</li>
+<li>全局钩子、屏幕捕获与模拟输入同时使用时，极易被 360、火绒和 Defender 判定为可疑程序，因此需要签名并进行白名单沟通。</li>
+</ul>
+<h2>三、技术选型对比</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>体积</th>
+<th>常驻内存</th>
+<th>冷启动</th>
+<th>开发效率</th>
+<th>悬浮窗适配</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>C#/WPF .NET 8</td>
+<td>自包含 70MB、框架依赖 5MB</td>
+<td>50–90MB</td>
+<td>0.6–1.5s</td>
+<td>高</td>
+<td>好</td>
+</tr>
+<tr>
+<td>Qt6 C++ Widgets</td>
+<td>45–65MB</td>
+<td>45–75MB</td>
+<td>0.4–0.8s</td>
+<td>中</td>
+<td>好（需 Win32 扩展样式）</td>
+</tr>
+<tr>
+<td>WinUI 3</td>
+<td>60–90MB</td>
+<td>80–130MB</td>
+<td>1–2s</td>
+<td>中</td>
+<td>差（无逐像素透明便捷路径）</td>
+</tr>
+<tr>
+<td>Avalonia .NET</td>
+<td>55–75MB</td>
+<td>70–110MB</td>
+<td>0.6–1.2s</td>
+<td>中高</td>
+<td>中</td>
+</tr>
+<tr>
+<td>Electron</td>
+<td>150–220MB</td>
+<td>200–350MB</td>
+<td>1.5–3s</td>
+<td>最高</td>
+<td>中（系统能力仍需 native 插件）</td>
+</tr>
+<tr>
+<td>Tauri（WebView2）</td>
+<td>8–15MB</td>
+<td>60–120MB</td>
+<td>0.5–1s</td>
+<td>高</td>
+<td>中</td>
+</tr>
+</tbody></table>
+<p><strong>推荐 C#/WPF（.NET 8）</strong>：本项目 90% 的价值在 Windows 原生能力（窗口枚举、UIA、WinRT 捕获、扩展样式），这些在任何 UI 框架下都要写原生互操作，而 .NET 的 CsWin32、UIAutomation、CsWinRT 封装最省事；WPF 的透明置顶窗是十余年验证过的最稳路径；纯 vibe coding 下 C# 的 AI 生成成功率与可调试性明显优于 C++。Electron 常驻 200MB+ 直接违背待命近零指标，排除；WinUI 3 悬浮窗控制力不足，排除。</p>
+<h2>四、性能红线（PRD 仅给 NFR-01，其余为建议值）</h2>
+<ul>
+<li>待命内存 ≤ 90MB、CPU 均值 ≤ 0.3%（零定时器或 ≥1s 轮询）、零磁盘 I/O</li>
+<li>冷启动 ≤ 1.5s；悬浮球拖拽响应 ≤ 16ms；描边绘制 ≤ 50ms</li>
+<li>识别链路 P95 ≤ 3s（NFR-01）；安装包 ≤ 80MB；卸载后残留文件与注册表项均为 0</li>
+<li>崩溃隔离天然满足：全部操作在目标进程外，不注入、不 Hook 目标进程</li>
+</ul>
+<h2>五、技术阻塞点 / 高代价项</h2>
+<ul>
+<li><strong>B1 UIPI 硬墙</strong>：管理员窗口不可交互。必须显式声明“不支持管理员窗口”，否则测试必挂。</li>
+<li><strong>B2 .docx 还原与“滚动高亮”互斥</strong>：文件被 WPS 打开时外部改写会被覆盖或其云同步覆盖，快照完整性（TC-3）不可判定。建议 1.0 仅处理未占用文件。</li>
+<li><strong>B3 权限模型无法由 OS 实现</strong>：Windows 不存在 macOS 式“屏幕录制”、“辅助功能”授权，“拖放时申请、脱离即停”只能自建开关 + 明示。</li>
+<li><strong>B4 云端 AI 成本 vs 开源无预算</strong>：每帧识别都调用“已备案云端接口”，无配额与计费方案 → 建议本地 OCR 兜底 + 用户自带 API Key。</li>
+<li><strong>B5</strong> 全屏独占、安全桌面和 DRM 场景天然不可覆盖。</li>
+</ul>
+<h2>六、结论：<strong>有条件可行</strong></h2>
+<p>前置条件：① 冻结支持清单（非管理员、非全屏独占、单屏 100%）并写入 PRD；② 重写权限模型与 .docx 改写路径；③ 明确 AI 能力来源与成本；④ 代码签名证书（EV 约 ¥2000–4000/年，<strong>具体费用待定</strong>）；⑤ TC-2/TC-3 先做 2 周技术探针再排期。</p>
+<p><strong>预算：未知。上线周期：未知</strong>（人力仅“纯 vibe coding”，人数未提供）。该缺口的影响：无法判断签名证书、云端 API 调用、Win10/11 双系统回归测试等成本能否承担，也无法给出里程碑与上线日期，只能给出相对工作量量级（上表合计约 55–75 人日，不含测试与打磨）。若预算为零且不接受任何 API 支出，B4 升级为阻塞点，结论收窄为“<strong>仅本地 OCR 场景有条件可行</strong>”。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">4</span>
+        <h2>🏛️ 架构师</h2>
+        <span class="meta">engineering/engineering-software-architect · 24.0s · 11,908 tokens</span>
+      </header>
+      <div class="body"><h1>鲸汐 CetaFae 1.0 架构与工程可维护性评估</h1>
+<h2>一、分层架构建议</h2>
+<ul>
+<li><strong>UI 层</strong>：悬浮球、描边、解释浮层、提示条。只负责渲染与输入，不包含业务判断。</li>
+<li><strong>能力层</strong>：识别 → 分档决策 → 解释 → 快照 → 执行 → 还原/冲突态。按端口-适配器组织：领域接口在内，Windows 实现（UIAutomation、截图、文件 API）在外。</li>
+<li><strong>扩展机制</strong>：1.0 不引入运行时插件加载，改用“声明式支持清单 + 档位策略表”数据驱动。</li>
+<li><strong>本地存储</strong>：版本化快照、配置、菜单入口；单机运行、无跨会话记忆。</li>
+<li><strong>云服务</strong>：单一 Provider 接口 + 可关闭开关，本地降级路径必须存在。</li>
+<li><strong>技术栈权衡</strong>：.NET/WPF（UIA、截图、文件快照原生，体积小、误报低）优先于 Electron（生态熟但体积大、误报高）。</li>
+</ul>
+<h2>二、1.0 与未来的边界</h2>
+<p><strong>现在必须留的口子</strong>：① 识别器/执行器/快照器各一个接口；② 档位策略与支持清单外置为版本化数据文件；③ 快照 schema 带版本号与迁移位；④ 云 Provider 可拔插，默认关闭仍可运行。
+<strong>现在不做</strong>：运行时插件框架、多显示器/DPI、跨会话记忆、本地推理。理由：无第二个实现就不抽象（Rule of Three）。</p>
+<h2>三、第三方依赖风险</h2>
+<ul>
+<li><strong>协议</strong>：仅收 MIT/Apache-2.0，禁 GPL/AGPL 进分发；CI 许可证扫描。</li>
+<li><strong>停维护</strong>：Windows 生态库易停更；锁版本 + 依赖清单 + 替代预案。</li>
+<li><strong>体积</strong>：不捆绑浏览器运行时。</li>
+<li><strong>杀软误报（最高危）</strong>：未签名 exe + 全局钩子 + 自动写文件是误报三要素。缓解：不用全局键盘钩子、不注入进程、只走 UIA 与文件 API；代码签名成本<strong>未知</strong>。</li>
+</ul>
+<h2>四、团队能力匹配</h2>
+<p>人力：<strong>人数、分工、预算、上线时间均未提供</strong>，无法判断产能与排期，以下仅针对“架构复杂度对 vibe coding 协作的可维护性”。</p>
+<ul>
+<li>可维护：单进程模块化单体、约 5 个模块、无自建后端、无活动部件编排。</li>
+<li>不可维护：微服务、运行时插件框架、自研云、多端。</li>
+<li><strong>缺口影响</strong>：预算未知 → 无法判断签名证书与返工投入是否可承受；工期未知 → 无法安排“最晚可逆点”，也无法决定是否先出降级版（只讲解不执行）。</li>
+</ul>
+<h2>五、测试可行性</h2>
+<ul>
+<li><strong>难测</strong>：拖拽吸附、描边定位、浮层避让、焦点、UIA 跨应用不稳定、时序 flaky。</li>
+<li><strong>可测</strong>：档位决策、快照 diff/还原幂等、解释模板、支持清单匹配、冲突判定——纯函数单测。</li>
+<li><strong>建议</strong>：核心逻辑与 UI 解耦 ≥70% 可单测；UI 用录制回放 + 截图比对；云用契约测试 + mock；TC-1～TC-5 做成 CI 门禁。</li>
+</ul>
+<h2>六、结论：有条件可行</h2>
+<p>前置条件：</p>
+<ol>
+<li>单进程模块化单体，不拆服务；</li>
+<li>端口-适配器 + 数据驱动清单，禁硬编码分支；</li>
+<li>TC-1～TC-5 通过前，FR-07/FR-11 不得进 P0 发布（现基线矛盾）；</li>
+<li>依赖白名单 + 许可证扫描 + 版本锁定；</li>
+<li>先解决 6.1/6.2「档位可见性」矛盾再冻结接口。</li>
+</ol>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">5</span>
+        <h2>🛡️ 安全与隐私专家</h2>
+        <span class="meta">security/security-architect · 33.4s · 16,002 tokens</span>
+      </header>
+      <div class="body"><h1>鲸汐 CetaFae 1.0｜安全·隐私·合规评估</h1>
+<h2>一、权限与能力风险（等级｜防线）</h2>
+<ol>
+<li><strong>全局热键/键盘监听｜高</strong>：低级键盘钩子可录全部击键。只允许按 <code>RegisterHotKey</code> 注册单个组合键，禁用 <code>WH_KEYBOARD_LL</code>，不缓存按键内容。</li>
+<li><strong>屏幕捕获｜高</strong>：可摄密码、聊天、金融信息。仅拖放瞬间抓<strong>用户指认的单一窗口</strong>；不全屏、不连续、不落盘、用完即毁；界面常显采集态。</li>
+<li><strong>剪贴板｜高</strong>：读=密码/验证码外泄，写=篡改。1.0 不读、不监听变更；只写且写前预览。</li>
+<li><strong>文件写入｜高</strong>：可损坏文档。仅限指认的单文件；快照+校验和后原子替换；拒系统目录与可执行文件；失败可见。</li>
+<li><strong>自启动/常驻｜中</strong>：隐蔽驻留难关闭。默认关、手动开、一键关；仅托盘常驻，无服务/驱动/计划任务。</li>
+<li><strong>网络外发｜高</strong>：屏幕与文件内容外流。默认离线；出网仅限用户点「做」并逐次告知；无遥测埋点；TLS1.3+固定域名白名单。</li>
+<li><strong>提权｜高</strong>：<code>asInvoker</code>，绝不请求 UAC。</li>
+</ol>
+<h2>二、合规必须动作（PIPL/CSL）</h2>
+<ul>
+<li>屏幕内容/文件内容/云端处理<strong>三类单独同意</strong>，首启分层告知，不默认勾选。</li>
+<li>最小必要：只处理当次单一窗口或文件，无后台巡检、无跨会话记忆。</li>
+<li>本地优先：识别与 PII 检测在本地完成。</li>
+<li>可撤回：读写权限用完即释；一键删本地缓存与日志；日志不含屏幕原文与文件内容。</li>
+<li>补齐空白（当前全缺）：隐私政策、用户协议、处理者名称、保留期限、联系方式与投诉渠道——缺失即不得发布。</li>
+</ul>
+<h2>三、AI 云端接入</h2>
+<ul>
+<li><strong>出境｜高</strong>：境外模型须单独同意+安全评估/标准合同（PIPL 38 条）。1.0 只用境内已备案接口。</li>
+<li><strong>留存｜高</strong>：合同写明零留存、不用于训练；本地不存请求体。</li>
+<li><strong>脱敏｜中</strong>：上传前本地遮挡账号/密钥/PII，只传必要片段；返回做输出校验。</li>
+<li><strong>注入｜中</strong>：窗口内容视为不可信数据，不作指令执行。</li>
+</ul>
+<h2>四、分发与信任</h2>
+<ul>
+<li><strong>代码签名｜高</strong>：必须 OV 以上+时间戳。无签名即 SmartScreen 红屏、杀软高误报、用户不敢装；EV 仅缩短声誉积累，非必需。</li>
+<li><strong>SmartScreen｜中</strong>：新证书声誉从零、初期必被拦；提供「更多信息→仍要运行」指引，发布者名与版本号保持稳定。</li>
+<li><strong>杀软误报｜中</strong>：不注入、不挂钩、不加壳、不打包脚本；预提交 Defender/火绒/360 白名单申诉，公开 SHA256 与 VirusTotal 结果。</li>
+</ul>
+<h2>五、供应链与更新通道</h2>
+<ul>
+<li>更新包<strong>独立签名</strong>+客户端验签+防降级（版本单调）；元数据与二进制同签。</li>
+<li>仅 HTTPS+证书固定，拒自签；禁止运行期下载并执行脚本。</li>
+<li>依赖锁版本、SBOM、SCA；签名私钥放硬件令牌，不进 CI。</li>
+</ul>
+<h2>六、结论</h2>
+<p><strong>不可妥协（不满足即不发布）</strong>：①三类单独同意+可撤回 ②无后台巡检/不读剪贴板/不全屏采集 ③默认离线、云端逐次告知 ④快照先行+100% 还原 ⑤<code>asInvoker</code> 不提权 ⑥代码签名+更新验签 ⑦隐私政策与协议补齐。</p>
+<p><strong>可延后</strong>：EV 证书、遥测与崩溃上报、多语言合规文案、等保测评与第三方渗透测试（需法务确认）。</p>
+<p><strong>未知项影响</strong>：预算与上线时间均未提供，签名证书采购、白名单申诉与合规文本定稿的周期无法排期，故上述不可妥协项的<strong>时间与成本不可估</strong>；若排期紧张，优先保 ①③⑥⑦（法务与信任门槛），②④⑤为工程内可控项。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">6</span>
+        <h2>🔭 行业与市场研究员</h2>
+        <span class="meta">product/product-trend-researcher · 49.8s · 26,134 tokens</span>
+      </header>
+      <div class="body"><h1>鲸汐 CetaFae 1.0 产品与市场可行性评估</h1>
+<h2>1. 目标市场规模</h2>
+<ul>
+<li>用户基础：Windows 存量用户为十亿量级（<strong>估算/待验证</strong>，无权威口径引用）；但桌面效率类工具的实际触达渗透率未验证（<strong>待验证</strong>）。</li>
+<li>增长趋势：AI 桌面助手方向在升温（<strong>待验证</strong>，缺乏可信统计标准），传统桌面效率工具处于成熟饱和期（<strong>估算</strong>）。</li>
+<li>付费意愿：本项目明确开源、零商业化，付费意愿不构成本项目的判断依据；只能看“愿意装且长期常驻”的意愿，同样<strong>待验证</strong>。</li>
+<li>判断：<strong>市场盘子大，但本品需求面窄，且无数据验证</strong>。</li>
+</ul>
+<h2>2. 竞品与替代方案</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>核心能力</th>
+<th>与本项目差异</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Windows 自带（截图 OCR / Copilot / PowerToys / 设置搜索）</td>
+<td>零成本、官方集成</td>
+<td>覆盖“识别/解释”，无“快照→执行→还原”闭环</td>
+</tr>
+<tr>
+<td>Snipaste / PixPin / 微信截图 OCR</td>
+<td>截图→OCR，习惯已建立</td>
+<td>只“读”，不针对窗口对象执行</td>
+</tr>
+<tr>
+<td>utools / Raycast(Windows)</td>
+<td>常驻启动器＋插件生态</td>
+<td>依赖主动唤起与输入，违背“不主动、零输入”；是 FR-05 常驻输入框的直接竞争者</td>
+</tr>
+<tr>
+<td>豆包 / 通义 / Monica 桌面版</td>
+<td>通用 AI 对话＋部分读屏</td>
+<td>范围广但不针对窗口对象，无回滚承诺</td>
+</tr>
+<tr>
+<td>沉浸式翻译 / Sider 类扩展</td>
+<td>单场景即时处理</td>
+<td>只覆盖翻译，属本项目 Could 项</td>
+</tr>
+</tbody></table>
+<p>本质区别：竞品在**“输入侧/全屏侧”<strong>，本项目在</strong>“窗口对象＋可逆执行”**（PRD 原文定位）。</p>
+<h2>3. 差异化与不可替代性</h2>
+<ul>
+<li>真差异是**“先快照、再执行、后还原”的信任设计**，而非功能本身；识别与解释已高度商品化（<strong>估算</strong>）。</li>
+<li>弱点：1.0 执行面仅覆盖 PRD 所列 4 个场景（原文：系统错误弹窗、Win11 设置页、Edge 固定任务、WPS .docx 日期替换），难支撑长期常驻（<strong>估算</strong>）。</li>
+<li>常驻理由取决于“首次拖拽是否 3 秒内成功”（NFR-01，PRD 原文指标），而非功能矩阵。</li>
+</ul>
+<h2>4. 与商业化模式（开源 / 零商业化）匹配度</h2>
+<ul>
+<li>收入天花板：<strong>0</strong>，这是项目方设定，非市场判断。</li>
+<li>获客仅靠开源社区与口碑，CAC 无法量化（<strong>待验证</strong>）；漏斗为：看到项目→下载→首次拖动成功，失败主要集中在第三步。</li>
+<li><strong>预算上限：未知；上线时间：未知；人力：未提供</strong>。该缺口直接影响：云端接口持续成本由谁承担、维护是否可持续。因此<strong>投入产出比维度的可行性不成立</strong>，只能评估产品逻辑与市场位置。</li>
+<li>结论：模式与“轻量、可退”理念一致，但把<strong>商业可行性问题转化为无偿维护的可持续性问题</strong>。</li>
+</ul>
+<h2>5. 需求真实性校验</h2>
+<p><strong>真实需求（保留）</strong>：FR-01/02/03（拖拽＋零输入识别＋解释，对应“不敢点”的焦虑）、FR-07/08（快照还原，唯一差异化）、FR-09/10（做不到就说＋一键消失，建信任）。</p>
+<p><strong>伪需求/可砍</strong>：</p>
+<ul>
+<li><strong>FR-05 常驻输入框</strong>：与“零输入/永不主动”直接冲突，且正面撞 utools/Raycast 成熟生态，属创作者自我感动 → 1.0 砍。</li>
+<li><strong>Could 项“语音提问”“中英即时翻译”</strong>：目标用户“只想过去、不想研究”，无需多轮交互 → 砍。</li>
+<li><strong>FR-13 多步引导、FR-15 自动换边</strong>：过早优化，多屏未支持无法验证 → 降级。</li>
+<li>顺序问题：FR-07 依赖 TC-3 快照完整性验证，<strong>当前先做不可逆执行、后验证快照</strong>，应调序或降级为只读。</li>
+</ul>
+<h2>6. 结论：<strong>有条件可行</strong></h2>
+<p>前置条件：</p>
+<ol>
+<li>收缩到“单窗口解释＋可逆执行”，P0 由 PRD 所列 12 项压到 6–8 项；</li>
+<li>先过 TC-3 再做 FR-07；未通过则 1.0 只交付“读＋解释”；</li>
+<li>对外主打“可逆”，不主打“AI 助手”；</li>
+<li>声明维护边界、不承诺 SLA，明确云端接口成本归属。</li>
+</ol>
+<p>不可判定项：预算、周期、人力均未知；<strong>缺此三项时任何成本与排期结论均属臆测</strong>，上述结论仅基于产品逻辑与市场位置。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">7</span>
+        <h2>📈 财务分析师</h2>
+        <span class="meta">finance/finance-financial-analyst · 30.9s · 13,633 tokens</span>
+      </header>
+      <div class="body"><p><strong>前置声明</strong>｜团队人数与角色、预算上限、上线时间三项均<strong>未提供</strong>。下文 11–22 人月是<strong>工作内容量估算</strong>（并非人数配置），无法据此推出日历周期与人力峰值。所有金额均为估算区间，非报价。</p>
+<p><strong>1 人力成本（按角色工作量，并非按人数）</strong></p>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>人月估算</th>
+<th>主要工作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>核心开发</td>
+<td>6–11</td>
+<td>拖放吸附与描边、截屏与辅助功能识别链路、四档决策引擎、快照与还原、.docx 改写</td>
+</tr>
+<tr>
+<td>设计</td>
+<td>1.5–3</td>
+<td>无模态交互、四档一句话披露、指不准兜底态</td>
+</tr>
+<tr>
+<td>测试</td>
+<td>2.5–5</td>
+<td>TC-1～TC-5、静默损坏 0、还原 100%、崩溃不影响目标应用</td>
+</tr>
+<tr>
+<td>产品</td>
+<td>1–2.5</td>
+<td>验收阈值与支持清单落地、合规文本</td>
+</tr>
+<tr>
+<td>合计</td>
+<td><strong>11–22</strong></td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p>单价估算 1.5–4 万元/人月，因此<strong>人力约 16–88 万元（估算）</strong>。纯 vibe coding 如果由志愿者投入，则现金支出接近 0 元，成本转为机会成本。</p>
+<p><strong>2 一次性支出（估算）</strong>：代码签名 OV 证书 0.3–1 万元/年；EV 证书 1–3 万元/年（开源免费签名渠道可把下限压至 0）；图标与视觉外包 0.5–3 万元；法务合规审查（隐私政策、个人信息保护相关法规、开源许可）0.5–3 万元。<strong>合计约 1–9 万元（估算）</strong>。</p>
+<p><strong>3 持续性支出（首年，估算）</strong>：用户量属于假设。低成本档：月活 1 千、每人每月 10–20 次、每次 0.01–0.05 元，合计约 <strong>0.1–1.2 万元/年</strong>；中成本档：月活 1 万，合计约 <strong>1–12 万元/年</strong>。更新分发带宽 0–0.5 万元；客服与运维 0–8 万元（社区志愿为 0）。</p>
+<p><strong>4 三档总成本（首年，万元，估算）</strong></p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>保守（下限）</th>
+<th>中性</th>
+<th>悲观（上限）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>人力</td>
+<td>16</td>
+<td>45</td>
+<td>88</td>
+</tr>
+<tr>
+<td>一次性</td>
+<td>1</td>
+<td>5</td>
+<td>9</td>
+</tr>
+<tr>
+<td>持续性</td>
+<td>0.2</td>
+<td>5</td>
+<td>18</td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td><strong>约 17</strong></td>
+<td><strong>约 55</strong></td>
+<td><strong>约 115</strong></td>
+</tr>
+</tbody></table>
+<p>悲观档已含 TC-3 与 FR-07 顺序矛盾可能带来的返工。</p>
+<p><strong>5 与预算上限对比</strong>：预算上限<strong>未提供</strong>，因此<strong>结论是“无法判定是否超预算”</strong>，下面只给出判定门槛：如果上限不低于 17 万元，则保守档可行；如果上限不低于 55 万元，则中性档可行；如果上限不低于 115 万元，则三档都可行；如果上限低于 2 万元，则即使志愿投入也必须缩小范围（砍掉 Should 项、把云端调用改为用户自带 Key）。上线时间未知，导致无法测算周期或折现，也无法评估“延期摊薄现金峰值”，结论只到首年现金量级。</p>
+<p><strong>6 回本测算（假设）</strong>：项目明确不考虑商业化，没有收入来源，因此回本在逻辑上不成立。如果强制测算：假设年费 60 元、付费转化率 2%（即 1.2 元/用户/年），中性 55 万元需约 46 万用户量级，上限 115 万元需约 96 万用户量级。<strong>以上为假设，不是结论。</strong></p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">8</span>
+        <h2>🐑 项目经理</h2>
+        <span class="meta">project-management/project-management-project-shepherd · 31.5s · 11,726 tokens</span>
+      </header>
+      <div class="body"><p><strong>结论先行</strong>：预算上限、期望上线时间均<strong>未知</strong>；团队人数/分工未提供。故不能承诺1.0日期，也不能给金额。周期为工作包相对区间，须待人力确认后校准；人力未知会使区间显著偏移。</p>
+<table>
+<thead>
+<tr>
+<th>里程碑</th>
+<th>工作内容/所需人力（仅角色，人数未提供）</th>
+<th>周期</th>
+<th>可交付物</th>
+<th>验收标准</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>M1 原型验证</td>
+<td>拖拽吸附、描边、解释、退出、权限申请骨架；Win桌面开发、测试</td>
+<td>2-4周</td>
+<td>可运行原型＋TC-1/TC-2预验报告</td>
+<td>主链路可演示；脱离即停</td>
+</tr>
+<tr>
+<td>M2 核心打通</td>
+<td>零输入识别、分档＋一句话披露、快照/执行/还原；开发、自动化测试</td>
+<td>4-6周</td>
+<td>内测核心版＋TC-3快照完整性报告</td>
+<td>NFR-03/04通过；TC-3可判定</td>
+</tr>
+<tr>
+<td>M3 功能完整</td>
+<td>Must收口、指不准兜底、首次授权、Esc/一键消失；开发、测试、文案</td>
+<td>3-5周</td>
+<td>功能冻结Alpha＋支持清单用例集</td>
+<td>Must验收；FR-11仅在TC-2通过后上线</td>
+</tr>
+<tr>
+<td>M4 内测稳定</td>
+<td>NFR-01/05/06/08、崩溃恢复、披露粒度、合规披露；测试、开发、隐私法务</td>
+<td>3-5周</td>
+<td>Beta/RC＋问题清单</td>
+<td>阻断缺陷清零；披露定稿</td>
+</tr>
+<tr>
+<td>M5 发布签名</td>
+<td>安装包、代码签名、开源仓库、发布检查；开发、发布运维</td>
+<td>2-3周</td>
+<td>1.0安装包＋签名产物</td>
+<td>签名验证通过；安装/还原回归通过</td>
+</tr>
+</tbody></table>
+<p><strong>总周期（人力未知）</strong>：顺利12-16周；正常18-24周；延期26-36周。</p>
+<p><strong>关键路径</strong>：拖拽吸附→零输入识别→分档披露→快照/执行/还原→NFR验证→签名发布。串行瓶颈：TC-3快照完整性、TC-2门槛、还原100%、证书验证。可并行：解释文案、描边UI、支持清单用例化、合规披露、安装脚本。</p>
+<p><strong>能否满足期望上线时间</strong>：<strong>无法确认，当前不能承诺满足</strong>——期望日期未提供。日期给出后与上述区间比对；早于顺利下限即不能满足。</p>
+<p><strong>三条路径</strong>：①缩范围：砍Should/Could；TC未过则关闭对应档位或延后FR-11，重写验收；代价是体验缺口、需求基线变更。②加人：补桌面开发/自动化测试/隐私法务；代价是协调与一致性风险，预算未知无法评估。③延期：保范围等关键路径与证书；代价是上线推迟，具体未知因日期未提供。</p>
+<p><strong>外部等待</strong>：代码签名证书申请、组织验证、签名验证周期均<strong>未提供</strong>；商店审核：若上Microsoft Store则周期未提供，仅GitHub开源分发则无商店审核；云端接口备案、保留期限、SLA缺失。<strong>成本</strong>：人力、证书、测试设备、云端调用、法务均未知，预算结论为<strong>无法评估</strong>。<strong>最终结论</strong>：信息不足，不能承诺1.0日期；建议先补可投入角色/人数、期望日期、TC-2/TC-3门槛验证与支持清单。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">9</span>
+        <h2>⚖️ 风险评估师</h2>
+        <span class="meta">specialized/specialized-risk-assessor · 53.3s · 25,304 tokens</span>
+      </header>
+      <div class="body"><table>
+<thead>
+<tr>
+<th>编号</th>
+<th>类别</th>
+<th>风险描述</th>
+<th>可能性</th>
+<th>影响</th>
+<th>等级</th>
+<th>触发信号</th>
+<th>应对措施</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>R01</td>
+<td>技术</td>
+<td>拖放或追问时抢焦点，目标窗失焦，描边与滚动高亮失效</td>
+<td>高</td>
+<td>高</td>
+<td>P0</td>
+<td>原型中目标标题栏变色或焦点丢失</td>
+<td>2 周焦点探针；NOACTIVATE+延迟激活；失败转只读</td>
+</tr>
+<tr>
+<td>R02</td>
+<td>技术</td>
+<td>UIA/OCR 跨应用不稳，四场景识别率低，“指不准”频发</td>
+<td>高</td>
+<td>中</td>
+<td>P1</td>
+<td>样本识别&lt;80%或 Edge/设置页更新即失效</td>
+<td>冻结支持清单；置信阈值；FR-11 兜底；双系统用例</td>
+</tr>
+<tr>
+<td>R03</td>
+<td>技术</td>
+<td>.docx 外部改写与快照冲突，TC-3 不可判定、可能损坏文件</td>
+<td>中</td>
+<td>高</td>
+<td>P0</td>
+<td>WPS 占用、云同步或哈希不一致</td>
+<td>仅处理未占用文件；快照+校验后原子替换；TC-3 不过关闭写入档</td>
+</tr>
+<tr>
+<td>R04</td>
+<td>合规与安全</td>
+<td>权限非 OS 级；三类单独同意、隐私政策、协议缺失即不得发布</td>
+<td>高</td>
+<td>高</td>
+<td>P0</td>
+<td>首启无分层告知、无撤回入口</td>
+<td>法务定稿；单独同意+可撤回；本地优先；发布门禁</td>
+</tr>
+<tr>
+<td>R05</td>
+<td>合规与安全</td>
+<td>屏幕、文件、云端外发与留存泄露，日志含原文</td>
+<td>中</td>
+<td>高</td>
+<td>P0</td>
+<td>未告知即联网、日志出现窗口文本</td>
+<td>默认离线；逐次告知；境内备案零留存；本地脱敏</td>
+</tr>
+<tr>
+<td>R06</td>
+<td>合规与安全</td>
+<td>未签名+钩子或写文件触发 SmartScreen 与杀软误报</td>
+<td>高</td>
+<td>中</td>
+<td>P1</td>
+<td>Defender/360 拦截、下载即删</td>
+<td>OV 签名+时间戳；不注入不挂钩；白名单申诉；公开 SHA256</td>
+</tr>
+<tr>
+<td>R07</td>
+<td>市场与商业</td>
+<td>需求面窄、常驻价值不足；FR-05 违背“零输入/不主动”</td>
+<td>中</td>
+<td>中</td>
+<td>P1</td>
+<td>首次拖拽成功率低、FR-05 使用率低</td>
+<td>砍 FR-05；P0 压至 6-8 项；主打“可逆”；看首次 3 秒成功</td>
+</tr>
+<tr>
+<td>R08</td>
+<td>市场与商业</td>
+<td>开源零收入，云端 API 与长期维护无归属</td>
+<td>高</td>
+<td>中</td>
+<td>P1</td>
+<td>无维护者、API 账单无人付、issue 积压</td>
+<td>BYOK/本地 OCR；声明维护边界、无 SLA；设成本上限</td>
+</tr>
+<tr>
+<td>R09</td>
+<td>成本与资源</td>
+<td>预算与人力未知，签名、法务、测试、云成本及产能不可判定</td>
+<td>高</td>
+<td>高</td>
+<td>P0</td>
+<td>无预算负责人、无具名维护者</td>
+<td>设硬上限；具名维护者；2 周探针；免费签名/本地兜底；分阶段放行</td>
+</tr>
+<tr>
+<td>R10</td>
+<td>进度与执行</td>
+<td>验收阈值与支持清单缺失；TC-2/3 未过但 FR-07/11 已列 P0</td>
+<td>高</td>
+<td>高</td>
+<td>P0</td>
+<td>AC 无数字、清单无条目、探针失败仍排期</td>
+<td>量化 AC 与场景清单；TC 门槛前移；FR-07 降只读；未过关闭对应档位</td>
+</tr>
+</tbody></table>
+<p><strong>致命风险（任一发生即不可行）</strong></p>
+<ul>
+<li>F1=R03：2 周 TC-3 探针，用真实 WPS 文件覆盖占用、云同步、断电、崩溃，验快照哈希、100% 还原与失败可见；不过则 1.0 仅只读。</li>
+<li>F2=R01：Win10/11 原型在 Edge、WPS、设置页拖放，验全程不抢焦点、Esc 中断、无残留；不过则关闭执行档。</li>
+<li>F3=R04/R05：法务走查+首启演练，验三类单独同意、撤回/删除、默认离线、政策协议齐全；缺一不发布。</li>
+<li>F4=R09：资源确认会，锁定具名维护者、预算上限/成本归属、签名与测试承担；无承诺则缩为本地只读最小版。</li>
+</ul>
+<p><strong>总体判断：有条件可控。</strong> 技术主链路与合规门槛是硬门槛；预算、周期未知，成本与日期不可承诺。F1-F4 全过才进入 M2；任一不过，结论收窄为“本地只读版可行”或“不可行”。建议先做 2 周探针并冻结支持清单与量化 AC。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">10</span>
+        <h2>✍️ 技术文档工程师</h2>
+        <span class="meta">engineering/engineering-technical-writer · 155.8s · 40,612 tokens</span>
+      </header>
+      <div class="body"><h1>第一章 技术可行性</h1>
+<h2>1.1 关键技术点可实现性</h2>
+<p>八个技术点均有成熟实现路径，合计约 55–75 人日〔一个人工作一天为一个人日〕，不含测试与打磨；其中五项低难度约 16 人日（悬浮窗、多屏与 DPI〔显示缩放比例〕、Esc 热键、自启常驻、自动更新）。风险集中于三项：焦点与非激活输入（10–15 人日，拖拽全程不得激活自身窗口，之后的追问框又必须可输入）；截屏、OCR〔把截图文字变成可编辑文字〕与 UIA〔让程序读取其他窗口内按钮与文字的系统接口〕（15 人日，Edge 处理不当会截出黑屏）；.docx 日期替换（10–15 人日，改包内 XML 后整文件原子替换〔要么全成要么全不成〕）。</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>体积</th>
+<th>常驻内存</th>
+<th>冷启动</th>
+<th>开发效率</th>
+<th>悬浮窗适配</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>C#/WPF .NET 8</td>
+<td>自包含 70MB、框架依赖 5MB</td>
+<td>50–90MB</td>
+<td>0.6–1.5s</td>
+<td>高</td>
+<td>好</td>
+</tr>
+<tr>
+<td>Qt6 C++ Widgets</td>
+<td>45–65MB</td>
+<td>45–75MB</td>
+<td>0.4–0.8s</td>
+<td>中</td>
+<td>好（需 Win32 扩展样式）</td>
+</tr>
+<tr>
+<td>WinUI 3</td>
+<td>60–90MB</td>
+<td>80–130MB</td>
+<td>1–2s</td>
+<td>中</td>
+<td>差（无逐像素透明便捷路径）</td>
+</tr>
+<tr>
+<td>Avalonia .NET</td>
+<td>55–75MB</td>
+<td>70–110MB</td>
+<td>0.6–1.2s</td>
+<td>中高</td>
+<td>中</td>
+</tr>
+<tr>
+<td>Electron</td>
+<td>150–220MB</td>
+<td>200–350MB</td>
+<td>1.5–3s</td>
+<td>最高</td>
+<td>中（系统能力仍需 native 插件）</td>
+</tr>
+<tr>
+<td>Tauri（WebView2）</td>
+<td>8–15MB</td>
+<td>60–120MB</td>
+<td>0.5–1s</td>
+<td>高</td>
+<td>中</td>
+</tr>
+</tbody></table>
+<p>推荐 <strong>C#/WPF（.NET 8）</strong>：项目价值依赖 Windows 原生能力，任何框架最终都要写系统调用，其透明置顶窗最稳；Electron 常驻 200MB+ 违背待命近零指标，WinUI 3 悬浮窗控制力不足，均排除。</p>
+<h2>1.2 平台兼容性与工程约束</h2>
+<p>Win10 需 1809 以上。UIPI〔权限隔离，普通程序无法操作管理员窗口〕使管理员窗口不可交互；全屏独占、UAC 安全桌面、锁屏下悬浮层不可见；受保护内容截图黑屏；全局钩子＋截屏＋模拟输入易被 360、火绒、Defender 判为可疑，需签名与白名单沟通。</p>
+<h2>1.3 架构与可维护性判断</h2>
+<p>建议单进程模块化单体〔一个程序内含若干模块，不拆成多个服务〕：UI 只负责渲染与输入，能力层串联识别→分档→解释→快照→执行→还原；支持清单与档位策略外置为版本化数据；云服务单一可关开关，本地降级路径必须存在；1.0 不做运行时插件。档位决策、快照还原等纯逻辑可 ≥70% 单测，拖拽、描边、焦点、UIA 属难测项。人数、预算、工期均未提供，只能判断可维护性，无法判断产能与排期。</p>
+<h2>1.4 安全、隐私与合规的硬性要求</h2>
+<p>不可妥协项（不满足即不发布）：①屏幕、文件、云端三类单独同意并可撤回；②无后台巡检、不读剪贴板、不全屏采集；③默认离线，出网仅限用户点「做」并逐次告知；④写文件先快照，100% 可还原且失败可见；⑤以 asInvoker 运行，绝不请求管理员权限；⑥代码签名＋更新验签、防降级；⑦隐私政策与用户协议补齐（现全缺）。可延后：EV 证书、遥测、等保与渗透测试。</p>
+<h2>1.5 本章结论：<strong>有条件可行</strong></h2>
+<p>技术路径成立，风险在两处高代价项（焦点输入、.docx 改写）与三项未定条件（权限模型、AI 成本、代码签名）。前置条件：冻结支持清单（非管理员、非全屏独占、单屏 100%）并写入需求、重写权限模型与 .docx 路径、明确 AI 来源与成本、采购签名证书（EV 约 ¥2000–4000/年，费用待定）、TC-2/TC-3 先做两周技术探针。预算与上线周期未知，成本与里程碑无法估算；若预算为零且不接受 API 支出，结论收窄为「仅本地 OCR 场景有条件可行」。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">11</span>
+        <h2>🧭 产品负责人</h2>
+        <span class="meta">company/chief-product-officer · 25.8s · 13,668 tokens</span>
+      </header>
+      <div class="body"><h2>2.1 目标用户与需求真实性</h2>
+<p>目标用户是“卡在某个 Windows 窗口前、只想过去、不想研究”的普通使用者，痛点是“不知道这是什么、能不能点、点了会怎样”。这个痛点真实，现有工具也没有正面回应它。但<strong>需求面窄</strong>：1.0 只覆盖系统错误弹窗、Win11 设置页、Edge 固定任务、WPS .docx 日期替换四个场景，不足以支撑“长期常驻”（<strong>估算</strong>）。</p>
+<p>真痛点（保留）：FR-01/02/03 的拖拽、零输入识别与解释，对应“不敢点”的焦虑；FR-07/08 快照、执行、还原，是唯一不可替代项；FR-09/10 的“做不到就说＋一键消失”是信任来源，并非附属品。</p>
+<p>可砍的伪需求：</p>
+<ul>
+<li><strong>FR-05 常驻输入框</strong>：与 C-1“永不主动”、C-2“零输入”直接冲突，还正面撞上 utools/Raycast 成熟插件生态，属于创作者自我感动，1.0 砍掉。</li>
+<li><strong>Could 项“语音提问”“中英即时翻译”</strong>：目标用户只想过去、不想多轮交互，砍掉。</li>
+<li><strong>FR-13 多步引导、FR-15 自动换边</strong>：过早优化，在多屏与高 DPI 未支持前无法验证，降级。</li>
+</ul>
+<p>判断：需求“窄而真”，并非“大而假”。窄是事实，不构成否决理由，但任何把它当平台做的扩张都应被拒。</p>
+<h2>2.2 竞品格局与差异化</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>核心能力</th>
+<th>与本项目差异</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Windows 自带（截图 OCR、Copilot、PowerToys）</td>
+<td>零成本、官方集成</td>
+<td>覆盖“识别或解释”，无“快照、执行、还原”闭环</td>
+</tr>
+<tr>
+<td>Snipaste、PixPin、微信截图 OCR</td>
+<td>截图→OCR，习惯已建立</td>
+<td>只“读”，不针对窗口对象执行</td>
+</tr>
+<tr>
+<td>utools、Raycast(Windows)</td>
+<td>常驻启动器＋插件生态</td>
+<td>依赖主动唤起与输入，<strong>正面对撞 FR-05</strong></td>
+</tr>
+<tr>
+<td>豆包、通义、Monica 桌面版</td>
+<td>通用 AI 对话＋部分读屏</td>
+<td>范围广但不针对窗口对象，无回滚承诺</td>
+</tr>
+<tr>
+<td>沉浸式翻译、Sider 类扩展</td>
+<td>单场景即时处理</td>
+<td>只覆盖翻译，属本项目 Could 项</td>
+</tr>
+</tbody></table>
+<p>竞品都在<strong>输入侧与全屏侧</strong>，本项目在<strong>窗口对象与可逆执行</strong>。但识别与解释已高度商品化（<strong>估算</strong>），真差异是“先快照、再执行、后还原”的信任设计，并非功能。对外主打“可逆”，不主打“AI 助手”。</p>
+<h2>2.3 与既定商业化模式的匹配度</h2>
+<p>开源、零商业化是项目方设定，不是市场判断，因此收入天花板为 0，付费意愿不构成判断依据；可评估的只有“愿意装且长期常驻”的意愿（<strong>待验证</strong>）。获客依赖开源社区与口碑，CAC 无法量化；转化漏斗为“看到项目→下载→首次拖动成功”，失败集中在第三步。</p>
+<p>真正的问题是：<strong>预算上限、上线时间、人力规模三项均未提供</strong>，云端接口的持续成本归属不明。缺此三项时，投入产出比维度的可行性不成立，任何成本与排期结论均属臆测。本章只能评估产品逻辑与市场位置：开源模式把“商业可行性”换成了“无偿维护的可持续性”，后者未解，1.0 之后的版本没有承诺。</p>
+<h2>2.4 1.0 范围建议</h2>
+<p>P0 由 12 项压至 7 项：</p>
+<ul>
+<li><strong>P0</strong>：FR-01 拖拽吸附｜FR-02 识别｜FR-03 解释｜FR-06 分档＋一句话披露｜FR-09 做不到就说｜FR-10 一键消失＋Esc｜FR-12 首次授权</li>
+<li><strong>P1</strong>：FR-04 描边指路｜FR-11 指不准兜底（前置 TC-2）｜FR-07/08 快照执行与还原（前置 TC-3）</li>
+<li><strong>P2</strong>：FR-13、FR-14、FR-15，以及多显示器、高 DPI</li>
+<li><strong>建议砍掉</strong>：FR-05 常驻输入框、语音提问、中英即时翻译</li>
+</ul>
+<p>关键调序：当前“先做不可逆执行、后验证快照”的顺序是错的。TC-3 未验证即上 FR-07，等于把唯一差异化押在未验证能力上。<strong>先过 TC-3 再做 FR-07；TC-3 不过，1.0 只交付“读＋解释”，FR-07/08 整档退出。</strong></p>
+<h2>2.5 本章结论</h2>
+<p><strong>有条件可行。</strong> 痛点为真、差异化位置尚未被占据；但成立前提是：范围收缩到“单窗口解释＋可逆执行”、先验 TC-3 再上写操作、对外声明维护边界与云端成本归属——三条中任一不落实，“可行”即不成立。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">12</span>
+        <h2>📊 预算与交付分析师</h2>
+        <span class="meta">finance/finance-fpa-analyst · 43.1s · 39,098 tokens</span>
+      </header>
+      <div class="body"><h1>第三章 投入成本与交付周期</h1>
+<blockquote>
+<p><strong>前置声明</strong>｜团队人数与角色配置、预算上限、期望 1.0 上线时间三项均<strong>未提供</strong>。下文人月数为<strong>工作内容量估算</strong>（并非人数配置），无法据此推导日历周期与人力峰值；所有金额均为<strong>估算区间，非报价</strong>。</p>
+</blockquote>
+<h2>3.1 投入成本结构</h2>
+<p><strong>（1）人力成本（按角色工作量估算，并非按人数）</strong></p>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>人月估算</th>
+<th>主要工作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>核心开发</td>
+<td>6–11</td>
+<td>拖放吸附与描边、截屏与辅助功能识别链路、四档决策引擎、快照与还原、.docx 改写</td>
+</tr>
+<tr>
+<td>设计</td>
+<td>1.5–3</td>
+<td>无模态交互、四档一句话披露、指不准兜底态</td>
+</tr>
+<tr>
+<td>测试</td>
+<td>2.5–5</td>
+<td>TC-1～TC-5、静默损坏 0、还原 100%、崩溃不影响目标应用</td>
+</tr>
+<tr>
+<td>产品</td>
+<td>1–2.5</td>
+<td>验收阈值与支持清单落地、合规文本</td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td><strong>11–22</strong></td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p>单价按 1.5–4 万元/人月估算，<strong>人力约 16–88 万元（估算）</strong>。若纯 vibe coding 由志愿者投入，则现金支出接近 0，成本转为机会成本。</p>
+<p><strong>（2）一次性支出（估算）</strong>：OV 代码签名证书 0.3–1 万元/年、EV 证书 1–3 万元/年（开源免费签名渠道可把下限压至 0）；图标与视觉外包 0.5–3 万元；法务合规审查 0.5–3 万元，<strong>合计约 1–9 万元（估算）</strong>。</p>
+<p><strong>（3）持续性支出（首年，估算）</strong>：用户量属假设。低成本档（月活 1 千、每人每月 10–20 次、每次 0.01–0.05 元）约 <strong>0.1–1.2 万元/年</strong>；中成本档（月活 1 万）约 <strong>1–12 万元/年</strong>；更新分发带宽 0–0.5 万元；客服与运维 0–8 万元（社区志愿为 0）。</p>
+<p><strong>（4）三档总成本（首年，万元，估算）</strong></p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>保守（下限）</th>
+<th>中性</th>
+<th>悲观（上限）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>人力</td>
+<td>16</td>
+<td>45</td>
+<td>88</td>
+</tr>
+<tr>
+<td>一次性</td>
+<td>1</td>
+<td>5</td>
+<td>9</td>
+</tr>
+<tr>
+<td>持续性</td>
+<td>0.2</td>
+<td>5</td>
+<td>18</td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td><strong>约 17</strong></td>
+<td><strong>约 55</strong></td>
+<td><strong>约 115</strong></td>
+</tr>
+</tbody></table>
+<p>悲观档已含 TC-3 与 FR-07 顺序矛盾可能引发的返工成本。</p>
+<h2>3.2 与预算上限的对比结论</h2>
+<p><strong>结论：预算上限未提供，因此“是否超预算、超多少”无法判定。</strong> 本章只能给出判定门槛：上限不低于 17 万元（估算）→ 保守档可行；不低于 55 万元（估算）→ 中性档可行；不低于 115 万元（估算）→ 三档皆可行；<strong>低于 2 万元（估算）→ 即使全部由志愿者投入，也必须缩小范围</strong>（砍掉 Should 项、云端调用改为用户自带 Key）。</p>
+<p>该缺口的实际影响是：在当前“开源、不考虑商业化”的约束下，现金支出可能极低，但决策者无法确认自己对的是哪一档，也无法判断是否需要在范围上提前让步——这个判断只能由项目方补充上限后完成。</p>
+<h2>3.3 交付周期与里程碑</h2>
+<p>预算上限与期望上线时间均<strong>未知</strong>，团队人数/分工未提供，<strong>故不能承诺 1.0 日期</strong>。周期为工作包相对区间，须待人力确认后校准。</p>
+<table>
+<thead>
+<tr>
+<th>里程碑</th>
+<th>工作内容/所需角色（人数未提供）</th>
+<th>周期</th>
+<th>可交付物</th>
+<th>验收标准</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>M1 原型验证</td>
+<td>拖拽吸附、描边、解释、退出、权限申请骨架；Win 桌面开发、测试</td>
+<td>2–4 周</td>
+<td>可运行原型＋TC-1/TC-2 预验报告</td>
+<td>主链路可演示；脱离即停</td>
+</tr>
+<tr>
+<td>M2 核心打通</td>
+<td>零输入识别、分档＋一句话披露、快照/执行/还原；开发、自动化测试</td>
+<td>4–6 周</td>
+<td>内测核心版＋TC-3 快照完整性报告</td>
+<td>NFR-03/04 通过；TC-3 可判定</td>
+</tr>
+<tr>
+<td>M3 功能完整</td>
+<td>Must 收口、指不准兜底、首次授权、Esc/一键消失；开发、测试、文案</td>
+<td>3–5 周</td>
+<td>功能冻结 Alpha＋支持清单用例集</td>
+<td>Must 验收；FR-11 仅在 TC-2 通过后上线</td>
+</tr>
+<tr>
+<td>M4 内测稳定</td>
+<td>NFR-01/05/06/08、崩溃恢复、披露粒度、合规披露；测试、开发、隐私法务</td>
+<td>3–5 周</td>
+<td>Beta/RC＋问题清单</td>
+<td>阻断缺陷清零；披露定稿</td>
+</tr>
+<tr>
+<td>M5 发布签名</td>
+<td>安装包、代码签名、开源仓库、发布检查；开发、发布运维</td>
+<td>2–3 周</td>
+<td>1.0 安装包＋签名产物</td>
+<td>签名验证通过；安装/还原回归通过</td>
+</tr>
+</tbody></table>
+<p><strong>总周期（人力未知，估算）</strong>：顺利 12–16 周；正常 18–24 周；延期 26–36 周。<strong>关键路径</strong>：拖拽吸附→零输入识别→分档披露→快照/执行/还原→NFR 验证→签名发布；串行瓶颈为 TC-3 快照完整性、TC-2 门槛、还原 100%、证书验证；可并行项为解释文案、描边 UI、支持清单用例化、合规披露、安装脚本。外部等待项（证书申请与组织验证、商店审核、云端备案/SLA）周期均<strong>未提供</strong>。</p>
+<h2>3.4 时间约束差距与三条路径代价对比</h2>
+<p>期望上线日期<strong>未提供</strong>，因此<strong>无法确认能否满足，当前不能承诺满足</strong>——日期给出后与 3.3 区间比对，早于顺利下限（12 周，估算）即不能满足。</p>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>做法</th>
+<th>代价</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>① 缩范围</td>
+<td>砍 Should/Could；TC 未过则关闭对应档位或延后 FR-11，并重写验收</td>
+<td>体验缺口、需求基线变更、验收标准返工</td>
+</tr>
+<tr>
+<td>② 加人</td>
+<td>补桌面开发/自动化测试/隐私法务</td>
+<td>协调与一致性风险上升；预算未知，无法评估是否可承受</td>
+</tr>
+<tr>
+<td>③ 延期</td>
+<td>保范围、等关键路径与证书</td>
+<td>上线推迟，具体推迟量未知（因日期未提供）</td>
+</tr>
+</tbody></table>
+<p>三者不可直接比价：缩范围省的是人月（估算），加人花的是未知预算，延期付的是未知时间机会成本。</p>
+<h2>3.5 本章结论：成本与周期是否可接受</h2>
+<p><strong>成本：无法判定。</strong> 三档首年现金量级为约 17/55/115 万元（估算），但预算上限未知，缺少可比基准；在“开源、不考虑商业化”约束下，志愿者投入可使现金支出接近 0，成本主要转为机会成本。<strong>交付周期：无法承诺。</strong> 顺利至延期区间为 12–36 周（估算），期望日期未知，无法确认差距。<strong>回本测算在逻辑上不成立</strong>（项目无收入来源）；若强制假设年费 60 元（估算）、付费转化率 2%（假设），中性档需约 46 万用户量级（估算）、上限档需约 96 万用户量级（估算）——<strong>此为假设，不是结论</strong>。</p>
+<p><strong>建议</strong>：先补齐可投入角色/人数、预算上限、期望日期、TC-2/TC-3 门槛验证与支持清单，本章三档数据才能收敛为可决策的承诺。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">13</span>
+        <h2>⚖️ 风险评估师</h2>
+        <span class="meta">specialized/specialized-risk-assessor · 28.1s · 16,671 tokens</span>
+      </header>
+      <div class="body"><h1>第四章 主要风险与应对</h1>
+<h2>4.1 风险总览</h2>
+<p>风险登记册共登记 10 项风险：P0 级 4 项、P1 级 6 项；按类别分为技术 3 项、合规与安全 3 项、市场与商业 2 项、成本与进度 2 项。以下每条均配可执行动作、责任角色与时间点。</p>
+<p><strong>表 4-1 风险登记表</strong></p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>风险描述</th>
+<th>可能性</th>
+<th>影响</th>
+<th>等级</th>
+<th>应对措施（责任人／动作／时间点）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>R01</td>
+<td>拖放或追问时抢焦点，目标窗口失焦，描边和滚动高亮失效</td>
+<td>高</td>
+<td>高</td>
+<td>P0</td>
+<td>技术负责人｜2 周焦点探针（Edge／WPS／设置页）；采用 NOACTIVATE+延迟激活｜M1 前；探针失败即转只读</td>
+</tr>
+<tr>
+<td>R02</td>
+<td>UIA／OCR 跨应用不稳，四个场景识别率低，“指不准”频发</td>
+<td>高</td>
+<td>中</td>
+<td>P1</td>
+<td>技术负责人｜冻结支持清单、设置信阈值、启用 FR-11 兜底｜2 周内；样本识别率低于 80% 的场景移出清单</td>
+</tr>
+<tr>
+<td>R03</td>
+<td>.docx 外部改写与快照冲突，TC-3 不可判定，可能损坏文件</td>
+<td>中</td>
+<td>高</td>
+<td>P0</td>
+<td>技术负责人｜仅处理未占用文件；先做哈希校验快照，再原子替换｜M1 前；TC-3 不通过即关闭写入档</td>
+</tr>
+<tr>
+<td>R04</td>
+<td>权限非 OS 级；三类单独同意、隐私政策、协议缺失即不得发布</td>
+<td>高</td>
+<td>高</td>
+<td>P0</td>
+<td>法务＋产品｜出具定稿、实现三类单独同意与撤回入口、设置发布门禁｜发布评审前，缺一项不放行</td>
+</tr>
+<tr>
+<td>R05</td>
+<td>屏幕、文件和云端外发与留存泄露，日志含原文</td>
+<td>中</td>
+<td>高</td>
+<td>P0</td>
+<td>架构师｜默认离线、逐次告知、日志本地脱敏、境内零留存｜M1 完成；安全走查在发布前复核</td>
+</tr>
+<tr>
+<td>R06</td>
+<td>未签名安装包，加上钩子或写文件，触发 SmartScreen 与杀软误报</td>
+<td>高</td>
+<td>中</td>
+<td>P1</td>
+<td>技术负责人｜使用 OV 签名和时间戳，不注入、不挂钩，公示 SHA256 并提交白名单申诉｜发布前 4 周启动签名流程</td>
+</tr>
+<tr>
+<td>R07</td>
+<td>需求面窄、常驻价值不足；FR-05 违背“零输入／不主动”定位</td>
+<td>中</td>
+<td>中</td>
+<td>P1</td>
+<td>产品经理｜砍掉 FR-05、将 P0 压缩至 6-8 项、主打“可逆”，盯首次 3 秒成功率｜需求冻结前</td>
+</tr>
+<tr>
+<td>R08</td>
+<td>开源零收入，云端 API 与长期维护没有归属</td>
+<td>高</td>
+<td>中</td>
+<td>P1</td>
+<td>项目负责人｜采用 BYOK／本地 OCR、声明维护边界且无 SLA、设置成本硬上限｜M1 前定稿</td>
+</tr>
+<tr>
+<td>R09</td>
+<td>预算与人力未知，签名、法务、测试、云成本及产能不可判定</td>
+<td>高</td>
+<td>高</td>
+<td>P0</td>
+<td>项目负责人｜召开资源确认会，锁定具名维护者与成本上限，明确签名和测试承担方｜立项后 2 周内</td>
+</tr>
+<tr>
+<td>R10</td>
+<td>验收阈值与支持清单缺失；TC-2/3 未过，但 FR-07/11 已列 P0</td>
+<td>高</td>
+<td>高</td>
+<td>P0</td>
+<td>项目经理＋QA｜量化 AC（验收标准）与场景清单、TC 门槛前移、FR-07 降为只读｜M1 评审前</td>
+</tr>
+</tbody></table>
+<h2>4.2 致命风险与前置验证手段</h2>
+<p>以下 4 项任一发生，项目即不成立；它们均需在 M2 前完成验证。</p>
+<p><strong>表 4-2 致命风险验证矩阵</strong></p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>映射风险</th>
+<th>前置验证手段</th>
+<th>通过标准</th>
+<th>未通过处置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>F1</td>
+<td>R03</td>
+<td>由技术负责人牵头，与 QA 在 2 周内完成 TC-3 探针：用真实 WPS 文件覆盖占用、云同步、断电、崩溃四类场景</td>
+<td>快照哈希一致、100% 还原、失败可见</td>
+<td>1.0 仅提供只读档</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>R01</td>
+<td>技术负责人牵头，在 Win10/11 原型上对 Edge、WPS、设置页做拖放验证</td>
+<td>全程不抢焦点、Esc 可中断、无残留</td>
+<td>关闭执行档</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>R04/R05</td>
+<td>法务主导走查并做首启演练（产品配合，发布评审前）</td>
+<td>三类单独同意、撤回／删除、默认离线、政策协议齐全</td>
+<td>缺一项不发布</td>
+</tr>
+<tr>
+<td>F4</td>
+<td>R09</td>
+<td>项目负责人牵头，2 周内召开资源确认会</td>
+<td>具名维护者、预算上限与成本归属、签名与测试承担方落定</td>
+<td>缩为本地只读最小版</td>
+</tr>
+</tbody></table>
+<h2>4.3 高优先级风险解读</h2>
+<p><strong>技术（R01、R03）</strong>：这两项直接决定产品“能不能用”。R01 失焦会让核心交互当场断裂，且它属于平台行为，不以人力投入为转移，只能通过 2 周探针尽早判定；R03 的风险代价最高——一旦损坏用户 .docx 文件，性质就从功能缺陷升级为数据事故，所以必须坚持“未占用＋哈希校验＋原子替换”，TC-3 不过即关闭写入档，不做任何妥协。</p>
+<p><strong>合规与安全（R04、R05）</strong>：这是发布硬门槛，不是可优化项。三类单独同意、撤回入口、默认离线属于法律前置条件，缺失即不得发布；日志含原文、云端留存则是“看不见但致命”的泄露面，上线后再补救等于事故已经发生。</p>
+<p><strong>市场（R07）</strong>：需求面窄加上 FR-05 违背定位，两者叠加会稀释产品主张。压 P0 至 6-8 项、主打“可逆”，是把有限资源集中在首次 3 秒成功率上。</p>
+<p><strong>成本与进度（R09、R10）</strong>：R09 是唯一“信息缺失型”P0——风险不在方案而在无人负责；R10 则是计划自相矛盾：验收阈值未定、TC 未过却已排 P0。两者应合并处理：先冻结量化 AC 与支持清单，再谈排期。</p>
+<h2>4.4 风险可控性总体判断与关键取舍</h2>
+<p><strong>总体判断：有条件可控。</strong> 技术主链路（F1、F2）与合规门槛（F3）是硬门槛，可通过 2 周探针和法务走查在低成本阶段证伪；预算与周期尚不明确，因此<strong>成本与交付日期不可承诺</strong>。F1-F4 全过才进入 M2；任一不过，结论收窄为“本地只读版可行”或“不可行”。</p>
+<p>需决策者拍板的 3 个关键取舍：</p>
+<table>
+<thead>
+<tr>
+<th>取舍</th>
+<th>选项 A</th>
+<th>选项 B</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>①资源承诺 vs 范围</td>
+<td>落定具名维护者、预算上限与成本归属，维持完整功能</td>
+<td>无承诺，缩为本地只读最小版（砍云端与写入）</td>
+<td>2 周内必须二选一，不接受“边做边看”</td>
+</tr>
+<tr>
+<td>②写入档去留</td>
+<td>TC-3 通过，保留 .docx 回写，产品价值完整</td>
+<td>TC-3 不过，仅只读，规避数据损坏与责任</td>
+<td>以探针结果为准，不因进度压力放宽</td>
+</tr>
+<tr>
+<td>③合规投入 vs 发布</td>
+<td>法务定稿、单独同意、签名与测试资源到位后发布</td>
+<td>资源不到位则延后，不降低门槛</td>
+<td>合规不可压缩，宁延不降</td>
+</tr>
+</tbody></table>
+<p>建议立即可执行的三步：启动 2 周探针、冻结支持清单、量化 AC——三者同时进行，成本可控，且能在投入扩大前给出明确结论。</p>
+</div>
+    </section>
+
+    <section class="step final">
+      <header>
+        <span class="no">14</span>
+        <h2>👔 CEO <span class="star">⭐ 最终成品</span></h2>
+        <span class="meta">company/chief-executive-officer · 123.9s · 80,619 tokens</span>
+      </header>
+      <div class="body"><h1>Windows 桌面悬浮助手 1.0（鲸汐 CetaFae）产品可行性研究报告</h1>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>产品名/版本</td>
+<td>鲸汐 CetaFae（Windows 桌面悬浮助手）1.0</td>
+</tr>
+<tr>
+<td>评估日期</td>
+<td>____（待填）</td>
+</tr>
+<tr>
+<td>评估范围</td>
+<td>仅评估 1.0 在 Windows 单屏、缩放 100%、非管理员、非全屏独占下的技术/产品市场/成本周期/风险四项可行性；商业模式按项目方设定排除。团队人数与分工、预算上限、期望上线日期三项<strong>未提供</strong>，涉及处均标未知。</td>
+</tr>
+</tbody></table>
+<h2>执行摘要</h2>
+<p><strong>结论：⚠️ 有条件可行。</strong> 两条最关键理由：一，技术路径成立，但唯一不可替代的价值——“先快照、再执行、后还原”——所依赖的 TC-3 快照完整性尚未验证，FR-07 却已排入 P0，等于把关键能力押在未验证能力上；二，预算上限、人力配置、期望上线日期三项均缺，首年成本（约 17/55/115 万元，估算）与周期（12–36 周，估算）无基准，任何承诺都是臆测。四项致命风险可在两周探针内低成本证伪，先验证再投入。</p>
+<hr>
+<h2>第一章 技术可行性</h2>
+<p><strong>1.1 技术点与工作量</strong> 八个技术点均有成熟路径，合计约 55–75 人日（不含测试与打磨）。五项低难度约 16 人日：悬浮窗、多屏与 DPI、Esc 热键、自启常驻、自动更新。风险集中于三项：焦点与非激活输入 10–15 人日（拖拽全程不得激活自身窗口，追问框又必须可输入）；截屏、OCR 与 UIA 合计 15 人日（Edge 处理不当会截出黑屏）；.docx 日期替换 10–15 人日（改包内 XML 后整文件原子替换）。</p>
+<p><strong>1.2 框架选型</strong> 推荐 <strong>C#/WPF（.NET 8）</strong>：透明置顶窗最稳，自包含约 70MB、常驻 50–90MB、冷启动 0.6–1.5s。排除 Electron（常驻 200–350MB，违背 NFR-06 待命近零）、WinUI 3（无逐像素透明便捷路径）；Qt6、Avalonia、Tauri 可备选，但项目价值依赖 Windows 原生能力，任何框架最终都要写系统调用。</p>
+<p><strong>1.3 平台约束与架构</strong> Win10 需 1809 以上。UIPI 使管理员窗口不可交互；全屏独占、UAC 安全桌面、锁屏下悬浮层不可见；受保护内容截图黑屏；全局钩子＋截屏＋模拟输入易被 360/火绒/Defender 判可疑，需签名与白名单沟通。建议单进程模块化单体：UI 只负责渲染与输入，能力层串联识别→分档→解释→快照→执行→还原；支持清单与档位策略外置为版本化数据；云服务单一可关开关，本地降级路径必须存在。档位决策、快照还原等纯逻辑可 ≥70% 单测，拖拽、描边、焦点、UIA 属难测项。</p>
+<p><strong>1.4 不可妥协项（不满足即不发布）</strong> ①屏幕、文件、云端三类单独同意并可撤回；②无后台巡检、不读剪贴板、不全屏采集；③默认离线，出网仅限用户点“做”并逐次告知；④写文件先快照，100% 可还原且失败可见；⑤以 asInvoker 运行，绝不请求管理员权限；⑥代码签名＋更新验签；⑦隐私政策与用户协议补齐（现全缺）。可延后：EV 证书、遥测、等保与渗透测试。</p>
+<p><strong>1.5 结论：有条件可行。</strong> 路径成立，风险在两处高代价项（焦点输入、.docx 改写）与三项未定条件（权限模型、AI 成本、签名）。前置条件：冻结支持清单（非管理员、非全屏独占、单屏 100%）并写入需求；重写权限模型与 .docx 路径；明确 AI 来源与成本；采购签名证书；TC-2/TC-3 先做两周探针。若预算为零且不接受 API 支出，结论收窄为“仅本地 OCR 场景有条件可行”。</p>
+<hr>
+<h2>第二章 产品与市场可行性</h2>
+<p><strong>2.1 需求真实性</strong> 目标用户是“卡在某个 Windows 窗口前、只想过去、不想研究”的普通使用者，痛点是“不知道这是什么、能不能点、点了会怎样”，痛点真实。但<strong>需求面窄</strong>：1.0 仅覆盖系统错误弹窗、Win11 设置页、Edge 固定任务、WPS .docx 日期替换四场景，不足以支撑长期常驻（估算）。真痛点须保留：FR-01/02/03 对应“不敢点”的焦虑，FR-07/08 是唯一不可替代项，FR-09/10 是信任来源而非附属品。可砍伪需求：<strong>FR-05 常驻输入框</strong>（与 C-1 永不主动、零输入冲突，且正面对撞 utools/Raycast 生态）、语音提问、中英即时翻译、FR-13 多步引导与 FR-15 自动换边（多屏与高 DPI 未支持前无法验证）。</p>
+<p><strong>2.2 竞品与差异化</strong> 自带工具（截图 OCR、Copilot、PowerToys）零成本但无快照—执行—还原闭环；Snipaste、PixPin 只读不执行；utools、Raycast 依赖主动唤起与输入；豆包、通义、Monica 范围广但不针对窗口对象、无回滚承诺。竞品集中在<strong>输入侧与全屏侧</strong>，本项目在<strong>窗口对象与可逆执行</strong>。识别与解释已高度商品化（估算），真差异是信任设计而非功能：对外主打“可逆”，不主打“AI 助手”。</p>
+<p><strong>2.3 与既定模式的匹配度</strong> 开源零商业化是项目方设定而非市场判断，收入天花板为 0，付费意愿不构成判断依据；可评估的只有“愿意装且长期常驻”（待验证）。获客依赖开源社区与口碑，CAC 无法量化；漏斗为“看到项目→下载→首次拖动成功”，失败集中在第三步。真问题：预算、上线时间、人力均未提供，云端接口持续成本归属不明；开源把“商业可行性”换成了“无偿维护的可持续性”，后者未解，1.0 之后无版本承诺。</p>
+<p><strong>2.4 1.0 范围建议</strong> P0 由 12 项压至 7 项：FR-01 拖拽吸附｜FR-02 识别｜FR-03 解释｜FR-06 分档＋一句话披露｜FR-09 做不到就说｜FR-10 一键消失＋Esc｜FR-12 首次授权。P1：FR-04 描边指路、FR-11 兜底（前置 TC-2）、FR-07/08 快照执行与还原（前置 TC-3）。P2：FR-13/14/15、多显示器与高 DPI。关键调整顺序：<strong>先过 TC-3 再做 FR-07；TC-3 不过，1.0 只交付“读＋解释”，写入档整体退出。</strong></p>
+<p><strong>2.5 结论：有条件可行。</strong> 痛点为真、差异化位置尚未被占据；成立前提是范围收缩到“单窗口解释＋可逆执行”、先验 TC-3 再上写操作、对外声明维护边界与云端成本归属——任一不落实，“可行”即不成立。</p>
+<hr>
+<h2>第三章 投入成本与交付周期</h2>
+<blockquote>
+<p>人月数为<strong>工作内容量估算</strong>，非人数配置；金额为<strong>估算区间，非报价</strong>。</p>
+</blockquote>
+<p><strong>3.1 成本结构</strong> 人力 11–22 人月（核心开发 6–11、设计 1.5–3、测试 2.5–5、产品 1–2.5），按 1.5–4 万元/人月计约 <strong>16–88 万元</strong>；若全由志愿者投入，现金支出接近 0，成本转为机会成本。一次性约 <strong>1–9 万元</strong>（OV 证书 0.3–1 万/年、EV 证书 1–3 万/年、视觉外包 0.5–3 万、法务审查 0.5–3 万）。持续性首年 0.2–18 万元（月活 1 千约 0.1–1.2 万；月活 1 万约 1–12 万；带宽 0–0.5 万；客服运维 0–8 万）。</p>
+<table>
+<thead>
+<tr>
+<th>首年总成本（估算）</th>
+<th>保守</th>
+<th>中性</th>
+<th>悲观</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>人力</td>
+<td>16</td>
+<td>45</td>
+<td>88</td>
+</tr>
+<tr>
+<td>一次性</td>
+<td>1</td>
+<td>5</td>
+<td>9</td>
+</tr>
+<tr>
+<td>持续性</td>
+<td>0.2</td>
+<td>5</td>
+<td>18</td>
+</tr>
+<tr>
+<td><strong>合计（万元）</strong></td>
+<td><strong>约 17</strong></td>
+<td><strong>约 55</strong></td>
+<td><strong>约 115</strong></td>
+</tr>
+</tbody></table>
+<p>悲观档已含 TC-3 与 FR-07 顺序矛盾可能引发的返工。</p>
+<p><strong>3.2 与预算上限对比</strong> <strong>预算上限未提供，超预算与否无法判定。</strong> 仅可给判定门槛：上限 ≥17 万元保守档可行；≥55 万元中性档可行；≥115 万元三档皆可行；<strong>&lt;2 万元即使全志愿者投入也必须缩范围</strong>（砍 Should 项、云端改用户自带 Key）。</p>
+<p><strong>3.3 周期与里程碑</strong> 预算与期望上线日期未知、人数未提供，<strong>不能承诺 1.0 日期</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>里程碑</th>
+<th>周期</th>
+<th>验收标准</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>M1 原型验证</td>
+<td>2–4 周</td>
+<td>主链路可演示、脱离即停；TC-1/TC-2 预验报告</td>
+</tr>
+<tr>
+<td>M2 核心打通</td>
+<td>4–6 周</td>
+<td>NFR-03/04 通过；TC-3 可判定</td>
+</tr>
+<tr>
+<td>M3 功能完整</td>
+<td>3–5 周</td>
+<td>Must 验收；FR-11 仅在 TC-2 通过后上线</td>
+</tr>
+<tr>
+<td>M4 内测稳定</td>
+<td>3–5 周</td>
+<td>阻断缺陷清零；披露定稿</td>
+</tr>
+<tr>
+<td>M5 发布签名</td>
+<td>2–3 周</td>
+<td>签名验证通过；安装/还原回归通过</td>
+</tr>
+</tbody></table>
+<p>总周期（估算）：顺利 12–16 周；正常 18–24 周；延期 26–36 周。关键路径：拖拽吸附→零输入识别→分档披露→快照/执行/还原→NFR 验证→签名发布；串行瓶颈为 TC-3、TC-2 门槛、还原 100%、证书验证。外部等待项（证书组织验证、商店审核、备案/SLA）周期未提供。</p>
+<p><strong>3.4 三条路径代价</strong> ①缩范围：省人月，代价是体验缺口、基线变更与验收返工；②加人：协调与一致性风险上升，预算未知无法评估承受力；③延期：保住范围，推迟量未知。三者不可直接比价。</p>
+<p><strong>3.5 结论：成本无法判定，周期无法承诺。</strong> 首年量级约 17/55/115 万元（估算），缺基准；回本测算在逻辑上不成立（无收入），若强制假设年费 60 元、转化率 2%，中性档需约 46 万、上限档约 96 万用户量级——<strong>此为假设而非结论</strong>。</p>
+<hr>
+<h2>第四章 主要风险与应对</h2>
+<p><strong>表 4-1 风险登记表</strong>（P0 6 项、P1 4 项）</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>风险</th>
+<th>等级</th>
+<th>应对（责任人／时间点）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>R01</td>
+<td>拖放或追问抢焦点，描边与滚动高亮失效</td>
+<td>P0</td>
+<td>技术负责人｜2 周焦点探针、NOACTIVATE+延迟激活｜M1 前；失败转只读</td>
+</tr>
+<tr>
+<td>R03</td>
+<td>.docx 外部改写与快照冲突，TC-3 不可判定、可能损坏文件</td>
+<td>P0</td>
+<td>技术负责人｜仅处理未占用文件、哈希校验后原子替换｜M1 前；不过关闭写入档</td>
+</tr>
+<tr>
+<td>R04</td>
+<td>权限非 OS 级；三类单独同意、隐私政策、协议缺失</td>
+<td>P0</td>
+<td>法务＋产品｜单独同意＋撤回入口、发布门禁｜发布评审前，缺一不放行</td>
+</tr>
+<tr>
+<td>R05</td>
+<td>屏幕/文件/云端外发与留存泄露，日志含原文</td>
+<td>P0</td>
+<td>架构师｜默认离线、逐次告知、日志脱敏、境内零留存｜M1 完成</td>
+</tr>
+<tr>
+<td>R09</td>
+<td>预算与人力未知，签名、法务、测试、云成本及产能不可判定</td>
+<td>P0</td>
+<td>项目负责人｜资源确认会、具名维护者、成本硬上限｜立项后 2 周内</td>
+</tr>
+<tr>
+<td>R10</td>
+<td>验收阈值与支持清单缺失；TC-2/3 未过却已排 P0</td>
+<td>P0</td>
+<td>项目经理＋QA｜量化 AC 与场景清单、门槛前移｜M1 评审前</td>
+</tr>
+<tr>
+<td>R02</td>
+<td>UIA/OCR 跨应用不稳，识别率低、“指不准”频发</td>
+<td>P1</td>
+<td>技术负责人｜冻结清单、置信阈值、FR-11 兜底｜2 周内</td>
+</tr>
+<tr>
+<td>R06</td>
+<td>未签名＋钩子/写文件触发 SmartScreen 与杀软误报</td>
+<td>P1</td>
+<td>技术负责人｜OV 签名＋时间戳、不注入不挂钩、公示 SHA256｜发布前 4 周</td>
+</tr>
+<tr>
+<td>R07</td>
+<td>需求面窄、常驻价值不足；FR-05 违背定位</td>
+<td>P1</td>
+<td>产品经理｜砍 FR-05、P0 压至 7 项、主打“可逆”｜需求冻结前</td>
+</tr>
+<tr>
+<td>R08</td>
+<td>开源零收入，云端 API 与长期维护无归属</td>
+<td>P1</td>
+<td>项目负责人｜BYOK/本地 OCR、声明无 SLA、设成本上限｜M1 前定稿</td>
+</tr>
+</tbody></table>
+<p><strong>表 4-2 致命风险验证矩阵（F1–F4 全过才进 M2）</strong></p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>映射</th>
+<th>通过标准</th>
+<th>未通过处置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>F1</td>
+<td>R03</td>
+<td>2 周 TC-3 探针（真实 WPS 文件覆盖占用、云同步、断电、崩溃）：哈希一致、100% 还原、失败可见</td>
+<td>1.0 仅只读</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>R01</td>
+<td>Win10/11 原型在 Edge、WPS、设置页拖放：全程不抢焦点、Esc 可中断、无残留</td>
+<td>关闭执行档</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>R04/R05</td>
+<td>法务走查＋首启演练：三类单独同意、撤回/删除、默认离线、政策协议齐全</td>
+<td>缺一不发布</td>
+</tr>
+<tr>
+<td>F4</td>
+<td>R09</td>
+<td>资源确认会：具名维护者、预算上限与成本归属、签名与测试承担方落定</td>
+<td>缩为本地只读最小版</td>
+</tr>
+</tbody></table>
+<p><strong>4.4 总体判断：有条件可控。</strong> R01、R03 决定“能不能用”，属平台行为，不以人力投入为转移，只能靠探针尽早判定；R03 一旦损坏用户文件即从功能缺陷升级为数据事故，必须坚持“未占用＋哈希校验＋原子替换”，不妥协。R04、R05 是发布硬门槛而非可优化项。R09 是唯一“信息缺失型”P0——风险不在方案而在无人负责；R10 是计划自相矛盾；二者合并处理：先冻结量化 AC 与支持清单，再谈排期。</p>
+<hr>
+<h2>结论与分级建议</h2>
+<p><strong>7.1 明确结论：⚠️ 有条件可行。</strong> 技术主链路成立、痛点真实、差异化位置（窗口对象＋可逆执行）尚未被占据；但支撑点有两处悬空：唯一不可替代的写操作依赖未验证的 TC-3，且预算、人力、期望日期三项缺失使成本与交付无法承诺。<strong>本报告不接受在 TC-2/TC-3 未验证前扩大投入。</strong></p>
+<p><em>口径取舍</em>：EV 证书金额以第三章 1–3 万元/年为准（第一章 2000–4000 元/年作废）；风险分布以登记册为准，为 P0 6 项、P1 4 项；P0 范围统一为 7 项（R07 原写“6–8 项”失效）。以上均取较保守值。</p>
+<p><strong>7.2 必须满足的前置条件（逐条可验证）</strong></p>
+<ol>
+<li><strong>TC-3 通过</strong>：真实 WPS 文件在占用、云同步、断电、崩溃四场景下哈希一致、还原 100%、失败可见；不过则关闭写入档。</li>
+<li><strong>TC-2 通过</strong>：Edge/WPS/设置页拖放全程不抢焦点、Esc 可中断、无残留；不过则关闭执行档。</li>
+<li><strong>支持清单冻结并用例化</strong>：Win11 设置页与 Edge 固定任务的具体条目、非管理员、非全屏独占、单屏 100% 写入需求与测试用例。</li>
+<li><strong>AC 量化</strong>：NFR-02、NFR-07 与 AC-1、AC-2 给出数字阈值，取代“建立基线”。</li>
+<li><strong>合规门禁齐备</strong>：三类单独同意与撤回入口、默认离线、日志脱敏、隐私政策与用户协议定稿。</li>
+<li><strong>资源落定</strong>：具名维护者、预算上限、云端成本归属（BYOK 或 API 硬上限）、签名与测试承担方。</li>
+<li><strong>披露粒度消歧</strong>：明确“档位对用户不可见”与“说明本次采用哪一档”的边界，形成唯一文案规范。</li>
+</ol>
+<p><strong>7.3 分级建议</strong></p>
+<p><strong>P0（1.0 必做）</strong>：FR-01 拖拽吸附、FR-02 识别、FR-03 解释、FR-06 分档＋一句话披露、FR-09 做不到就说、FR-10 一键消失＋Esc、FR-12 首次授权，外加 7.2 全部门禁。
+<em>理由</em>：这 7 项构成“读＋解释＋可退”的完整最小闭环，成本低、确定性高，直接命中“不敢点”的真痛点；写操作（FR-07/08）价值最高但风险最集中，必须由探针结果决定是否进入 1.0，而非由排期决定。
+<em>进入 P1 的触发条件</em>：TC-2、TC-3 均通过；NFR-03 静默损坏 0、NFR-04 还原 100%；首次拖拽 3 秒成功率达到已量化基线；阻断缺陷清零；具名维护者与成本归属落定。</p>
+<p><strong>P1（1.1 迭代）</strong>：FR-04 描边指路、FR-11 指不准兜底、FR-07/08 快照执行与还原（若 1.0 期只读）、FR-13 多步引导、FR-14 改完复查、FR-15 不遮挡自动换边、多显示器与高 DPI。
+<em>理由</em>：这些是体验增强而非价值前提；多屏与高 DPI 未支持前 FR-13/15 无法被真实验证；写入档若在 P0 期被降级，其转正为 1.1 第一优先。
+<em>进入 P2 的触发条件</em>：“首次拖动成功”与“还原成功率”发布后稳定达标，且维护者承诺覆盖下一版本周期；否则 P1 整体冻结。</p>
+<p><strong>P2（暂缓或不做）</strong>：FR-05 常驻输入框（<strong>建议直接砍掉</strong>，与 C-1/C-2 冲突并撞成熟生态）、语音提问、中英即时翻译、本地模型推理、跨会话记忆、macOS/Linux。
+<em>理由</em>：全部与“不主动、零输入、单窗口、可逆”的定位相悖，做一项稀释一次主张。
+<em>重新讨论的触发条件</em>：仅当“窗口对象＋可逆执行”在真实用户中站稳且维护可持续时，才谈平台化扩张；在此之前，“当平台做”的提案一律驳回。</p>
+<p><strong>7.4 下一步行动（5 条）</strong></p>
+<ol>
+<li>启动两周 TC-3 与 TC-2 探针，出可判定报告 —— 技术负责人，立项后 2 周内。</li>
+<li>召开资源确认会，锁定具名维护者、预算上限、成本归属、签名与测试承担方 —— 项目负责人，立项后 2 周内。</li>
+<li>冻结支持清单并量化全部 AC 阈值 —— 项目经理＋QA，M1 评审前。</li>
+<li>范围冻结：砍 FR-05、P0 收敛至 7 项、FR-07 次序后移至 TC-3 之后 —— 产品经理，需求冻结前。</li>
+<li>法务定稿并完成首启演练（三类单独同意、撤回、默认离线）—— 法务主导、产品配合，发布评审前。</li>
+</ol>
+<p><strong>7.5 需决策者现在拍板的三个问题</strong></p>
+<ol>
+<li><strong>资源承诺还是缩范围</strong>：两周内二选一——落定维护者、预算上限与成本归属以维持完整功能，或直接缩为本地只读最小版。不接受“边做边看”。</li>
+<li><strong>写入档去留</strong>：若 TC-3 不通过，是否接受 1.0 只交付“读＋解释”、把唯一差异化推迟到 1.1？此为单向门，事后不得因进度压力放宽。</li>
+<li><strong>云端成本归属</strong>：BYOK、本地 OCR、还是 API 硬上限，选哪条、谁付、上限多少？此条不定，R08 与 R09 无法闭环，成本章节无法收敛为可承诺的数字。</li>
+</ol>
+</div>
+    </section>
+
+  <footer>
+    <span>本页由 <strong>Agency Orchestrator</strong> 的 AI 专家团队协作生成 · 2026/10/26 10:55:54</span>
+    <a href="https://github.com/jnMetaCode/agency-orchestrator">github.com/jnMetaCode/agency-orchestrator</a>
+    <span>一句话，让多个 AI 角色自动协作：<code>npm i -g agency-orchestrator</code></span>
+  </footer>
+</div>
+</body>
+</html>
