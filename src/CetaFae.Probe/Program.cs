@@ -9,6 +9,20 @@ public static class Program
     {
         ProbeLog.Open(ArgValue(args, "--log") ?? "logs");
 
+        var uiaTitle = ArgValue(args, "--uia");
+        if (uiaTitle is { Length: > 0 })
+        {
+            var hwnd = AutoRunner.Find(uiaTitle);
+            if (hwnd == IntPtr.Zero)
+            {
+                ProbeLog.Log("uia_abort", ("reason", "not_found"), ("title", uiaTitle));
+                return;
+            }
+            var outPath = ArgValue(args, "--dump") ?? $"logs/uia-{DateTime.Now:HHmmss}.jsonl";
+            UiaProbe.Dump(hwnd, outPath, 14, 5000);
+            return;
+        }
+
         var autoTitle = ArgValue(args, "--auto");
         var trackTitle = ArgValue(args, "--track");
         var trials = int.TryParse(ArgValue(args, "--trials"), out var n) ? n : 3;
