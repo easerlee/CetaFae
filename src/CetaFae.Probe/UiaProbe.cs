@@ -30,14 +30,34 @@ public static class UiaProbe
         ("ScrollItem", ScrollItemPattern.Pattern),
     };
 
-    public static int Dump(IntPtr hwnd, string outPath, int maxDepth, int maxNodes)
+    /// <summary>返回节点数；读不到返回 -1。窗口已失效、读取失败、内容很少是三件事，分开记。</summary>
+    public static int Dump(IntPtr hwnd, string outPath, int maxDepth, int maxNodes, bool rawView = false)
     {
+        if (!Native.IsWindow(hwnd))
+        {
+            ProbeLog.Log("uia_window_gone", ("window", Native.Hex(hwnd)));
+            return -1;
+        }
+
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        var root = AutomationElement.FromHandle(hwnd);
-        if (root is null) return 0;
+        AutomationElement? root;
+        try
+        {
+            root = AutomationElement.FromHandle(hwnd);
+        }
+        catch (Exception ex)
+        {
+            ProbeLog.Log("uia_read_failed", ("window", Native.Hex(hwnd)), ("error", ex.GetType().Name), ("message", ex.Message));
+            return -1;
+        }
+        if (root is null)
+        {
+            ProbeLog.Log("uia_read_failed", ("window", Native.Hex(hwnd)), ("error", "null_root"));
+            return -1;
+        }
 
         var rows = new List<Row>();
-        Walk(root, 0, maxDepth, maxNodes, rows);
+        Walk(root, 0, maxDepth, maxNodes, rows, rawView ? TreeWalker.RawViewWalker : TreeWalker.ControlViewWalker);
 
         var dir = Path.GetDirectoryName(Path.GetFullPath(outPath));
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
@@ -53,17 +73,18 @@ public static class UiaProbe
             ("title", Native.Title(hwnd)),
             ("out", Path.GetFullPath(outPath)),
             ("nodes", rows.Count),
+            ("view", rawView ? "raw" : "control"),
             ("depthLimit", maxDepth),
             ("elapsedMs", clock.ElapsedMilliseconds));
 
-        // 窗口已关闭或句柄失效时，FromHandle 不报错，只返回一个空壳。少于 10 个节点一律当失效处理。
+        // 节点少只是告警。简单弹窗可以只有几个节点，不能据此判窗口失效。
         if (rows.Count < 10)
-            ProbeLog.Log("uia_suspect", ("nodes", rows.Count), ("reason", "tree_too_small"), ("window", Native.Hex(hwnd)));
+            ProbeLog.Log("uia_small_tree", ("nodes", rows.Count), ("window", Native.Hex(hwnd)));
 
         return rows.Count;
     }
 
-    static void Walk(AutomationElement element, int depth, int maxDepth, int maxNodes, List<Row> rows)
+    static void Walk(AutomationElement element, int depth, int maxDepth, int maxNodes, List<Row> rows, TreeWalker walker)
     {
         if (depth > maxDepth || rows.Count >= maxNodes) return;
 
@@ -71,13 +92,13 @@ public static class UiaProbe
         if (depth == maxDepth) return;
 
         AutomationElement? child;
-        try { child = TreeWalker.ControlViewWalker.GetFirstChild(element); }
+        try { child = walker.GetFirstChild(element); }
         catch { return; }
 
         while (child is not null && rows.Count < maxNodes)
         {
-            Walk(child, depth + 1, maxDepth, maxNodes, rows);
-            try { child = TreeWalker.ControlViewWalker.GetNextSibling(child); }
+            Walk(child, depth + 1, maxDepth, maxNodes, rows, walker);
+            try { child = walker.GetNextSibling(child); }
             catch { break; }
         }
     }

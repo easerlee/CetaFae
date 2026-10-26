@@ -22,7 +22,8 @@ public static class Program
                 return;
             }
             var outPath = ArgValue(args, "--dump") ?? $"logs/uia-{DateTime.Now:HHmmss}.jsonl";
-            UiaProbe.Dump(hwnd, outPath, 14, 5000);
+            var raw = args.Any(a => string.Equals(a, "--uia-raw", StringComparison.OrdinalIgnoreCase));
+            UiaProbe.Dump(hwnd, outPath, 14, 5000, raw);
             return;
         }
 
