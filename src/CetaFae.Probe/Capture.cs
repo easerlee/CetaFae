@@ -1,68 +1,50 @@
-using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace CetaFae.Probe;
 
-/// <summary>目标窗口截图：PrintWindow 优先，屏幕区域兜底。每次记录是否黑图、耗时、图像哈希。</summary>
+/// <summary>Capture only the selected window, in memory, without a screen-pixel fallback.</summary>
 public static class Capture
 {
-    public static void Shoot(IntPtr hwnd, string outPath, int shots, int intervalMs)
+    /// <summary>Guide capture never reads screen pixels or persists image content.</summary>
+    public static byte[] ReadTarget(IntPtr hwnd)
     {
-        if (!Native.IsWindow(hwnd))
-        {
-            ProbeLog.Log("capture_window_gone", ("window", Native.Hex(hwnd)));
-            return;
-        }
-
+        if (!Native.IsWindow(hwnd) || !Native.IsWindowVisible(hwnd) || Native.IsIconic(hwnd))
+            throw new InvalidDataException("capture_target_unavailable");
         var rect = Native.Frame(hwnd);
         int w = rect.Right - rect.Left, h = rect.Bottom - rect.Top;
-        if (w <= 0 || h <= 0)
+        if (w <= 0 || h <= 0 || (long)w * h > 16_000_000)
+            throw new InvalidDataException("capture_dimensions");
+        var frame = ReadPixels(hwnd, w, h);
+        if (!frame.Ok || frame.NonBlackPct <= 1) throw new InvalidDataException("capture_unusable");
+        var img = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, frame.Pixels, w * 4);
+        BitmapSource output = img;
+        if (Math.Max(w, h) > 1600)
         {
-            ProbeLog.Log("capture_bad_rect", ("window", Native.Hex(hwnd)), ("rect", $"{w}x{h}"));
-            return;
+            var scale = 1600.0 / Math.Max(w, h);
+            output = new TransformedBitmap(img, new ScaleTransform(scale, scale));
         }
-
-        for (var i = 1; i <= shots; i++)
-        {
-            var stamp = $"logs/cap-{DateTime.Now:HHmmss}-{i}";
-            var print = Grab(hwnd, rect, w, h, viaPrintWindow: true, $"{stamp}-print.png");
-            var screen = Grab(hwnd, rect, w, h, viaPrintWindow: false, $"{stamp}-screen.png");
-
-            ProbeLog.Log("capture",
-                ("n", i),
-                ("window", Native.Hex(hwnd)),
-                ("title", Native.Title(hwnd)),
-                ("rect", $"{w}x{h}"),
-                ("printOk", print.Ok), ("printMs", print.ElapsedMs), ("printNonBlack", print.NonBlackPct), ("printHash", print.Hash),
-                ("screenOk", screen.Ok), ("screenMs", screen.ElapsedMs), ("screenNonBlack", screen.NonBlackPct), ("screenHash", screen.Hash),
-                ("sameImage", print.Hash.Length > 0 && print.Hash == screen.Hash));
-
-            if (i == 1 && outPath.Length > 0)
-            {
-                var pick = print.Ok && print.NonBlackPct > 1 ? print.Path : screen.Path;
-                if (File.Exists(pick)) File.Copy(pick, outPath, overwrite: true);
-            }
-
-            if (i < shots) Thread.Sleep(intervalMs);
-        }
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(output));
+        using var stream = new MemoryStream();
+        encoder.Save(stream);
+        return stream.ToArray();
     }
 
-    sealed record Shot(bool Ok, long ElapsedMs, double NonBlackPct, string Hash, string Path);
+    sealed record PixelFrame(bool Ok, double NonBlackPct, byte[] Pixels);
 
-    static Shot Grab(IntPtr hwnd, Native.RECT rect, int w, int h, bool viaPrintWindow, string path)
+    static PixelFrame ReadPixels(IntPtr hwnd, int w, int h)
     {
-        var clock = Stopwatch.StartNew();
         var screenDc = Native.GetDC(IntPtr.Zero);
         var memDc = Native.CreateCompatibleDC(screenDc);
         var bmp = Native.CreateCompatibleBitmap(screenDc, w, h);
         var old = Native.SelectObject(memDc, bmp);
+        Native.PatBlt(memDc, 0, 0, w, h, 0x00000042);
 
-        var ok = viaPrintWindow
-            ? Native.PrintWindow(hwnd, memDc, 2)
-            : Native.BitBlt(memDc, 0, 0, w, h, screenDc, rect.Left, rect.Top, Native.SRCCOPY);
+        // PrintWindow may report false while returning valid pixels; readback and content decide usability.
+        Native.PrintWindow(hwnd, memDc, 2);
+        var ok = true;
 
         var pixels = new byte[w * h * 4];
         var nonBlack = 0;
@@ -93,23 +75,7 @@ public static class Capture
             Native.ReleaseDC(IntPtr.Zero, screenDc);
         }
 
-        var elapsed = clock.ElapsedMilliseconds;
         var pct = 100.0 * nonBlack / (w * h);
-        var hash = Convert.ToHexString(SHA256.HashData(pixels))[..16];
-
-        try
-        {
-            var img = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, pixels, w * 4);
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(img));
-            using var fs = File.Create(path);
-            encoder.Save(fs);
-        }
-        catch
-        {
-            ok = false;
-        }
-
-        return new Shot(ok, elapsed, Math.Round(pct, 1), hash, path);
+        return new PixelFrame(ok, pct, pixels);
     }
 }

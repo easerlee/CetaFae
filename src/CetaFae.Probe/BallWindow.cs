@@ -12,30 +12,42 @@ namespace CetaFae.Probe;
 public sealed class BallWindow : Window
 {
     public const int BallSize = 44;
-    const int HotkeyId = 0xC7A1;
-    const int WmHotkey = 0x0312;
 
     readonly OverlayWindow _overlay = new();
     readonly Stopwatch _settle = new();
     Native.WinEventDelegate? _hookCallback;
     IntPtr _hook;
+    IntPtr _foregroundHook;
+    IntPtr _destroyHook;
+    IntPtr _contentHook;
     IntPtr _hwnd;
     IntPtr _target;
     bool _dragging;
     bool _redrawPending;
     long _pendingTicks;
-    long _coalesced;
-    Native.POINT _dragOriginCursor;
-    double _dragOriginLeft, _dragOriginTop;
+    Point _grabPoint;
     double _scale = 1;
     int _overlayUpdates;
 
-    public IntPtr TargetHwnd => _target;
     public double Scale => _scale;
-    public int OverlayUpdates => _overlayUpdates;
-    public long MaxLatencyMs { get; private set; }
-    public long Coalesced => _coalesced;
-    public bool OverlayVisible => _overlay.IsVisible;
+    public event Action<IntPtr>? TargetSelected;
+    public event Action<string>? TrackingStopped;
+    public event Action? TargetMoved;
+    public Func<IntPtr, bool>? AllowsForeground { get; set; }
+
+    public static Point DragPosition(Point pointer, Point grab, double scale) =>
+        new(pointer.X / scale - grab.X, pointer.Y / scale - grab.Y);
+
+    public static Point ConstrainPosition(Point position, Rect work) => new(
+        Math.Clamp(position.X, work.Left, Math.Max(work.Left, work.Right - BallSize)),
+        Math.Clamp(position.Y, work.Top, Math.Max(work.Top, work.Bottom - BallSize)));
+
+    void PlaceBall(Point position)
+    {
+        var visible = ConstrainPosition(position, SystemParameters.WorkArea);
+        Left = visible.X;
+        Top = visible.Y;
+    }
 
     public BallWindow()
     {
@@ -69,9 +81,15 @@ public sealed class BallWindow : Window
         Content = grid;
 
         SourceInitialized += OnSourceInitialized;
+        Loaded += (_, _) => ProbeLog.Log("ball_loaded", ("ballDip", FrameDip()),
+            ("nativePx", RectPx(Native.Frame(_hwnd))));
         MouseLeftButtonDown += OnDown;
         MouseMove += OnMove;
         MouseLeftButtonUp += OnUp;
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) { StopTracking("esc"); e.Handled = true; }
+        };
     }
 
     void OnSourceInitialized(object? sender, EventArgs e)
@@ -79,41 +97,26 @@ public sealed class BallWindow : Window
         _hwnd = new WindowInteropHelper(this).Handle;
         var ex = Native.GetWindowLong(_hwnd, Native.GWL_EXSTYLE);
         Native.SetWindowLong(_hwnd, Native.GWL_EXSTYLE, ex | Native.WS_EX_NOACTIVATE | Native.WS_EX_TOOLWINDOW);
-        HwndSource.FromHwnd(_hwnd)!.AddHook(WndProc);
 
         _scale = Math.Max(1.0, Native.GetDpiForSystem() / 96.0);
         var work = SystemParameters.WorkArea;
         Left = work.Right - BallSize - 8;
         Top = work.Top + (work.Height - BallSize) / 2;
 
-        var hotkey = Native.RegisterHotKey(_hwnd, HotkeyId, 0, Native.VK_ESCAPE);
         ProbeLog.Log("start",
             ("hwnd", Native.Hex(_hwnd)),
             ("dpiScale", _scale),
             ("ballDip", FrameDip()),
-            ("escHotkey", hotkey),
             ("fg", Native.Hex(Native.GetForegroundWindow())));
-    }
-
-    IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
-        if (msg == WmHotkey && wParam.ToInt32() == HotkeyId)
-        {
-            ProbeLog.Log("esc", ("hotkey", HotkeyId), ("fg", Native.Hex(Native.GetForegroundWindow())));
-            StopTracking("esc");
-            handled = true;
-        }
-        return IntPtr.Zero;
     }
 
     void OnDown(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed) return;
+        _grabPoint = e.GetPosition(this);
+        StopTracking("drag_start");
         _dragging = true;
-        _dragOriginCursor = Native.Cursor();
-        _dragOriginLeft = Left;
-        _dragOriginTop = Top;
-        _overlay.Hide();
+        if (_overlay.IsVisible) _overlay.Hide();
         CaptureMouse();
         e.Handled = true;
 
@@ -121,16 +124,16 @@ public sealed class BallWindow : Window
         ProbeLog.Log("drag_start",
             ("fg", Native.Hex(fg)),
             ("fgClass", Native.Class(fg)),
-            ("cursor", $"{_dragOriginCursor.X},{_dragOriginCursor.Y}"),
-            ("ballDip", FrameDip()));
+            ("cursor", $"{Native.Cursor().X},{Native.Cursor().Y}"),
+            ("ballDip", FrameDip()), ("nativePx", RectPx(Native.Frame(_hwnd))),
+            ("pointerDip", _grabPoint.ToString()));
     }
 
     void OnMove(object sender, MouseEventArgs e)
     {
         if (!_dragging) return;
         var p = Native.Cursor();
-        Left = _dragOriginLeft + (p.X - _dragOriginCursor.X) / _scale;
-        Top = _dragOriginTop + (p.Y - _dragOriginCursor.Y) / _scale;
+        PlaceBall(DragPosition(new Point(p.X, p.Y), _grabPoint, _scale));
     }
 
     void OnUp(object sender, MouseButtonEventArgs e)
@@ -141,11 +144,7 @@ public sealed class BallWindow : Window
 
         var p = Native.Cursor();
         var target = HitTestUnderCursor(p);
-        ProbeLog.Log("drop",
-            ("cursor", $"{p.X},{p.Y}"),
-            ("hit", Native.Hex(target)),
-            ("hitClass", target == IntPtr.Zero ? "" : Native.Class(target)),
-            ("hitTitle", target == IntPtr.Zero ? "" : Native.Title(target)));
+        ProbeLog.Log("guide_drop", ("found", target != IntPtr.Zero));
 
         if (target == IntPtr.Zero)
         {
@@ -156,23 +155,25 @@ public sealed class BallWindow : Window
         _target = target;
         SnapToEdge(target);
         StartTracking();
+        TargetSelected?.Invoke(target);
     }
 
     IntPtr HitTestUnderCursor(Native.POINT p)
     {
-        var ex = Native.GetWindowLong(_hwnd, Native.GWL_EXSTYLE);
-        Native.SetWindowLong(_hwnd, Native.GWL_EXSTYLE, ex | Native.WS_EX_TRANSPARENT);
-        var hit = Native.WindowFromPoint(p);
-        Native.SetWindowLong(_hwnd, Native.GWL_EXSTYLE, ex);
-
-        if (hit == IntPtr.Zero) return IntPtr.Zero;
-        var root = Native.GetAncestor(hit, Native.GA_ROOT);
-        if (root == IntPtr.Zero) root = hit;
-        if (root == _hwnd) return IntPtr.Zero;
-
-        var cls = Native.Class(root);
-        if (cls is "Progman" or "WorkerW" or "Shell_TrayWnd") return IntPtr.Zero;
-        return root;
+        // WS_EX_TRANSPARENT does not make WindowFromPoint reliably skip this window.
+        // Hiding only the ball gives a deterministic underlying hit without activating it.
+        Hide();
+        try
+        {
+            var hit = Native.WindowFromPoint(p);
+            if (hit == IntPtr.Zero) return IntPtr.Zero;
+            var root = Native.GetAncestor(hit, Native.GA_ROOT);
+            if (root == IntPtr.Zero) root = hit;
+            if (Native.ProcessId(root) == Environment.ProcessId) return IntPtr.Zero;
+            var cls = Native.Class(root);
+            return cls is "Progman" or "WorkerW" or "Shell_TrayWnd" ? IntPtr.Zero : root;
+        }
+        finally { Show(); }
     }
 
     void SnapToEdge(IntPtr target)
@@ -214,8 +215,7 @@ public sealed class BallWindow : Window
             y = r.Bottom;
         }
 
-        Left = x / _scale;
-        Top = y / _scale;
+        PlaceBall(new Point(x / _scale, y / _scale));
 
         ProbeLog.Log("snap",
             ("edge", edge),
@@ -227,8 +227,6 @@ public sealed class BallWindow : Window
 
     void StartTracking()
     {
-        MaxLatencyMs = 0;
-        _coalesced = 0;
         UpdateOverlay(-1);
         _overlay.Show();
         _overlayUpdates = 0;
@@ -238,6 +236,13 @@ public sealed class BallWindow : Window
         _hook = Native.SetWinEventHook(
             Native.EVENT_OBJECT_LOCATIONCHANGE, Native.EVENT_OBJECT_LOCATIONCHANGE,
             IntPtr.Zero, _hookCallback, 0, 0,
+            Native.WINEVENT_OUTOFCONTEXT | Native.WINEVENT_SKIPOWNPROCESS);
+        _foregroundHook = Native.SetWinEventHook(3, 3, IntPtr.Zero, _hookCallback, 0, 0,
+            Native.WINEVENT_OUTOFCONTEXT);
+        _destroyHook = Native.SetWinEventHook(0x8001, 0x8001, IntPtr.Zero, _hookCallback, 0, 0,
+            Native.WINEVENT_OUTOFCONTEXT | Native.WINEVENT_SKIPOWNPROCESS);
+        // Hosted content can belong to another process; filter by target HWND ancestry in the callback.
+        _contentHook = Native.SetWinEventHook(0x8002, 0x8017, IntPtr.Zero, _hookCallback, 0, 0,
             Native.WINEVENT_OUTOFCONTEXT | Native.WINEVENT_SKIPOWNPROCESS);
 
         ProbeLog.Log("track_start",
@@ -249,13 +254,38 @@ public sealed class BallWindow : Window
 
     void OnWinEvent(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
+        if (evt == 3 && hwnd != _target)
+        {
+            var selected = _target;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var foreground = Native.GetForegroundWindow();
+                if (_target == selected && foreground != selected && !(AllowsForeground?.Invoke(foreground) ?? false))
+                    StopTracking("foreground_changed");
+            }));
+            return;
+        }
+        if (evt == 0x8001 && hwnd == _target && idObject == Native.OBJID_WINDOW)
+        {
+            var selected = _target;
+            Dispatcher.BeginInvoke(new Action(() => { if (_target == selected) StopTracking("target_gone"); }));
+            return;
+        }
+        if (evt is >= 0x8002 and <= 0x8017 && evt != 0x8005 &&
+            (hwnd == _target || Native.GetAncestor(hwnd, Native.GA_ROOT) == _target))
+        {
+            var selected = _target;
+            ProbeLog.Log("target_content_event", ("event", evt), ("object", idObject), ("child", idChild),
+                ("eventProcess", Native.ProcessId(hwnd)), ("targetProcess", Native.ProcessId(selected)));
+            Dispatcher.BeginInvoke(new Action(() => { if (_target == selected) TargetMoved?.Invoke(); }));
+        }
+        if (evt != Native.EVENT_OBJECT_LOCATIONCHANGE) return;
         if (hwnd != _target || idObject != Native.OBJID_WINDOW) return;
 
-        // 一次绘制覆盖多条事件：拖动窗口时事件连发，逐条重绘会积压成肉眼可见的滞后。
+        // Coalesce event bursts so redraws do not accumulate behind a moving window.
         _pendingTicks = _settle.ElapsedTicks;
         if (_redrawPending)
         {
-            _coalesced++;
             return;
         }
         _redrawPending = true;
@@ -288,7 +318,6 @@ public sealed class BallWindow : Window
         if (eventTicks >= 0)
         {
             sinceEventMs = (long)((_settle.ElapsedTicks - eventTicks) * 1000.0 / Stopwatch.Frequency);
-            if (sinceEventMs > MaxLatencyMs) MaxLatencyMs = sinceEventMs;
         }
 
         ProbeLog.Log("overlay",
@@ -300,13 +329,6 @@ public sealed class BallWindow : Window
             ("n", _overlayUpdates));
     }
 
-    public void TrackWindow(IntPtr hwnd)
-    {
-        if (_target != IntPtr.Zero) StopTracking("retrack");
-        _target = hwnd;
-        StartTracking();
-    }
-
     public void StopTracking(string reason)
     {
         var had = _target;
@@ -315,8 +337,12 @@ public sealed class BallWindow : Window
             Native.UnhookWinEvent(_hook);
             _hook = IntPtr.Zero;
         }
+        if (_foregroundHook != IntPtr.Zero) { Native.UnhookWinEvent(_foregroundHook); _foregroundHook = IntPtr.Zero; }
+        if (_destroyHook != IntPtr.Zero) { Native.UnhookWinEvent(_destroyHook); _destroyHook = IntPtr.Zero; }
+        if (_contentHook != IntPtr.Zero) { Native.UnhookWinEvent(_contentHook); _contentHook = IntPtr.Zero; }
         _target = IntPtr.Zero;
-        _overlay.Hide();
+        if (_overlay.IsVisible) _overlay.Hide();
+        TrackingStopped?.Invoke(reason);
 
         ProbeLog.Log("cleanup",
             ("reason", reason),
@@ -329,11 +355,10 @@ public sealed class BallWindow : Window
     public void Cleanup()
     {
         if (_target != IntPtr.Zero) StopTracking("exit");
-        Native.UnregisterHotKey(_hwnd, HotkeyId);
         ProbeLog.Log("exit", ("fg", Native.Hex(Native.GetForegroundWindow())), ("overlayVisible", _overlay.IsVisible));
     }
 
-    public (int L, int T, int W, int H) BallRectPx() => (
+    (int L, int T, int W, int H) BallRectPx() => (
         (int)Math.Round(Left * _scale),
         (int)Math.Round(Top * _scale),
         (int)Math.Round(BallSize * _scale),
@@ -345,12 +370,7 @@ public sealed class BallWindow : Window
         return $"{l},{t},{w},{h}";
     }
 
-    string OverlayRectPxString()
-    {
-        return OverlayPx();
-    }
-
-    public string OverlayPx()
+    string OverlayPx()
     {
         return $"{Math.Round(_overlay.Left * _scale)},{Math.Round(_overlay.Top * _scale)},{Math.Round(_overlay.Width * _scale)},{Math.Round(_overlay.Height * _scale)}";
     }

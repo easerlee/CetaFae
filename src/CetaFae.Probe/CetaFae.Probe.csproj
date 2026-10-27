@@ -9,7 +9,13 @@
     <AssemblyName>CetaFae.Probe</AssemblyName>
     <RootNamespace>CetaFae.Probe</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../CetaFae.Plugins/CetaFae.Plugins.csproj" />
+    <Content Include="../../plugins/**/*.json" Link="plugins/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
 </Project>

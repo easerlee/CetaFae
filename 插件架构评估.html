@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 正文是模型产出经 marked 渲染的 HTML（没有净化）。角色读过的资料、社区模板、抓来的网页都可能夹带
+     <script> / onerror=。这页会被 Studio 在同源打开、也会被转发给别人，所以用 CSP 把脚本一刀切掉：
+     本页自己没有脚本，样式全在 <style> 里，图片 / 音视频全是内联的 data:。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'; font-src data:; form-action 'none'; base-uri 'none'">
+<title>Windows 桌面悬浮助手插件化架构可行性评估 · AO 运行报告</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1d2530; --muted: #5d6b7e;
+    --line: #e3e7ee; --accent: #4056c7; --accent-soft: #eef1fc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11151c; --card: #191f29; --ink: #e6ebf2; --muted: #93a0b3;
+      --line: #2a3341; --accent: #8ea2f0; --accent-soft: #202942;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px 48px; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    line-height: 1.75; font-size: 15.5px;
+  }
+  .page { max-width: 860px; margin: 0 auto; }
+  .hero { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 28px 30px; }
+  .emojis { font-size: 22px; letter-spacing: 6px; margin: 0 0 10px; }
+  h1 { font-size: 26px; line-height: 1.35; margin: 0 0 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .chips li {
+    font-size: 12.5px; color: var(--muted); background: var(--accent-soft);
+    border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px;
+  }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-top: 18px; overflow: hidden; }
+  .step.final { border-color: var(--accent); }
+  .step > header {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 14px 22px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--accent-soft) 45%, var(--card));
+  }
+  .step .no {
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 999px; width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center; align-self: center; flex-shrink: 0;
+  }
+  .step h2 { font-size: 17px; margin: 0; }
+  .step .star { font-size: 12.5px; color: var(--accent); font-weight: 600; margin-left: 4px; }
+  .step .meta { font-size: 12.5px; color: var(--muted); margin-left: auto; }
+  .step .body { padding: 8px 26px 20px; overflow-wrap: break-word; }
+  .body img { max-width: 100%; border-radius: 8px; }
+  .body pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 13px; }
+  .body code { font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+  .body table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 14px; }
+  .body th, .body td { border: 1px solid var(--line); padding: 6px 12px; text-align: left; }
+  .body blockquote { margin: 12px 0; padding: 2px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
+  .body a { color: var(--accent); }
+  footer {
+    margin-top: 28px; padding: 18px 6px 0; border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer code { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; font-size: 12px; }
+  @media print { body { background: #fff; } .step, .hero { border-color: #ccc; break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <p class="emojis">🧭 🛡️ 🔄 📦 👔 ✍️</p>
+    <h1>Windows 桌面悬浮助手插件化架构可行性评估</h1>
+    <ul class="chips"><li>6 个专家步骤</li><li>总耗时 154.6s</li><li>131,799 tokens</li><li>✅ 全部完成</li></ul>
+  </header>
+
+    <section class="step">
+      <header>
+        <span class="no">1</span>
+        <h2>🧭 架构师</h2>
+        <span class="meta">engineering/engineering-software-architect · 49.0s · 10,945 tokens</span>
+      </header>
+      <div class="body"><h1>结构判定</h1>
+<h2>1 底座不可下沉能力</h2>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>下沉后具体故障</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>悬浮窗生命周期/置顶</td>
+<td>插件崩溃致悬浮球消失、Z序乱、焦点被夺</td>
+</tr>
+<tr>
+<td>全局输入监听/注入</td>
+<td>插件包可记录全屏按键、向其他进程注入输入，TC-6 被破坏</td>
+</tr>
+<tr>
+<td>进程/权限模型</td>
+<td>插件包借宿主令牌提权或启动子进程，最小权限模型失守</td>
+</tr>
+<tr>
+<td>配置/密钥存储</td>
+<td>密钥进插件包或日志、跨插件互读、轮换失效</td>
+</tr>
+<tr>
+<td>更新分发</td>
+<td>自更新绕过签名/版本门禁，半更新导致契约不兼容</td>
+</tr>
+<tr>
+<td>日志/遥测</td>
+<td>直接写标题/控件原文/问题，无法统一脱敏</td>
+</tr>
+<tr>
+<td>IPC/宿主API网关</td>
+<td>各插件包自开通道，鉴权/配额/版本失控</td>
+</tr>
+<tr>
+<td>崩溃恢复</td>
+<td>恢复逻辑在插件包内，插件包崩溃则会话/标记残留</td>
+</tr>
+</tbody></table>
+<h2>2 第一方功能分档</h2>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>现状实现方式</th>
+<th>目标插件形态</th>
+<th>档位</th>
+<th>判定依据</th>
+<th>若强行插件化的代价</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>悬浮球/面板/拖放/绑定</td>
+<td>WPF宿主</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>窗口/焦点所有权</td>
+<td>Z序乱、TC-6破</td>
+</tr>
+<tr>
+<td>云端同意/授权</td>
+<td>宿主UI</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>信任根</td>
+<td>插件包可伪造同意</td>
+</tr>
+<tr>
+<td>采集调度/快照</td>
+<td>通用采集器</td>
+<td>宿主调度+插件选view</td>
+<td>③/①</td>
+<td>句柄图像不出宿主</td>
+<td>泄隐私</td>
+</tr>
+<tr>
+<td>模型网关/复核/标记/取消/超时</td>
+<td>宿主</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>密钥/SLA/脱敏</td>
+<td>超时与残留分裂</td>
+</tr>
+<tr>
+<td>Win设置/Edge匹配、UIA视图、任务ID、阻塞点</td>
+<td><code>plugin.json</code></td>
+<td>声明式包</td>
+<td>①</td>
+<td>有界纯数据</td>
+<td>复杂规则回流</td>
+</tr>
+<tr>
+<td>唯一匹配/冲突/禁用/空清单/快照校验</td>
+<td>Plugins运行时</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>fail closed</td>
+<td>包自选不确定、请求期读盘</td>
+</tr>
+<tr>
+<td>支持清单/发布范围</td>
+<td>宿主策略</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>包不得扩范围</td>
+<td>安装即宣称支持</td>
+</tr>
+<tr>
+<td>文档快照/还原（WPS，TC-3未过）</td>
+<td>未开放</td>
+<td>宿主受控端口+知识</td>
+<td>③</td>
+<td>写权限/还原/审计</td>
+<td>插件包写入越权</td>
+</tr>
+<tr>
+<td>安装/启用/移除、诊断日志</td>
+<td>宿主/未实现</td>
+<td>管理面</td>
+<td>③</td>
+<td>生命周期与脱敏</td>
+<td>自管无法隔离</td>
+</tr>
+</tbody></table>
+<h2>3 声明式表达力上限</h2>
+<table>
+<thead>
+<tr>
+<th>无法表达类型</th>
+<th>降级替代</th>
+<th>体验损失</th>
+<th>复杂度</th>
+<th>仍值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>自定义渲染浮层</td>
+<td>宿主通用面板/标记</td>
+<td>中</td>
+<td>低</td>
+<td>中</td>
+</tr>
+<tr>
+<td>长驻监听系统事件</td>
+<td>触发时一次性采集</td>
+<td>高</td>
+<td>低</td>
+<td>窄</td>
+</tr>
+<tr>
+<td>跨应用注入/自动操作</td>
+<td>只指路，用户执行</td>
+<td>高</td>
+<td>低</td>
+<td>中</td>
+</tr>
+<tr>
+<td>本地DB事务/跨会话编排</td>
+<td>无状态/宿主配置</td>
+<td>高</td>
+<td>中</td>
+<td>窄</td>
+</tr>
+<tr>
+<td>网络长连接/回调</td>
+<td>仅宿主模型网关</td>
+<td>高</td>
+<td>低</td>
+<td>窄</td>
+</tr>
+<tr>
+<td>动态全局快捷键/自定义采集</td>
+<td>固定宿主键；UIA <code>control/raw</code>+阻塞点</td>
+<td>中</td>
+<td>中</td>
+<td>窄</td>
+</tr>
+<tr>
+<td>文档写入</td>
+<td>宿主受控端口，插件仅知识</td>
+<td>低</td>
+<td>高</td>
+<td>窄</td>
+</tr>
+</tbody></table>
+<h2>4 边界结论</h2>
+<p>知识层（软件身份、任务知识、视图选择、阻塞点、启用清单）可插件化；机制层（生命周期、授权、采集、网关、写入、安装、恢复）必须打洞。洞须为宿主通用端口，不向插件交句柄/代码/网络。一致性冲击取决于第一方是否同端口同契约：同权则可保留原则；私有洞则原则失效。需定标为「机制宿主+知识插件」或收紧为「数据包+宿主端口」，分界是洞是否对第三方同权。</p>
+<h2>5 边界测试失败点</h2>
+<p>多实例/标题漂移→错绑；UIA树变/视图错→错指；阻塞点漏→错候选；任务ID/版本/语言不配→拒或错任务；未知字段/重解析点→整目录拒（可用性）；快照后文件变→TOCTOU；插件加载成本→3s/90MB破；未验证包宣称支持→范围误导；TC-3写失败→文档损坏；禁用/移除未取消会话→标记残留；日志脱敏漏→泄露；宿主出现软件名分支→原则破。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">2</span>
+        <h2>🛡️ 安全架构师</h2>
+        <span class="meta">security/security-architect · 24.5s · 14,385 tokens</span>
+      </header>
+      <div class="body"><h1>第三方插件三阶段威胁建模</h1>
+<h2>一、阶段 × 威胁 × 前置条件 × 现状缺口</h2>
+<p><strong>阶段一（声明式数据包，无代码）</strong></p>
+<table>
+<thead>
+<tr>
+<th>威胁</th>
+<th>前置条件</th>
+<th>现状缺口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>恶意插件窃取剪贴板/窗口内容</td>
+<td>采集范围只由宿主绑定窗口与契约白名单决定，插件不能请求额外字段</td>
+<td>部分：<code>uiaView</code>/<code>taskIds</code> 未与数据分级挂钩</td>
+</tr>
+<tr>
+<td>插件间越权互访</td>
+<td>单插件解析、无跨包引用、冲突即拒</td>
+<td>已具备</td>
+</tr>
+<tr>
+<td>更新通道供应链投毒</td>
+<td>来源与完整性校验</td>
+<td><strong>阻断</strong>：无签名、无来源校验</td>
+</tr>
+<tr>
+<td>权限提升（借宿主特权）</td>
+<td>不接回调/句柄/图像</td>
+<td>已具备</td>
+</tr>
+<tr>
+<td>滥用为跨应用注入通道</td>
+<td>输出仅限解释/短问/已观察候选 ID</td>
+<td>部分：需输出白名单强校验</td>
+</tr>
+<tr>
+<td>插件崩溃致宿主不可用</td>
+<td>畸形数据整目录拒绝</td>
+<td>已具备</td>
+</tr>
+</tbody></table>
+<p><strong>阶段二（公开安装）</strong></p>
+<table>
+<thead>
+<tr>
+<th>威胁</th>
+<th>前置条件</th>
+<th>现状缺口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>窃取窗口内容</td>
+<td>安装前权限清单展示 + 运行期强制</td>
+<td>缺失：无权限声明模型</td>
+</tr>
+<tr>
+<td>插件间越权</td>
+<td>显式启用清单、单目标单插件、跨包隔离</td>
+<td>部分：<code>catalog.json</code> 有，隔离无</td>
+</tr>
+<tr>
+<td>供应链投毒</td>
+<td>签名+发布者+可复现构建+灰发</td>
+<td><strong>阻断</strong></td>
+</tr>
+<tr>
+<td>权限提升</td>
+<td>信任等级“已验证/未验证”，装≠进支持范围</td>
+<td><strong>阻断</strong>：无等级模型</td>
+</tr>
+<tr>
+<td>跨应用注入</td>
+<td>目标冲突拒绝、不自动扩容支持清单</td>
+<td>部分</td>
+</tr>
+<tr>
+<td>崩溃致宿主不可用</td>
+<td>禁用/移除/回滚 + 变更取消受影响会话</td>
+<td><strong>阻断</strong></td>
+</tr>
+</tbody></table>
+<p><strong>阶段三（可执行适配器）</strong></p>
+<table>
+<thead>
+<tr>
+<th>威胁</th>
+<th>前置条件</th>
+<th>现状缺口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>窃取剪贴板/窗口内容</td>
+<td>OS 强制隔离 + 不传句柄/图像/原文</td>
+<td><strong>阻断</strong></td>
+</tr>
+<tr>
+<td>插件间越权互访</td>
+<td>独立低权限账户 + IPC 白名单</td>
+<td><strong>阻断</strong></td>
+</tr>
+<tr>
+<td>供应链投毒</td>
+<td>签名、可复现构建、吊销、灰发、回滚</td>
+<td><strong>阻断</strong></td>
+</tr>
+<tr>
+<td>权限提升</td>
+<td>Job Object / AppContainer / 受限令牌</td>
+<td><strong>阻断</strong></td>
+</tr>
+<tr>
+<td>跨应用注入</td>
+<td>禁 UI Access、禁跨进程注入、无写入通道</td>
+<td><strong>阻断</strong></td>
+</tr>
+<tr>
+<td>崩溃致宿主不可用</td>
+<td>独立进程 + 看门狗 + 可观察终止</td>
+<td><strong>阻断</strong>（现有仅对可信代码）</td>
+</tr>
+</tbody></table>
+<h2>二、阶段二→三门槛（AND，须同时满足）</h2>
+<ol>
+<li>已验证通过的操作系统强制隔离：低权限账户/AppContainer + Job Object 限内存·CPU·进程·网络</li>
+<li>不向插件传句柄、图像、控件原文，仅结构化受限 IPC</li>
+<li>能力令牌：按会话最小授权、用户可见可撤</li>
+<li>代码签名 + 发布者身份 + 吊销 + 灰发 + 回滚</li>
+<li>崩溃/超时/超资源可观察终止，不侵占 3s / 90MB</li>
+<li>权限可视化审阅 + 不可篡改审计</li>
+<li>文档写入仍受 TC-3，首轮不开放</li>
+</ol>
+<p><strong>任一不满足的降级路径</strong>：①停留“数据包 + 审核后并入内置贡献”；②仅独立低权限进程跑只读采集，经白名单 IPC 回传结构化结果，无写入、无 UI 操作。</p>
+<h2>三、三阶段判定</h2>
+<ul>
+<li><strong>阶段一：放行</strong>，前提为补来源校验与审计日志。</li>
+<li><strong>阶段二：有前提放行</strong>，四条阻断项清零后方可公开分发。</li>
+<li><strong>阶段三：暂缓</strong>，AND 门槛未满足前不设计开放路径。</li>
+</ul>
+<h2>四、应预留但契约中缺失的挂载点</h2>
+<p>能力令牌；权限沙箱描述符（声明→宿主强制）；信任等级与来源/签名元数据字段；插件权限可视化 UI；行为审计事件流；IPC 契约版本与 kill switch；插件-会话绑定失效通知。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">3</span>
+        <h2>🔄 契约走查师</h2>
+        <span class="meta">specialized/specialized-workflow-architect · 11.7s · 16,769 tokens</span>
+      </header>
+      <div class="body"><h2>走查结果</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>走查项</th>
+<th>覆盖</th>
+<th>缺口描述</th>
+<th>不补的返工阶段</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>生命周期</td>
+<td>缺失</td>
+<td>只定义了 <code>catalog.json</code> 启用清单和「重启生效」，没有安装、禁用、移除、升级、降级流程，也没有残留清理与禁用后会话失效的定义</td>
+<td>阶段二强制返工（EXT-03 明列）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>版本兼容</td>
+<td>部分</td>
+<td><code>schemaVersion</code> 只有「必须为1，未知则整目录拒绝」，没有兼容窗口、弃用期和降级定义；<code>version</code> 字段无语义（不参与解析、不参与冲突判定）</td>
+<td>阶段二返工；也影响阶段一包升级</td>
+</tr>
+<tr>
+<td>3</td>
+<td>故障与恢复</td>
+<td>部分</td>
+<td>有大小、深度、文件数上限和畸形数据拒绝，但存在<strong>病态数据导致的计算爆炸</strong>（阻塞点规则、UIA 遍历规模）没有上限；宿主崩溃后快照与标记如何复原、启动顺序竞争（采集器先于快照就绪）均未定义</td>
+<td>阶段二（故障隔离）/阶段三</td>
+</tr>
+<tr>
+<td>4</td>
+<td>权限</td>
+<td>缺失</td>
+<td>只有「不接受额外权限」这一断言，没有权限声明字段、授予流程、运行时收窄与<strong>撤销后的降级行为</strong>（撤销同意后已加载插件怎么办）</td>
+<td>阶段二阻塞</td>
+</tr>
+<tr>
+<td>5</td>
+<td>数据归属</td>
+<td>缺失</td>
+<td>插件不产生数据，但启用清单、审阅记录、诊断日志的存放位置、卸载残留、是否可被其他插件读取、备份迁移均未写入契约</td>
+<td>阶段二（体验）、阶段三（升级为阻塞）</td>
+</tr>
+<tr>
+<td>6</td>
+<td>更新分发</td>
+<td>缺失</td>
+<td>无签名校验、无灰度、无强制升级、无离线场景、无更新失败回滚。契约里只有「即使包已签名，宿主校验仍必要」这一句原则，没有流程</td>
+<td>阶段二阻塞</td>
+</tr>
+<tr>
+<td>7</td>
+<td>第一方双标准</td>
+<td>部分</td>
+<td>系统弹窗 S、WPS 写入 D 需要系统级监听与写回，公开契约无法表达；这些能力只能留在底座，形成「契约内无权限、契约外有特权」的隐性双通道——与 EXT-01「不按应用分支」直接冲突</td>
+<td>阶段一埋雷，阶段三引爆</td>
+</tr>
+<tr>
+<td>8</td>
+<td>并发与冲突</td>
+<td>部分</td>
+<td>有 <code>plugin_conflict</code>（匹配重叠拒绝），但没有：冲突时用户可选或可视化处置、多会话并存、浮层与全局快捷键归属、多插件标记争用</td>
+<td>阶段二（体验）/阶段三（阻塞）</td>
+</tr>
+</tbody></table>
+<h2>返工点清单（按阻塞阶段排序）</h2>
+<table>
+<thead>
+<tr>
+<th>序</th>
+<th>返工点</th>
+<th>阻塞阶段</th>
+<th>严重度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>安装/启用/禁用/移除/残留清理（含变更时取消会话）</td>
+<td>二</td>
+<td>阻塞级</td>
+</tr>
+<tr>
+<td>2</td>
+<td>权限声明 + 撤销后降级路径</td>
+<td>二</td>
+<td>阻塞级</td>
+</tr>
+<tr>
+<td>3</td>
+<td>签名校验与更新失败回滚、离线策略</td>
+<td>二</td>
+<td>阻塞级</td>
+</tr>
+<tr>
+<td>4</td>
+<td>版本兼容窗口与 <code>version</code> 语义、降级定义</td>
+<td>二</td>
+<td>阻塞级</td>
+</tr>
+<tr>
+<td>5</td>
+<td>第一方特权通道的显式化（否则违反 EXT-01）</td>
+<td>一→三</td>
+<td>阻塞级</td>
+</tr>
+<tr>
+<td>6</td>
+<td>病态规则/UIA 规模的计算上限与主线程占用约束</td>
+<td>二</td>
+<td>体验级</td>
+</tr>
+<tr>
+<td>7</td>
+<td>冲突的用户可见处置与多会话/浮层/快捷键归属</td>
+<td>二</td>
+<td>体验级</td>
+</tr>
+<tr>
+<td>8</td>
+<td>宿主崩溃恢复与启动顺序竞争</td>
+<td>二</td>
+<td>体验级</td>
+</tr>
+<tr>
+<td>9</td>
+<td>数据归属：清单、日志、审阅记录的路径与迁移</td>
+<td>二</td>
+<td>技术债级</td>
+</tr>
+</tbody></table>
+<p><strong>一句话结论</strong>：阶段一的契约在「单包—单目标—单会话」假设下自洽；它缺的不是校验，而是<strong>生命周期、权限、版本、分发四个状态机</strong>，以及第一方特权如何被契约表达的诚实答案。前四项不补，阶段二无法开工；第五项不补，EXT-01 形同虚设。</p>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">4</span>
+        <h2>📦 产品经理</h2>
+        <span class="meta">product/product-manager · 19.9s · 19,973 tokens</span>
+      </header>
+      <div class="body"><h1>迁移排序原则</h1>
+<ol>
+<li><strong>机制先于知识</strong>：无状态、无权限、纯展示的知识先迁，用最小的包建立契约信心。</li>
+<li><strong>特权不下放</strong>：需要系统级监听、句柄、写入的能力永久留宿主；契约表达不了就不迁（否则 EXT-01 失效）。</li>
+<li><strong>阻断项清零才进下一批</strong>：签名、权限声明、回滚、版本语义四条未清，不启动分发相关批次。</li>
+<li><strong>每批可单开关回滚</strong>：以 <code>catalog.json</code> 空清单为总闸，禁止不可逆迁移进入批次。</li>
+<li><strong>契约只在批次边界变更，批内冻结；探针先于迁移。</strong></li>
+</ol>
+<h2>批次 × 功能 × 前置依赖 × 验证标准 × 返工风险</h2>
+<table>
+<thead>
+<tr>
+<th>批次</th>
+<th>迁移功能</th>
+<th>前置依赖</th>
+<th>验证标准</th>
+<th>回滚/代价</th>
+<th>返工风险</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A 契约加固</td>
+<td>Edge/设置的匹配、任务 ID、阻塞点；病态规则计算上限、输出白名单、<code>version</code> 语义</td>
+<td>无</td>
+<td>Checks 全绿；空清单零应用；3s/90MB 不破</td>
+<td>可；低</td>
+<td>低</td>
+</tr>
+<tr>
+<td>B 系统弹窗 S 知识化</td>
+<td>仅匹配+任务 ID+阻塞点；采集与触发留宿主</td>
+<td>A 完成；探针 1/2 通过</td>
+<td>19 条中 S 相关指向正确率达标；无错绑</td>
+<td>可；中（用户已装包）</td>
+<td><strong>高</strong>：S 依赖事件监听，声明式无触发时机</td>
+</tr>
+<tr>
+<td>C 管理面状态机</td>
+<td>安装/禁用/移除/残留清理、权限声明+撤销降级、签名与更新回滚、版本兼容窗口</td>
+<td>B 通过；四条阻断项设计定稿</td>
+<td>禁用后会话即刻失效；撤销同意降级不崩；篡改包被拒</td>
+<td><strong>不可</strong>；高（涉及用户已装包与清单数据）</td>
+<td>中：权限模型后补会推翻 B 的字段</td>
+</tr>
+<tr>
+<td>D 文档写入（WPS）</td>
+<td>宿主受控端口，插件仅提供知识</td>
+<td>C 完成；<strong>TC-3 通过</strong></td>
+<td>TC-3 全过；写入可一步还原；审计无原文</td>
+<td>关端口；中</td>
+<td>高，但受门禁保护</td>
+</tr>
+<tr>
+<td>E 可执行适配器</td>
+<td>—</td>
+<td>七项 AND 门槛</td>
+<td>—</td>
+<td>—</td>
+<td>暂缓，不排期</td>
+</tr>
+</tbody></table>
+<h2>返工点与前置探针</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>高概率返工节点</th>
+<th>前置探针（迁移前的最小验证）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>S 类任务无法用「阻塞点+任务 ID」表达</td>
+<td>用纯声明式跑通 1 个 S 任务；需新增规则类型即判定契约不足</td>
+</tr>
+<tr>
+<td>2</td>
+<td>标题漂移/多实例致错绑</td>
+<td>同一任务在 20 种窗口标题下重放，统计唯一匹配命中率</td>
+</tr>
+<tr>
+<td>3</td>
+<td>病态规则 × UIA 规模计算爆炸破 3s</td>
+<td>造 5000 节点树 + 200 条规则的包，测单阶段耗时</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>schemaVersion</code> 整目录拒绝的可用性代价</td>
+<td>改版本号观察拒绝粒度是否需降级为「拒单包」</td>
+</tr>
+<tr>
+<td>5</td>
+<td>第一方特权无处安放</td>
+<td>把 S 监听/D 写入写成宿主端口，让第三方同权调用一次，验证无特权泄露</td>
+</tr>
+</tbody></table>
+<h2>第一方插件化的隐性成本</h2>
+<ul>
+<li><strong>双份契约</strong>：宿主内部端口契约 + 公开 <code>plugin.json</code> 契约需同步演进，一人+AI 维护成本约翻倍。</li>
+<li><strong>特权曝光两难</strong>：写进公开契约即向第三方开放，不写则形成「契约外特权通道」，EXT-01 名存实亡。</li>
+<li><strong>节奏耦合</strong>：schema 冻结后第一方无法随宿主自由改字段；第一方要跟宿主发版，第三方包独立。</li>
+<li><strong>审核流程摩擦</strong>：自家包也须走签名、灰发、回滚，削弱其交付速度优势。</li>
+<li><strong>无测试人力</strong>：回归全靠 <code>Checks</code>，插件组合后用例爆炸，覆盖不足即成隐性回归债。</li>
+</ul>
+<h2>路线图</h2>
+<table>
+<thead>
+<tr>
+<th>里程碑</th>
+<th>时长</th>
+<th>交付物</th>
+<th>卡点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>M0 探针</td>
+<td>1–2 周</td>
+<td>5 个探针脚本 + 结论报告</td>
+<td>探针 1 判定是否为否 → B 批次改走内置贡献</td>
+</tr>
+<tr>
+<td>M1 契约加固</td>
+<td>2 周</td>
+<td>计算上限、输出白名单、<code>version</code> 语义、Checks 扩充</td>
+<td>Checks 全绿</td>
+</tr>
+<tr>
+<td>M2 管理面</td>
+<td>3–4 周</td>
+<td>生命周期+权限+签名四状态机</td>
+<td>四条阻断项清零，否则不进公开分发</td>
+</tr>
+<tr>
+<td>M3 文档写入</td>
+<td>视 TC-3</td>
+<td>宿主受控端口 + 审计</td>
+<td>TC-3 未过即不发布</td>
+</tr>
+<tr>
+<td>M4 阶段三评估</td>
+<td>不排期</td>
+<td>隔离方案结论（做/停）</td>
+<td>七项 AND 未满足则长期停在数据包</td>
+</tr>
+</tbody></table>
+</div>
+    </section>
+
+    <section class="step">
+      <header>
+        <span class="no">5</span>
+        <h2>👔 首席技术官（CTO）</h2>
+        <span class="meta">company/chief-technology-officer · 34.7s · 38,656 tokens</span>
+      </header>
+      <div class="body"><h2>1. 结论</h2>
+<p><strong>有条件可行。</strong> 关键条件三个：① 第一方不享受特权，结构定为“机制宿主 + 知识插件”；契约表达不了的能力永久留宿主，不得伪装成插件；② 阶段一只开放声明式数据包，生命周期、权限、版本、分发四个状态机不补齐，绝不进入公开分发；③ 3 秒、90MB、TC-1~6 门禁一分不放宽。</p>
+<h2>2. 分级建议</h2>
+<p><strong>A 级（缺任一则结论降为不可行）</strong></p>
+<ul>
+<li><strong>A1 P0</strong>｜生命周期状态机：安装/启用/禁用/移除/残留清理，禁用即取消会话。责任：Plugins 运行时。验证：Checks 用例——禁用后会话立即失效、无残留标记。</li>
+<li><strong>A2 P0</strong>｜第一方特权显式化：S 监听、D 写入定义为宿主受控端口，公开同权或明写“不开放”。责任：架构。验证：探针 5——第三方同权调用一次，无特权泄露。</li>
+<li><strong>A3 P0</strong>｜病态输入上限：阻塞点规则条数、UIA 规模、输出白名单强校验。责任：Plugins。验证：5000 节点树 + 200 条规则单阶段 ≤3s 且可观察结束。</li>
+<li><strong>A4 P0</strong>｜签名、来源校验与更新失败回滚。责任：宿主/分发。验证：篡改包被拒；回滚后空清单零应用。</li>
+</ul>
+<p><strong>B 级（P1，显著降风险）</strong></p>
+<ul>
+<li><strong>B1 P1</strong>｜权限声明 + 撤销后降级。责任：Plugins。验证：撤销同意不崩、已加载包即刻收窄。</li>
+<li><strong>B2 P1</strong>｜版本兼容窗口与 <code>version</code> 语义，坏包只拒单包。责任：Plugins。验证：改 <code>schemaVersion</code>/<code>version</code> 造不兼容包，仅该包被拒、其余照常解析，Checks 全绿。</li>
+<li><strong>B3 P1</strong>｜崩溃恢复与启动顺序竞争。责任：宿主。验证：采集器先于快照就绪时重启无标记/快照残留。</li>
+<li><strong>B4 P1</strong>｜冲突的用户可见处置。责任：宿主 UI。验证：造两包匹配同目标，用户可见冲突提示且可择一，选择后单目标单插件生效。</li>
+</ul>
+<p><strong>C 级（P2，可选优化）</strong></p>
+<ul>
+<li><strong>C1 P2</strong>｜数据归属与迁移路径。责任：宿主。验证：卸载后无孤儿数据、备份可迁移。</li>
+<li><strong>C2 P2</strong>｜多会话/浮层/快捷键归属。责任：宿主 UI。验证：两会话并存不争用浮层与快捷键。</li>
+</ul>
+<h2>3. 第三方插件三阶段裁决</h2>
+<ul>
+<li><strong>数据包：放行。</strong> 硬前提：来源校验 + 审计日志 + 输出白名单，且装包≠进已发布支持范围。</li>
+<li><strong>公开安装：暂缓。</strong> 前提：A1、A4 与权限声明、版本兼容四条阻断清零；未清零只走“审核后并入内置贡献”。</li>
+<li><strong>可执行适配器：否决。</strong> 重启条件：七项 AND 全绿——OS 强制隔离、不传句柄/图像/原文、可观察终止不侵占 3s/90MB。</li>
+</ul>
+<h2>4. 决策反转条件（kill criteria）</h2>
+<ol>
+<li>探针 2：同一任务在 20 种标题下唯一匹配命中率 &lt;95% 或错绑可复现 → 匹配退回内置清单。</li>
+<li>探针 3：5000 节点 + 200 规则单阶段超 3s，收敛上限也压不下来 → 知识层降为宿主内置贡献。</li>
+<li>一人+AI 维护双份契约，Checks 连续两个批次通过率下滑 → 砍第三方通道，只留第一方声明包。</li>
+</ol>
+<h2>5. 一句话</h2>
+<p><strong>该妥协</strong>：知识层一律插件化保留，机制层明确豁免并写进契约——不写，要么造假特权让 EXT-01 名存实亡，要么为原则牺牲 3 秒和 90MB。</p>
+</div>
+    </section>
+
+    <section class="step final">
+      <header>
+        <span class="no">6</span>
+        <h2>✍️ 技术文档工程师 <span class="star">⭐ 最终成品</span></h2>
+        <span class="meta">engineering/engineering-technical-writer · 51.0s · 31,071 tokens</span>
+      </header>
+      <div class="body"><h1>架构可行性评估报告</h1>
+<h2>一、结论</h2>
+<p><strong>有条件可行。</strong> 一句话理由：知识层为有界纯数据、机制层有明确不可下沉边界，二者可分离；代价是契约必须明确豁免机制层。</p>
+<p>关键前提三条：① 第一方不享受特权，结构定为“机制宿主 + 知识插件”；契约表达不了的能力永久留宿主，不得伪装成插件；② 阶段一只开放声明式数据包，生命周期、权限、版本、分发四个状态机不补齐，绝不进入公开分发；③ 3 秒、90MB、TC-1~6 门禁一分不放宽。缺任一，结论降为不可行。</p>
+<h2>二、架构边界判定</h2>
+<p>底座不可插件化能力共八项，下沉后的故障均可指认：悬浮窗生命周期/置顶（Z 序乱、TC-6 破）、全局输入监听/注入（可记录全屏按键、跨进程注入）、进程/权限模型（借宿主令牌提权）、配置/密钥存储（密钥入包、跨包互读）、更新分发（绕过签名门禁、半更新契约不兼容）、日志/遥测（直写标题与控件原文）、IPC/宿主 API 网关（自开通道，鉴权与配额失控）、崩溃恢复（会话与标记残留）。</p>
+<p><strong>表 1 第一方功能三档分布</strong>（①纯数据可插件化 ②可执行适配器 ③机制留宿主）</p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>现状实现</th>
+<th>目标形态</th>
+<th>档</th>
+<th>依据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>悬浮球/面板/拖放/绑定</td>
+<td>WPF 宿主</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>窗口与焦点所有权</td>
+</tr>
+<tr>
+<td>云端同意/授权</td>
+<td>宿主 UI</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>信任根不可由包伪造</td>
+</tr>
+<tr>
+<td>采集调度/快照</td>
+<td>通用采集器</td>
+<td>宿主调度+插件选 view</td>
+<td>③/①</td>
+<td>句柄与图像不出宿主</td>
+</tr>
+<tr>
+<td>模型网关/复核/标记/取消/超时</td>
+<td>宿主</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>密钥、SLA、脱敏</td>
+</tr>
+<tr>
+<td>Win 设置/Edge 匹配、UIA 视图、任务 ID、阻塞点</td>
+<td><code>plugin.json</code></td>
+<td>声明式包</td>
+<td>①</td>
+<td>有界纯数据</td>
+</tr>
+<tr>
+<td>唯一匹配/冲突/禁用/空清单/契约校验</td>
+<td>Plugins 运行时</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>fail closed</td>
+</tr>
+<tr>
+<td>支持清单/发布范围</td>
+<td>宿主策略</td>
+<td>宿主机制</td>
+<td>③</td>
+<td>装包≠进范围</td>
+</tr>
+<tr>
+<td>文档快照/还原（WPS，TC-3 未过）</td>
+<td>未开放</td>
+<td>宿主受控端口+知识</td>
+<td>③</td>
+<td>写权限与还原审计</td>
+</tr>
+<tr>
+<td>安装/启用/移除、诊断日志</td>
+<td>宿主/未实现</td>
+<td>管理面</td>
+<td>③</td>
+<td>生命周期与脱敏</td>
+</tr>
+</tbody></table>
+<p>必须打洞的位置只有四处：采集视图选择、任务知识、阻塞点、启用清单。四处都须实现为宿主通用端口，不向插件交句柄、代码或网络。原则冲击：若第三方对端口同权调用，EXT-01“不按应用分支”成立；若为第一方开孔而第三方不可达，原则即失效。因此结构标定为“机制宿主 + 知识插件”，并由探针 5 以第三方同权调用一次验证无特权泄露。</p>
+<h2>三、声明式插件的表达力上限</h2>
+<p>七类能力无法声明式表达，降级方案与代价如下：自定义渲染浮层→宿主通用面板/标记（体验中、成本低，仍值）；长驻监听系统事件→触发时一次性采集（体验高损，S 类任务失去触发时机，价值窄）；跨应用注入/自动操作→只指路、用户执行（体验高损，仍值）；本地 DB 事务/跨会话编排→无状态 + 宿主配置（高损、价值窄）；网络长连接/回调→仅宿主模型网关（高损）；动态全局快捷键、自定义采集→固定宿主键 + UIA <code>control/raw</code> + 阻塞点（中损、成本中）；文档写入→宿主受控端口、插件仅知识（体验损低、成本高）。</p>
+<p>结论：声明式输出恒为三态——解释、必要短问、指向一个已观察候选 ID。任何依赖状态或时机的任务，由宿主端口承载，不靠扩 schema 补齐。</p>
+<h2>四、第三方插件三阶段可行性与安全前提</h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>判定</th>
+<th>前提条件（须全部满足）</th>
+<th>现状阻断项</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>一 声明式数据包</td>
+<td><strong>放行</strong></td>
+<td>来源校验 + 审计日志 + 输出白名单强校验 + 病态输入上限；装包≠进已发布支持范围</td>
+<td>无签名与来源校验；<code>uiaView</code>/<code>taskIds</code> 未与数据分级挂钩；输出白名单未强校验</td>
+</tr>
+<tr>
+<td>二 公开安装</td>
+<td><strong>暂缓</strong></td>
+<td>A1、A4 + 权限声明 + 版本兼容四条阻断清零；权限清单安装前展示且运行期强制；禁用/移除即取消会话；信任等级（已验证/未验证）；更新失败可回滚</td>
+<td>无权限声明模型；无信任等级模型；无禁用/移除/回滚；有显式启用清单但无跨包隔离</td>
+</tr>
+<tr>
+<td>三 可执行适配器</td>
+<td><strong>否决</strong></td>
+<td>七项 AND：OS 强制隔离（低权限账户/AppContainer + Job Object 限内存·CPU·进程·网络）；不传句柄/图像/控件原文；会话级能力令牌；签名+发布者+吊销+灰发+回滚；崩溃/超时/超资源可观察终止且不侵占 3s/90MB；权限可视化 + 不可篡改审计；文档写入仍受 TC-3</td>
+<td>七项全阻断。降级路径：①留“数据包 + 审核后并入内置贡献”；②独立低权限进程只读采集、经白名单 IPC 回传结构化结果，无写入、无 UI 操作</td>
+</tr>
+</tbody></table>
+<p><strong>分歧：</strong> 威胁建模材料给阶段一的前提仅为来源校验与审计日志；CTO 裁决另加输出白名单与病态上限。采信 CTO——输出是插件影响宿主显示的出口，不加白名单即等于把不可信数据直接送到绘制层。</p>
+<h2>五、迁移顺序与返工点</h2>
+<p><strong>表 3 迁移批次</strong>（原则：机制先于知识；特权不下放；四条阻断项未清不启动分发批次；契约只在批次边界变更）</p>
+<table>
+<thead>
+<tr>
+<th>批次</th>
+<th>内容</th>
+<th>前置</th>
+<th>验证标准</th>
+<th>回滚/代价</th>
+<th>风险</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A 契约加固</td>
+<td>Edge/设置匹配、任务 ID、阻塞点、计算上限、输出白名单、<code>version</code> 语义</td>
+<td>无</td>
+<td>Checks 全绿；空清单零应用；3s/90MB 不破</td>
+<td>可；低</td>
+<td>低</td>
+</tr>
+<tr>
+<td>B 系统弹窗 S 知识化</td>
+<td>仅匹配 + 任务 ID + 阻塞点，采集与触发留宿主</td>
+<td>A 完成 + 探针 1/2 通过</td>
+<td>S 相关指向正确率达标；无错绑</td>
+<td>可；中</td>
+<td>高：声明式缺 S 的触发时机</td>
+</tr>
+<tr>
+<td>C 管理面状态机</td>
+<td>生命周期、权限声明 + 撤销降级、签名与更新回滚、版本兼容窗口</td>
+<td>B 通过 + 四条阻断项设计定稿</td>
+<td>禁用即会话失效；撤销不崩；篡改包被拒</td>
+<td>以空清单为总闸＋灰度</td>
+<td>中：权限模型后补会推翻 B 字段</td>
+</tr>
+<tr>
+<td>D 文档写入 WPS</td>
+<td>宿主受控端口，插件仅知识</td>
+<td>C 完成 + TC-3 通过</td>
+<td>TC-3 全过；写入可一步还原；审计无原文</td>
+<td>关端口；中</td>
+<td>高，受门禁保护</td>
+</tr>
+<tr>
+<td>E 可执行适配器</td>
+<td>—</td>
+<td>七项 AND</td>
+<td>—</td>
+<td>—</td>
+<td>暂缓，不排期</td>
+</tr>
+</tbody></table>
+<p><strong>分歧：</strong> 迁移材料将 C 批标注“不可回滚”，与其自身“禁止不可逆迁移进入批次”的原则冲突。采信原则：C 以空清单为总闸并灰度，非不可逆；同时按 CTO 的 P0 定级，探针 1 若判否，B 降至内置贡献、C 前移。</p>
+<p>高返工节点与前置探针（五条）：①S 无法用“阻塞点 + 任务 ID”表达→探针 1，纯声明式跑通 1 个 S 任务，需新增规则类型即判契约不足；②标题漂移/多实例错绑→探针 2，同一任务 20 种标题重放，命中率 &lt;95% 即 kill；③病态规则 × UIA 规模爆炸→探针 3，5000 节点树 + 200 条规则单阶段计时；④<code>schemaVersion</code> 整目录拒绝的可用性代价→改版本号观察是否需降为拒单包；⑤第一方特权无处安放→探针 5，S 监听/D 写入写成宿主端口后让第三方同权调用一次。</p>
+<p>隐性成本：双份契约（内部端口 + 公开 <code>plugin.json</code>）同步演进，一人 + AI 维护约翻倍；特权曝光两难——写进契约即开放给第三方，不写则成契约外通道；schema 冻结后第一方无法随宿主自由改字段；自家包也须走签名与回滚，削弱交付速度；无测试人力，插件组合后用例爆炸成隐性回归债。</p>
+<p>节奏：M0 探针 1–2 周 → M1 契约加固 2 周 → M2 管理面 3–4 周 → M3 文档写入视 TC-3 → M4 阶段三不排期。</p>
+<h2>六、分级建议</h2>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>级别</th>
+<th>优先级</th>
+<th>建议</th>
+<th>责任</th>
+<th>验证方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A1</td>
+<td>A</td>
+<td>P0</td>
+<td>生命周期状态机：安装/启用/禁用/移除/残留清理，禁用即取消会话</td>
+<td>Plugins 运行时</td>
+<td>Checks 用例：禁用后会话立即失效、无残留标记</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>A</td>
+<td>P0</td>
+<td>第一方特权显式化：S 监听、D 写入定义为宿主受控端口，公开同权或明写“不开放”</td>
+<td>架构</td>
+<td>探针 5：第三方同权调用一次，无特权泄露</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>A</td>
+<td>P0</td>
+<td>病态输入上限：阻塞点规则条数、UIA 规模、输出白名单强校验</td>
+<td>Plugins</td>
+<td>5000 节点树 + 200 条规则单阶段 ≤3s 且可观察结束</td>
+</tr>
+<tr>
+<td>A4</td>
+<td>A</td>
+<td>P0</td>
+<td>签名、来源校验与更新失败回滚</td>
+<td>宿主/分发</td>
+<td>篡改包被拒；回滚后空清单零应用</td>
+</tr>
+<tr>
+<td>B1</td>
+<td>B</td>
+<td>P1</td>
+<td>权限声明 + 撤销后降级</td>
+<td>Plugins</td>
+<td>撤销同意不崩，已加载包即刻收窄</td>
+</tr>
+<tr>
+<td>B2</td>
+<td>B</td>
+<td>P1</td>
+<td>版本兼容窗口与 <code>version</code> 语义，坏包只拒单包</td>
+<td>Plugins</td>
+<td>造不兼容包仅该包被拒、其余照常解析，Checks 全绿</td>
+</tr>
+<tr>
+<td>B3</td>
+<td>B</td>
+<td>P1</td>
+<td>崩溃恢复与启动顺序竞争</td>
+<td>宿主</td>
+<td>采集器先于快照就绪时重启无标记/快照残留</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>B</td>
+<td>P1</td>
+<td>冲突的用户可见处置</td>
+<td>宿主 UI</td>
+<td>两包匹配同目标可见冲突提示且可择一，选择后单目标单插件生效</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>C</td>
+<td>P2</td>
+<td>数据归属与迁移路径</td>
+<td>宿主</td>
+<td>卸载后无孤儿数据、备份可迁移</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>C</td>
+<td>P2</td>
+<td>多会话/浮层/快捷键归属</td>
+<td>宿主 UI</td>
+<td>两会话并存不争用浮层与快捷键</td>
+</tr>
+</tbody></table>
+<p>决策反转条件：探针 2 命中率 &lt;95% 或错绑可复现→匹配退回内置清单；探针 3 超 3s 且收敛上限压不下→知识层降为宿主内置贡献；Checks 连续两批通过率下滑→砍第三方通道，只留第一方声明包。</p>
+</div>
+    </section>
+
+  <footer>
+    <span>本页由 <strong>Agency Orchestrator</strong> 的 AI 专家团队协作生成 · 2026/10/27 08:40:13</span>
+    <a href="https://github.com/jnMetaCode/agency-orchestrator">github.com/jnMetaCode/agency-orchestrator</a>
+    <span>一句话，让多个 AI 角色自动协作：<code>npm i -g agency-orchestrator</code></span>
+  </footer>
+</div>
+</body>
+</html>

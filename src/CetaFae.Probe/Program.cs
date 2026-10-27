@@ -1,4 +1,5 @@
 using System.Windows;
+using CetaFae.Plugins;
 
 namespace CetaFae.Probe;
 
@@ -7,98 +8,61 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        ProbeLog.Open(ArgValue(args, "--log") ?? "logs");
-
-        var captureTitle = ArgValue(args, "--capture");
-        if (captureTitle is { Length: > 0 })
+        if (args.SequenceEqual(new[] { "--observe-worker" }))
         {
-            var hwnd = AutoRunner.Find(captureTitle);
-            if (hwnd == IntPtr.Zero)
-            {
-                ProbeLog.Log("capture_abort", ("reason", "not_found"), ("title", captureTitle));
-                return;
-            }
-            var shots = int.TryParse(ArgValue(args, "--shots"), out var s) ? s : 2;
-            var interval = int.TryParse(ArgValue(args, "--interval"), out var itv) ? itv : 400;
-            Capture.Shoot(hwnd, ArgValue(args, "--out") ?? "", shots, interval);
+            // UIA runs on an MTA thread without creating a WPF application or owning a window.
+            Task.Run(ObservationWorker.Run).GetAwaiter().GetResult();
+            return;
+        }
+        ProbeLog.Open(ArgValue(args, "--log") ?? System.IO.Path.Combine(".artifacts", "logs"));
+        var switches = new[] { "--guide", "--guide-preview", "--base-url", "--model", "--text-only", "--log", "--exit-after" };
+        if (args.Any(a => a.StartsWith("--", StringComparison.Ordinal) && !switches.Contains(a)))
+        {
+            ProbeLog.Log("invalid_argument");
+            Environment.ExitCode = 2;
+            return;
+        }
+        GuideOptions options;
+        try
+        {
+            options = GuideOptions.Create(ArgValue(args, "--base-url") ?? "http://127.0.0.1:8787/v1",
+                ArgValue(args, "--model") ?? "deepseek-v4.1-flash", !args.Contains("--text-only"));
+        }
+        catch (ArgumentException)
+        {
+            ProbeLog.Log("guide_configuration_invalid");
+            Environment.ExitCode = 2;
             return;
         }
 
-        var uiaTitle = ArgValue(args, "--uia");
-        var uiaHwndText = ArgValue(args, "--uia-hwnd");
-        if (uiaTitle is { Length: > 0 } || uiaHwndText is { Length: > 0 })
+        PluginCatalog plugins;
+        try { plugins = PluginCatalog.Load(System.IO.Path.Combine(AppContext.BaseDirectory, "plugins")); }
+        catch (Exception ex) when (ex is System.IO.IOException or System.IO.InvalidDataException or UnauthorizedAccessException or
+                                      System.Text.Json.JsonException or ArgumentException)
         {
-            var hwnd = uiaHwndText is { Length: > 0 }
-                ? new IntPtr(Convert.ToInt64(uiaHwndText, 16))
-                : AutoRunner.Find(uiaTitle!);
-            if (hwnd == IntPtr.Zero)
-            {
-                ProbeLog.Log("uia_abort", ("reason", "not_found"), ("title", uiaTitle));
-                return;
-            }
-            var outPath = ArgValue(args, "--dump") ?? $"logs/uia-{DateTime.Now:HHmmss}.jsonl";
-            var raw = args.Any(a => string.Equals(a, "--uia-raw", StringComparison.OrdinalIgnoreCase));
-            UiaProbe.Dump(hwnd, outPath, 14, 5000, raw);
+            ProbeLog.Log("plugin_catalog_invalid");
+            Environment.ExitCode = 2;
             return;
         }
-
-        var autoTitle = ArgValue(args, "--auto");
-        var trackTitle = ArgValue(args, "--track");
-        var trials = int.TryParse(ArgValue(args, "--trials"), out var n) ? n : 3;
-        var dwell = int.TryParse(ArgValue(args, "--dwell"), out var d) ? d : 700;
-        var exitAfter = int.TryParse(ArgValue(args, "--exit-after"), out var ea) ? ea : 0;
-
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var ball = new BallWindow();
         ball.Show();
-        app.Exit += (_, _) => ball.Cleanup();
-
-        if (autoTitle is { Length: > 0 })
-        {
-            app.Dispatcher.InvokeAsync(async () =>
-            {
-                await Task.Delay(500);
-                await AutoRunner.RunAsync(ball, autoTitle, trials, dwell);
-                app.Shutdown();
-            });
-        }
-        else if (trackTitle is { Length: > 0 })
-        {
-            app.Dispatcher.InvokeAsync(async () =>
-            {
-                await Task.Delay(400);
-                var target = AutoRunner.Find(trackTitle);
-                if (target == IntPtr.Zero)
-                {
-                    ProbeLog.Log("track_abort", ("reason", "not_found"), ("title", trackTitle));
-                }
-                else
-                {
-                    ball.TrackWindow(target);
-                    await Task.Delay(300);
-                    await AutoRunner.FollowOnly(ball, target);
-                }
-                app.Shutdown();
-            });
-        }
-        else if (exitAfter > 0)
-        {
+        var session = new GuideSession(ball, options, args.Contains("--guide-preview"), plugins);
+        app.Exit += (_, _) => { session.Dispose(); ball.Cleanup(); };
+        if (int.TryParse(ArgValue(args, "--exit-after"), out var exitAfter) && exitAfter > 0)
             app.Dispatcher.InvokeAsync(async () =>
             {
                 await Task.Delay(exitAfter);
                 ProbeLog.Log("exit_timer");
                 app.Shutdown();
             });
-        }
-
         app.Run();
     }
 
     static string? ArgValue(string[] args, string name)
     {
         for (var i = 0; i < args.Length - 1; i++)
-            if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
-                return args[i + 1];
+            if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase)) return args[i + 1];
         return null;
     }
 }

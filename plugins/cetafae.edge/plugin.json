@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "cetafae.edge",
+  "version": "0.1.0",
+  "displayName": "Microsoft Edge",
+  "targets": [{ "processNames": ["msedge"] }],
+  "uiaView": "raw",
+  "taskIds": ["E-06"],
+  "blockedPoints": []
+}

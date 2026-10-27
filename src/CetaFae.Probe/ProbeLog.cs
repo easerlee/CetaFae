@@ -8,8 +8,6 @@ public static class ProbeLog
     static readonly object Gate = new();
     static string _path = "";
 
-    public static string Path => _path;
-
     public static void Open(string directory)
     {
         Directory.CreateDirectory(directory);

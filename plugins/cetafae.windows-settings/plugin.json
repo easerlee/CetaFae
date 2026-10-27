@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "cetafae.windows-settings",
+  "version": "0.1.0",
+  "displayName": "Windows 设置",
+  "targets": [
+    {
+      "processNames": ["SystemSettings", "ApplicationFrameHost"],
+      "windowTitles": ["设置", "Settings"]
+    }
+  ],
+  "uiaView": "control",
+  "taskIds": ["W-01"],
+  "blockedPoints": [
+    {
+      "intentContainsAny": ["暂停更新", "pause updates"],
+      "candidateNameContainsAny": ["继续更新", "恢复更新", "Resume updates"]
+    }
+  ]
+}
