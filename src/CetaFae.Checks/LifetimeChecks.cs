@@ -129,7 +129,7 @@ static class LifetimeChecks
             var reply = await ObservationWorker.ExchangeAsync(worker, "invalid private input", timeout.Token);
             using var json = JsonDocument.Parse(reply);
             check(json.RootElement.GetProperty("Observation").ValueKind == JsonValueKind.Null &&
-                  json.RootElement.GetProperty("Error").GetString() == "worker_failed" && !reply.Contains("private"),
+                  json.RootElement.GetProperty("Error").GetString() == "worker_request_invalid" && !reply.Contains("private"),
                 "the production worker rejects malformed input without a window, observation or content echo");
         }
 

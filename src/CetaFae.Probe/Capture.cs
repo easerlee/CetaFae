@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -8,22 +9,38 @@ namespace CetaFae.Probe;
 public static class Capture
 {
     /// <summary>Guide capture never reads screen pixels or persists image content.</summary>
-    public static byte[] ReadTarget(IntPtr hwnd)
+    public static byte[] ReadTarget(IntPtr hwnd, Rect? region = null) => ReadTarget(hwnd, region, out _);
+
+    internal static byte[] ReadTarget(IntPtr hwnd, Rect? region, out Rect? caret)
     {
+        caret = null;
         if (!Native.IsWindow(hwnd) || !Native.IsWindowVisible(hwnd) || Native.IsIconic(hwnd))
             throw new InvalidDataException("capture_target_unavailable");
-        var rect = Native.Frame(hwnd);
+        if (!Native.GetWindowRect(hwnd, out var rect)) throw new InvalidDataException("capture_dimensions");
         int w = rect.Right - rect.Left, h = rect.Bottom - rect.Top;
         if (w <= 0 || h <= 0 || (long)w * h > 16_000_000)
             throw new InvalidDataException("capture_dimensions");
+        var before = Native.CaretRect(hwnd);
         var frame = ReadPixels(hwnd, w, h);
+        var after = Native.CaretRect(hwnd);
+        if (before is not null && before == after) caret = before;
         if (!frame.Ok || frame.NonBlackPct <= 1) throw new InvalidDataException("capture_unusable");
         var img = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, frame.Pixels, w * 4);
-        BitmapSource output = img;
-        if (Math.Max(w, h) > 1600)
+        return EncodeRegion(img, new Rect(rect.Left, rect.Top, w, h), region ?? GuideObservation.WindowRect(hwnd));
+    }
+
+    internal static byte[] EncodeRegion(BitmapSource img, Rect sourceFrame, Rect region)
+    {
+        if (!GuideScope.Valid(sourceFrame) || !GuideScope.Valid(region) || !sourceFrame.Contains(region) ||
+            img.PixelWidth != sourceFrame.Width || img.PixelHeight != sourceFrame.Height ||
+            new[] { region.X - sourceFrame.X, region.Y - sourceFrame.Y, region.Width, region.Height }.Any(v => v != Math.Truncate(v)))
+            throw new InvalidDataException("scope_unavailable");
+        BitmapSource output = new CroppedBitmap(img, new Int32Rect((int)(region.X - sourceFrame.X),
+            (int)(region.Y - sourceFrame.Y), (int)region.Width, (int)region.Height));
+        if (Math.Max(output.PixelWidth, output.PixelHeight) > 1600)
         {
-            var scale = 1600.0 / Math.Max(w, h);
-            output = new TransformedBitmap(img, new ScaleTransform(scale, scale));
+            var scale = 1600.0 / Math.Max(output.PixelWidth, output.PixelHeight);
+            output = new TransformedBitmap(output, new ScaleTransform(scale, scale));
         }
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(output));

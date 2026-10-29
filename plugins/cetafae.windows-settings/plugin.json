@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "cetafae.windows-settings",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Windows 设置",
   "targets": [
     {
@@ -16,5 +16,11 @@
       "intentContainsAny": ["暂停更新", "pause updates"],
       "candidateNameContainsAny": ["继续更新", "恢复更新", "Resume updates"]
     }
-  ]
+  ],
+  "observationScopes": [{
+    "intentContainsAny": ["暂停更新", "pause updates"],
+    "anchorNameContainsAny": ["更新已暂停", "Updates paused"],
+    "anchorControlTypes": ["ControlType.Text"],
+    "padding": 32
+  }]
 }

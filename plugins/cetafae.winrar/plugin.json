@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "id": "cetafae.winrar",
+  "version": "0.2.1",
+  "displayName": "WinRAR (development validation)",
+  "targets": [
+    {
+      "processNames": ["WinRAR"],
+      "windowTitles": ["解压路径和选项", "Extraction path and options"]
+    }
+  ],
+  "uiaView": "control",
+  "taskIds": ["X-01"],
+  "blockedPoints": [],
+  "observationScopes": [{
+    "intentContainsAny": ["解压到哪个文件夹", "目的地路径", "目的路径", "目标路径", "destination path", "extraction folder"],
+    "anchorNameContainsAny": ["目的地路径", "目的路径", "目标路径", "Destination path"],
+    "anchorControlTypes": ["ControlType.ComboBox"],
+    "padding": 16
+  }]
+}

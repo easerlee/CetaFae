@@ -23,10 +23,13 @@ public static class ObservationWorker
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         Converters = { new HandleConverter(), new RectangleConverter() }
     };
-    sealed record Request(long Window, bool IncludeImage, GuidePlugin Plugin);
+    internal sealed record Request(long Window, bool IncludeImage, GuidePlugin Plugin, string? Intent = null, Rect? Selection = null);
     sealed record Reply(GuideObservation? Observation, string? Error);
 
-    public static async Task<GuideObservation> ReadAsync(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token)
+    internal static string SerializeRequest(Request request) => JsonSerializer.Serialize(request, Json);
+
+    public static async Task<GuideObservation> ReadAsync(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
+        string? intent = null, Rect? selection = null)
     {
         await Gate.WaitAsync(token);
         try
@@ -35,20 +38,41 @@ public static class ObservationWorker
             start.Environment.Remove("CETAFAE_API_KEY");
             start.ArgumentList.Add(typeof(ObservationWorker).Assembly.Location);
             start.ArgumentList.Add("--observe-worker");
-            var body = await ExchangeAsync(start, JsonSerializer.Serialize(new Request(window.ToInt64(), includeImage, plugin)), token);
+            var body = await ExchangeAsync(start, SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection)), token);
             var reply = JsonSerializer.Deserialize<Reply>(body, Json) ?? throw new InvalidDataException("worker_reply");
             if (reply.Error is { } error) throw new InvalidDataException(SafeError(error));
             var observation = reply.Observation ?? throw new InvalidDataException("worker_reply");
             if (observation.Window != window || observation.Candidates is null || observation.Candidates.Count > 128 ||
                 observation.PluginId != plugin.Id || observation.RawView != plugin.UsesRawView ||
+                observation.ScopeIntent != intent || (intent is not null || selection is not null) != (observation.Scope is not null) ||
                 includeImage != (observation.Png is { Length: > 0 }) ||
                 !GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
+            ValidateScopeReply(observation, plugin, intent, selection, includeImage);
             ProbeLog.Log("guide_worker_complete", ("candidates", observation.Candidates.Count),
                 ("imageBytes", observation.Png?.Length ?? 0));
             return observation;
         }
         finally { Gate.Release(); }
+    }
+
+    internal static void ValidateScopeReply(GuideObservation observation, GuidePlugin plugin, string? intent,
+        Rect? selection, bool includeImage)
+    {
+        if (selection is { } region)
+        {
+            if (observation.Scope?.HasSameAnchor(GuideScope.FromUserSelection(observation.Frame, region)) != true)
+                throw new InvalidDataException("scope_unavailable");
+        }
+        else if (observation.Scope is { } scope && (scope.UserSelected || scope.Anchor is null || intent is null ||
+                 !scope.HasSameAnchor(GuideScope.Resolve(observation.Frame, plugin.ScopeFor(intent), [scope.Anchor]))))
+            throw new InvalidDataException("scope_unavailable");
+        var expected = includeImage && (plugin.Kind == "general" || selection is not null)
+            ? GuideObservation.Fingerprint(observation.Png ?? throw new InvalidDataException("worker_reply")) : null;
+        if (observation.VisualHash != expected) throw new InvalidDataException("target_changed");
+        var visual = expected is not null ? GuideVisual.Read(observation.Png!,
+            observation.Scope?.Region ?? observation.Frame, observation.Visual?.CaretBounds) : null;
+        if (observation.Visual != visual) throw new InvalidDataException("target_changed");
     }
 
     internal static async Task<string> ExchangeAsync(ProcessStartInfo start, string input, CancellationToken token,
@@ -133,17 +157,27 @@ public static class ObservationWorker
         try
         {
             var input = ReadBoundedAsync(Console.In, MaxRequestCharacters, CancellationToken.None).GetAwaiter().GetResult();
-            var request = JsonSerializer.Deserialize<Request>(input, Json) ?? throw new InvalidDataException("worker_request");
-            if (request.Plugin is null) throw new InvalidDataException("worker_request");
-            var observation = GuideObservation.Read(new IntPtr(request.Window), request.IncludeImage, request.Plugin, CancellationToken.None);
+            var request = JsonSerializer.Deserialize<Request>(input, Json) ?? throw new InvalidDataException("worker_request_invalid");
+            if (request.Plugin is null) throw new InvalidDataException("worker_request_invalid");
+            if (request.Intent is { } intent)
+            {
+                if (string.IsNullOrWhiteSpace(intent) || intent.Length > 300 || intent.Any(char.IsControl))
+                    throw new InvalidDataException("scope_unavailable");
+                GuidePrivacy.EnsureTextSafe(intent);
+            }
+            var observation = GuideObservation.Read(new IntPtr(request.Window), request.IncludeImage, request.Plugin, CancellationToken.None,
+                request.Intent, request.Selection);
             reply = new Reply(observation, null);
         }
-        catch (Exception ex) { reply = new Reply(null, ex is InvalidDataException ? SafeError(ex.Message) : "worker_failed"); }
+        catch (Exception ex) { reply = new Reply(null, ex is InvalidDataException ? SafeError(ex.Message) :
+            ex is JsonException ? "worker_request_invalid" : "worker_failed"); }
         output.Write(JsonSerializer.Serialize(reply, Json));
     }
 
-    static string SafeError(string error) => error is "target_not_foreground" or "target_unavailable" or
-        "unsupported_target" or "elevated_target" or "target_changed" ? error : "worker_failed";
+    internal static string SafeError(string error) => error is "target_not_foreground" or "target_unavailable" or
+        "unsupported_target" or "elevated_target" or "target_changed" or "sensitive_content" or
+        "privacy_unavailable" or "scope_unavailable" or "capture_target_unavailable" or "capture_dimensions" or
+        "capture_unusable" or "worker_request_invalid" ? error : "worker_failed";
 
     sealed class HandleConverter : JsonConverter<IntPtr>
     {

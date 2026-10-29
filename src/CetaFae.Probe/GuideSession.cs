@@ -9,9 +9,10 @@ namespace CetaFae.Probe;
 
 public sealed class GuideSession : IDisposable
 {
+    enum ProcessingStage { Activation, SourceValidation, Collection, TargetValidation, Payload, Model, ResultValidation }
     readonly BallWindow _ball;
     readonly GuidePanel _panel;
-    readonly OverlayWindow _marker = new();
+    readonly OverlayWindow _marker = new(control: true);
     readonly GuideRunGate _gate = new();
     readonly GuideOptions _options;
     readonly GuideModel _model;
@@ -23,6 +24,8 @@ public sealed class GuideSession : IDisposable
     IntPtr _activationSource;
     bool _checkingContext;
     bool _contextCheckPending;
+    RegionPicker? _picker;
+    string? _pendingIntent;
     readonly bool _preview;
 
     public GuideSession(BallWindow ball, GuideOptions options, bool preview, PluginCatalog plugins)
@@ -36,11 +39,12 @@ public sealed class GuideSession : IDisposable
         _panel.CloudToggled += ToggleCloud;
         _panel.Cancelled += () => _ball.StopTracking("cancelled");
         _panel.AnswerSubmitted += OnAnswerSubmitted;
+        _panel.RegionRequested += OnRegionRequested;
         _ball.AllowsForeground = IsAllowedForeground;
         _ball.TargetSelected += OnSelected;
         _ball.TrackingStopped += Cancel;
         _ball.TargetMoved += OnTargetChanged;
-        _panel.Show();
+        _ball.MenuRequested += OnMenuRequested;
         if (preview)
         {
             _panel.SetStatus("静态预览：已找到下一步。这里展示较长的中文解释，验证换行、滚动和按钮是否可见。" +
@@ -54,6 +58,12 @@ public sealed class GuideSession : IDisposable
         }
     }
 
+    void OnMenuRequested()
+    {
+        _panel.Place(_context?.Frame);
+        _panel.ShowMenu();
+    }
+
     void ToggleCloud()
     {
         if (_preview) { _panel.SetStatus("这是静态预览，不会启用采集或发送请求。"); return; }
@@ -61,7 +71,7 @@ public sealed class GuideSession : IDisposable
         _panel.SetCloud(_gate.CloudEnabled);
         _ball.StopTracking("cloud_changed");
         _panel.SetStatus(_gate.CloudEnabled
-            ? "已启用。请将问号球拖到已启用插件支持的窗口。目标不明确时会短问一句。"
+            ? "已启用。请拖到要了解的窗口；通用视觉插件可尝试未适配的软件。目标不明确时会短问一句。"
             : "云端已关闭，不再读取或发送。已发送的内容无法从上游撤回。");
         ProbeLog.Log("guide_consent", ("enabled", _gate.CloudEnabled));
     }
@@ -69,26 +79,39 @@ public sealed class GuideSession : IDisposable
     void Cancel(string reason)
     {
         _activationVersion = null;
+        var picker = _picker;
+        _picker = null;
+        picker?.Abort();
+        _pendingIntent = null;
+        _panel.SetRegionAvailable(false);
         _context = null;
         _contextCheckPending = false;
         _gate.Cancel();
         _request?.Cancel();
         _panel.ClearQuestion();
-        if (_marker.IsVisible) _marker.Hide();
-        if (_gate.CloudEnabled) _panel.SetStatus("本次指路已清除，请重新拖放悬浮球。");
+        if (_marker.IsVisible) _marker.HideAndReset();
+        _panel.EndSession();
         ProbeLog.Log("guide_cancel", ("reason", reason));
     }
 
     async void OnTargetChanged()
     {
         _contextCheckPending = true;
+        if (_picker is not null && _context is { } selecting)
+        {
+            if (!Native.IsWindow(selecting.Window) || !Native.IsWindowVisible(selecting.Window) ||
+                Native.IsIconic(selecting.Window) || Native.ProcessId(selecting.Window) != selecting.ProcessId ||
+                GuideObservation.WindowRect(selecting.Window) != selecting.Frame)
+                _ball.StopTracking("target_changed");
+            return;
+        }
         if (_checkingContext || _context is null || IsInputForeground(Native.GetForegroundWindow())) return;
         _checkingContext = true;
         try
         {
             while (_contextCheckPending && _context is { } context && _gate.Accepts(_contextVersion))
             {
-                if (IsInputForeground(Native.GetForegroundWindow())) break;
+                if (_picker is not null || IsInputForeground(Native.GetForegroundWindow())) break;
                 _contextCheckPending = false;
                 var version = _contextVersion;
                 var token = _request!.Token;
@@ -96,16 +119,21 @@ public sealed class GuideSession : IDisposable
                 {
                     using var deadline = new GuideDeadline(_options.Timeout, token);
                     var current = await ReadContextAsync(context, deadline.Token);
-                    if (_gate.Accepts(version) && !GuideObservation.HasSameContext(context.Candidates, current))
-                        GuideObservation.LogContextDifference(context.Candidates, current);
-                    if (_gate.CancelIfContextChanged(version, context.Candidates, current))
+                    // A picker/input may have opened while the native worker was reading.
+                    // Defer that result; resuming recognition performs the bound revalidation.
+                    if (_picker is not null || IsInputForeground(Native.GetForegroundWindow()))
+                    { _contextCheckPending = true; break; }
+                    if (_gate.Accepts(version) && !GuideObservation.HasSameContext(context.Candidates, current.Candidates))
+                        GuideObservation.LogContextDifference(context.Candidates, current.Candidates);
+                    if (_gate.CancelIfContextChanged(version, context.Candidates, current.Candidates) ||
+                        _gate.Accepts(version) && (!context.HasSameScope(current) || !context.HasSameVisual(current)))
                         _ball.StopTracking("target_changed");
                     else if (_gate.Accepts(version)) ProbeLog.Log("guide_context_unchanged");
                 }
                 catch (OperationCanceledException) when (!_gate.Accepts(version)) { }
                 catch (Exception)
                 {
-                    if (_gate.Accepts(version) && !IsInputForeground(Native.GetForegroundWindow()))
+                    if (_gate.Accepts(version) && _picker is null && !IsInputForeground(Native.GetForegroundWindow()))
                         _ball.StopTracking("target_context_unavailable");
                 }
             }
@@ -113,10 +141,11 @@ public sealed class GuideSession : IDisposable
         finally { _checkingContext = false; }
     }
 
-    bool IsInputForeground(IntPtr window) => window == _panel.Handle && _panel.IsAnswering &&
-        _context is not null && _gate.CanClarify(_contextVersion);
+    bool IsInputForeground(IntPtr window) => window == _panel.Handle && _panel.IsSessionInteraction &&
+        _context is not null && _gate.Accepts(_contextVersion);
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
+        _picker is not null && (window == _picker.Handle || window == IntPtr.Zero) ||
         _activationVersion is { } version && _gate.Accepts(version) &&
         (window == IntPtr.Zero || window == _activationSource);
 
@@ -132,12 +161,36 @@ public sealed class GuideSession : IDisposable
         }
         _panel.ClearQuestion();
         // Submission returns to this target through the same bounded activation path as a drop.
-        await RecognizeAsync(previous.Window, intent, previous);
+        await RecognizeAsync(previous.Window, intent, previous, previous.Scope?.UserSelected == true ? previous.Scope.Region : null);
     }
 
     async void OnSelected(IntPtr window) => await RecognizeAsync(window, null, null);
 
-    async Task RecognizeAsync(IntPtr window, string? intent, GuideObservation? previous)
+    void OnRegionRequested()
+    {
+        if (_preview || !_gate.CloudEnabled || _context is not { } previous || !_gate.Accepts(_contextVersion) || _picker is not null) return;
+        var version = _contextVersion;
+        var intent = _pendingIntent;
+        _marker.HideAndReset();
+        _picker = new RegionPicker(previous.Frame, _ball.Scale);
+        var picker = _picker;
+        picker.Selected += async region =>
+        {
+            if (!ReferenceEquals(_picker, picker)) return;
+            if (region is null || !_gate.Accepts(version) || !_gate.CloudEnabled)
+            { _ball.StopTracking("selection_cancelled"); return; }
+            // Admit the owned picker until the existing activation path resumes the bound target.
+            picker.Hide();
+            var processing = RecognizeAsync(previous.Window, intent, previous, region);
+            _picker = null;
+            picker.Abort();
+            await processing;
+        };
+        ProbeLog.Log("guide_selection_start");
+        picker.Show();
+    }
+
+    async Task RecognizeAsync(IntPtr window, string? intent, GuideObservation? previous, Rect? selection = null)
     {
         if (_preview) return;
         if (!_gate.CloudEnabled)
@@ -154,8 +207,11 @@ public sealed class GuideSession : IDisposable
         var token = deadline.Token;
         var version = _gate.Begin();
         _context = null;
+        _pendingIntent = null;
+        _panel.SetRegionAvailable(false);
         _panel.ClearQuestion();
         var total = Stopwatch.StartNew();
+        var stage = ProcessingStage.Activation;
         try
         {
             token.ThrowIfCancellationRequested();
@@ -186,23 +242,35 @@ public sealed class GuideSession : IDisposable
                 }
                 finally { if (_activationVersion == version) _activationVersion = null; }
             }
+            stage = ProcessingStage.SourceValidation;
             if (previous is not null)
                 previous.ValidateContext(await ReadContextAsync(previous, token), null);
-            var observation = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, _options.IncludeImage, plugin, t));
+            stage = ProcessingStage.Collection;
+            var observation = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, _options.IncludeImage, plugin, t, intent, selection));
             if (!_gate.Accepts(version)) return;
+            stage = ProcessingStage.TargetValidation;
+            previous?.ValidateTargetContext(observation);
             _context = observation with { Png = null };
             _contextVersion = version;
+            _pendingIntent = intent;
             if (_contextCheckPending) OnTargetChanged();
             var observeMs = total.ElapsedMilliseconds;
             _panel.SetStatus("正在识别下一步…");
+            stage = ProcessingStage.Payload;
+            var payload = GuidePayload.From(observation);
             ProbeLog.Log("guide_request_start", ("observeMs", observeMs),
-                ("candidates", observation.Candidates.Count), ("image", _options.IncludeImage));
+                ("candidates", payload.Candidates.Count), ("image", _options.IncludeImage),
+                ("scoped", observation.Scope is not null), ("imageBytes", payload.Png?.Length ?? 0));
             var task = intent is null ? GuideObservation.TaskDescription :
                 "用户明确提出的目标：" + intent + "。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。";
-            var answer = (await deadline.RunAsync(t => _model.AskAsync(task, observation.Candidates, observation.Png, t))).ForIntent(intent);
+            stage = ProcessingStage.Model;
+            var modelAnswer = await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext));
+            var answer = modelAnswer.ForIntent(intent);
             var modelMs = total.ElapsedMilliseconds - observeMs;
-            ProbeLog.Log("guide_response_received", ("modelMs", modelMs), ("mode", answer.Mode));
+            ProbeLog.Log("guide_response_received", ("modelMs", modelMs), ("mode", answer.Mode),
+                ("clarificationLimited", intent is not null && modelAnswer.Mode == "ask"));
             if (!_gate.Accepts(version)) return;
+            stage = ProcessingStage.ResultValidation;
             if (!GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
             var bounds = observation.ValidateContext(await ReadContextAsync(observation, token), answer.CandidateId);
@@ -213,7 +281,7 @@ public sealed class GuideSession : IDisposable
             if (!_gate.Accepts(version)) return;
             if (!GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
-            _marker.Hide();
+            _marker.HideAndReset();
             if (bounds is { } rect)
             {
                 _marker.Left = rect.Left / _ball.Scale;
@@ -224,6 +292,7 @@ public sealed class GuideSession : IDisposable
             }
             _panel.Place(observation.Frame, bounds);
             _panel.SetStatus(answer.Explanation);
+            _panel.SetRegionAvailable(true);
             if (answer.Mode == "ask")
             {
                 _gate.AwaitClarification(version);
@@ -242,10 +311,21 @@ public sealed class GuideSession : IDisposable
                 _ball.StopTracking("processing_timeout");
                 _panel.SetStatus("识别超时，请重新拖放。此次没有指向任何位置。");
             }
-            ProbeLog.Log("guide_failure", ("category", cancelled ? "cancelled" : "timeout"));
+            ProbeLog.Log("guide_failure", ("category", cancelled ? "cancelled" : "timeout"), ("stage", stage.ToString()));
         }
         catch (Exception ex)
         {
+            if (ex is InvalidDataException { Message: "scope_unavailable" } && previous is not null && _gate.Accepts(version))
+            {
+                _context = previous with { Png = null };
+                _contextVersion = version;
+                _pendingIntent = intent;
+                _marker.HideAndReset();
+                _panel.SetRegionAvailable(true);
+                _panel.SetStatus("没有可靠的自动识别范围。请点击“选择识别区域”，在此窗口内框选将发送的画面；无需重新回答。尚未发送本阶段的新请求。");
+                ProbeLog.Log("guide_selection_required");
+                return;
+            }
             if (ex is InvalidDataException changed && changed.Message == "target_changed")
             {
                 if (_gate.Accepts(version)) _ball.StopTracking("target_changed");
@@ -258,7 +338,8 @@ public sealed class GuideSession : IDisposable
             }
             // Exception messages can contain provider content or URLs; log categories only.
             ProbeLog.Log("guide_failure", ("category", ex is InvalidDataException ? "validation" :
-                ex is JsonException ? "invalid_json" : ex is HttpRequestException ? "network" : ex.GetType().Name));
+                ex is JsonException ? "invalid_json" : ex is HttpRequestException ? "network" : ex.GetType().Name),
+                ("stage", stage.ToString()), ("code", ex is InvalidDataException ? ObservationWorker.SafeError(ex.Message) : "none"));
         }
         finally
         {
@@ -283,26 +364,40 @@ public sealed class GuideSession : IDisposable
 
     public static string FailureMessage(Exception ex) => ex switch
     {
+        InvalidDataException { Message: "scope_unavailable" } =>
+            "无法可靠确定此目标所需的最小范围，此处理阶段未发送新的识别请求，也不退回发送整窗。请说明更具体的目标，或等待该插件补充支持。",
         HttpRequestException => "识别服务不可用，请检查本机模型代理。",
         InvalidDataException { Message: "target_not_foreground" } =>
-            "目标窗口不在前台。请先点击目标窗口的空白处，再拖入问号球；此次未读取窗口内容或发送请求。",
+            "目标窗口不在前台，本次处理已停止。请先点击目标窗口的空白处，再拖入问号球。",
         InvalidDataException { Message: "target_activation_failed" } =>
-            "系统未允许激活目标窗口。请先点击目标窗口的空白处，再拖入问号球；此次未读取窗口内容或发送请求。",
+            "系统未允许激活目标窗口，本次处理已停止。请先点击目标窗口的空白处，再拖入问号球。",
+        InvalidDataException { Message: "elevated_target" } =>
+            "目标窗口以管理员权限运行，或无法确认其权限。鲸汐仅支持可确认的非管理员窗口，本次已停止识别，不会尝试提权或绕过限制。",
+        InvalidDataException { Message: "capture_target_unavailable" or "capture_dimensions" or "capture_unusable" } =>
+            "无法取得可靠的目标窗口画面，本次已停止识别。请恢复并保持目标窗口可见后重新拖放；不会改为读取整个屏幕。",
         InvalidDataException { Message: "unsupported_target" } =>
-            "没有已启用插件支持这个窗口，此次未读取窗口内容或发送请求。",
+            "没有已启用插件支持这个窗口，本次处理已停止。",
         InvalidDataException { Message: "plugin_conflict" } =>
             "多个已启用插件匹配这个窗口，暂不识别。请调整插件启用清单后重启。",
+        InvalidDataException { Message: "sensitive_content" } =>
+            "检测到密码字段或疑似密钥，本次识别已停止，不显示解释或标记。请隐藏敏感内容后重新拖放。",
+        InvalidDataException { Message: "privacy_unavailable" } =>
+            "无法完成敏感内容检查，本次识别已停止，不显示解释或标记。这不代表检测到了敏感内容；请稍后重试，若仍失败请报告此提示。",
         _ => "未取得可靠的窗口信息或模型结果，此次不标记位置。"
     };
 
-    async Task<IReadOnlyList<GuideCandidate>> ReadContextAsync(GuideObservation previous, CancellationToken token)
+    async Task<GuideObservation> ReadContextAsync(GuideObservation previous, CancellationToken token)
     {
         if (!GuideObservation.IsCurrent(previous.Window, previous.ProcessId, previous.Frame))
             throw new InvalidDataException("target_changed");
-        var current = await ObservationWorker.ReadAsync(previous.Window, false, _plugins.Get(previous.PluginId), token);
+        GuideObservation current;
+        try { current = await ObservationWorker.ReadAsync(previous.Window, previous.VisualHash is not null, _plugins.Get(previous.PluginId), token,
+            previous.ScopeIntent, previous.Scope?.UserSelected == true ? previous.Scope.Region : null); }
+        catch (InvalidDataException ex) when (ex.Message == "scope_unavailable")
+        { throw new InvalidDataException("target_changed"); }
         if (current.ProcessId != previous.ProcessId || current.Frame != previous.Frame)
             throw new InvalidDataException("target_changed");
-        return current.Candidates;
+        return current;
     }
 
     public void Dispose()
@@ -310,14 +405,18 @@ public sealed class GuideSession : IDisposable
         _ball.TargetSelected -= OnSelected;
         _ball.TrackingStopped -= Cancel;
         _ball.TargetMoved -= OnTargetChanged;
+        _ball.MenuRequested -= OnMenuRequested;
         _ball.AllowsForeground = null;
         _panel.AnswerSubmitted -= OnAnswerSubmitted;
-        _panel.ClearQuestion();
+        _panel.RegionRequested -= OnRegionRequested;
+        _picker?.Abort();
+        _picker = null;
+        _panel.EndSession();
         _request?.Cancel();
         _request?.Dispose();
         _gate.SetCloud(false);
         _model.Dispose();
         if (_marker.IsLoaded) _marker.Close();
-        if (_panel.IsLoaded) _panel.Close();
+        _panel.Close();
     }
 }

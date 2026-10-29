@@ -1,10 +1,16 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "cetafae.edge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Microsoft Edge",
   "targets": [{ "processNames": ["msedge"] }],
   "uiaView": "raw",
   "taskIds": ["E-06"],
-  "blockedPoints": []
+  "blockedPoints": [],
+  "observationScopes": [{
+    "intentContainsAny": ["下载前询问", "下载之前询问", "询问每个文件", "ask where to save", "ask me what to do"],
+    "anchorNameContainsAny": ["下载之前询问每个文件的保存位置", "下载前询问每个文件的保存位置", "Ask me what to do with each download"],
+    "anchorControlTypes": ["ControlType.CheckBox", "ControlType.Button"],
+    "padding": 16
+  }]
 }

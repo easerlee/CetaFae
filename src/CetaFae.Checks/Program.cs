@@ -28,6 +28,20 @@ public static class Program
         if (args.Length == 2 && args[0] == "--worker-fixture") return LifetimeChecks.Fixture(args[1]);
         if (args.Contains("--capture-desktop")) return CaptureChecks.Run();
         if (args.Contains("--scroll-desktop")) return ScrollChecks.Run();
+        if (args.Contains("--privacy-desktop")) return PrivacyDesktopChecks.Run();
+        Console.WriteLine($"BUILD: {typeof(GuideSession).Module.ModuleVersionId:N}");
+        if (args.Contains("--render-cards"))
+        {
+            _ = Dispatcher.CurrentDispatcher;
+            CardChecks.Run(Check);
+            CardChecks.Render();
+            return 0;
+        }
+        if (args.Contains("--transport-allocation"))
+        {
+            TransportChecks.MeasureAsync().GetAwaiter().GetResult();
+            return 0;
+        }
         try { RunAsync(args).GetAwaiter().GetResult(); return 0; }
         catch (Exception ex) { Console.Error.WriteLine($"FAIL: {ex.GetType().Name}: {ex.Message}"); return 1; }
     }
@@ -68,7 +82,17 @@ public static class Program
             Check(!runtime.RootElement.GetProperty("runtimeOptions").GetProperty("configProperties")
                     .GetProperty("System.Globalization.Invariant").GetBoolean(),
                 "application runtime retains culture data for editable WPF controls");
+        PrivacyChecks.CheckDisclosureLayout(Check);
+        await PrivacyChecks.RunAsync(Check);
+        LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);
+        GeneralGuideChecks.Run(Check);
+        CaretChecks.Run(Check);
+        ScopeChecks.Run(Check);
+        await ScopeChecks.CheckTransportAsync(Check);
+        await TransportChecks.RunAsync(Check);
+        TaskChecks.Run(Check);
+        CardChecks.Run(Check);
         Check(GuideSession.FailureMessage(new InvalidDataException("target_not_foreground"))
                   .Contains("请先点击目标窗口", StringComparison.Ordinal),
             "foreground rejection gives an actionable target-focus instruction");
@@ -114,6 +138,32 @@ public static class Program
             "initial explanation retains page context before a short question");
         Check(new GuideAnswer("point", "click", 1).ForIntent("show the control").CandidateId == 1,
             "explicit intent permits candidate guidance");
+        var generatedQuestion = GuideAnswer.Parse(
+            """{"mode":"ask","explanation":"Which generated control do you mean?","candidateId":null}""", Candidates);
+        Check(ReferenceEquals(generatedQuestion.ForIntent(null), generatedQuestion),
+            "an initial model question remains available once");
+        var questionLimit = new GuideRunGate();
+        questionLimit.SetCloud(true);
+        var firstQuestion = questionLimit.Begin();
+        questionLimit.AwaitClarification(firstQuestion);
+        var submittedIntent = questionLimit.TakeClarification(firstQuestion, "Locate the generated destination control");
+        var followupVersion = questionLimit.Begin();
+        var unresolved = generatedQuestion.ForIntent(submittedIntent);
+        Check(unresolved.Mode == "explain" && unresolved.CandidateId is null,
+            "a model ask after the single user answer terminates without a speculative marker");
+        Check(!unresolved.Explanation.Contains(generatedQuestion.Explanation, StringComparison.Ordinal),
+            "the terminal uncertainty message does not repeat the model's follow-up question");
+        if (unresolved.Mode == "ask") questionLimit.AwaitClarification(followupVersion);
+        Check(!questionLimit.CanClarify(followupVersion),
+            "the follow-up result cannot reopen the question gate across request versions");
+        Reject(() => questionLimit.TakeClarification(followupVersion, "another answer"),
+            "a terminal uncertainty result cannot send another clarification");
+        var freshDrop = questionLimit.Begin();
+        questionLimit.AwaitClarification(freshDrop);
+        Check(questionLimit.CanClarify(freshDrop), "a fresh deliberate drop can ask its own question");
+        var satisfied = new GuideAnswer("explain", "The generated goal is already satisfied.", null);
+        Check(ReferenceEquals(satisfied.ForIntent(submittedIntent), satisfied),
+            "a valid post-clarification explanation remains unchanged");
         Check(BallWindow.DragPosition(new Point(3163, 696), new Point(25, 20), 1) == new Point(3138, 676),
             "delayed mouse-down handling retains the original grab point");
         Check(BallWindow.DragPosition(new Point(1000, 500), new Point(10, 30), 1) == new Point(990, 470),
@@ -277,6 +327,37 @@ public static class Program
                 "HTTP handler ignoring cancellation cannot revive an expired version or invalidate its replacement");
         }
 
+        if (args.Contains("--live-scopes")) await ScopeChecks.RunLiveAsync(Check);
+        if (args.Contains("--live-general")) await GeneralGuideChecks.RunLiveAsync(Check);
+        if (args.Contains("--live-tasks")) await TaskChecks.RunLiveAsync(Check,
+            args.SingleOrDefault(a => a.StartsWith("--task-case=", StringComparison.Ordinal))?[12..]);
+        if (args.Contains("--live") || args.Contains("--live-winrar"))
+        {
+            using var live = new GuideModel(options with { Timeout = TimeSpan.FromSeconds(45) });
+            var extractionCandidates = new GuideCandidate[]
+            {
+                new(1, "浏览", "browse", "ControlType.Button", new Rect(530, 65, 90, 35), [1]),
+                new(2, "目标路径", "destination", "ControlType.ComboBox", new Rect(30, 65, 480, 35), [2]),
+                new(3, "确定", "confirm", "ControlType.Button", new Rect(430, 160, 90, 35), [3]),
+                new(4, "取消", "cancel", "ControlType.Button", new Rect(530, 160, 90, 35), [4])
+            };
+            var extractionImage = ExtractionImage();
+            var extractionQuestion = (await live.AskAsync(GuideObservation.TaskDescription, extractionCandidates,
+                extractionImage, CancellationToken.None)).ForIntent(null);
+            Check(extractionQuestion.Mode == "ask" && extractionQuestion.CandidateId is null,
+                "LIVE generated extraction dialog requests intent without a speculative marker");
+            var extractionClock = Stopwatch.StartNew();
+            var extractionLocation = await live.AskAsync(
+                "用户明确提出的目标：在哪里选择解压到哪个文件夹？只指出位置，不修改。只解释和指路，不执行任何操作。",
+                extractionCandidates, extractionImage, CancellationToken.None);
+            Check(extractionLocation.Mode == "point" && extractionLocation.CandidateId is 1 or 2,
+                $"LIVE generated folder selection identifies an observed path or browse control, never submit; mode={extractionLocation.Mode}, candidate={extractionLocation.CandidateId}, {extractionClock.ElapsedMilliseconds}ms");
+            var pathLocation = await live.AskAsync(
+                "用户明确提出的目标：目标路径输入框在哪里？我要找填写解压后文件夹路径的输入位置，只指出位置，不修改。只解释和指路，不执行任何操作。",
+                extractionCandidates, extractionImage, CancellationToken.None);
+            Check(pathLocation.Mode == "point" && pathLocation.CandidateId == 2,
+                $"LIVE generated explicit path-field request selects the path instead of browse or submit; mode={pathLocation.Mode}, candidate={pathLocation.CandidateId}");
+        }
         if (args.Contains("--live"))
         {
             using var live = new GuideModel(options with { Timeout = TimeSpan.FromSeconds(45) });
@@ -287,6 +368,14 @@ public static class Program
                     new Rect(30, 150, 630, 35), [2], "On")
             };
             var downloadImage = DownloadImage();
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                var location = await live.AskAsync(
+                    "用户明确提出的目标：下载前询问的开关在哪里？只指出位置，不修改。。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。",
+                    downloadCandidates, downloadImage, CancellationToken.None);
+                Check(location.Mode == "point" && location.CandidateId == 2,
+                    $"LIVE location request points to an already-enabled control ({attempt}); mode={location.Mode}");
+            }
             for (var attempt = 1; attempt <= 2; attempt++)
             {
                 var clock = Stopwatch.StartNew();
@@ -345,6 +434,36 @@ public static class Program
             pixels[at + 2] = red ? (byte)255 : (byte)0;
         }
         var bitmap = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, pixels, width * 4);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = new MemoryStream();
+        encoder.Save(stream);
+        return stream.ToArray();
+    }
+
+    static byte[] ExtractionImage()
+    {
+        var visual = new DrawingVisual();
+        using (var draw = visual.RenderOpen())
+        {
+            draw.DrawRectangle(Brushes.White, null, new Rect(0, 0, 660, 220));
+            draw.DrawText(new FormattedText("WinRAR 解压路径和选项（生成测试）\n目标路径",
+                CultureInfo.GetCultureInfo("zh-CN"), FlowDirection.LeftToRight, new Typeface("Microsoft YaHei"),
+                16, Brushes.Black, 1), new Point(30, 10));
+            draw.DrawRectangle(Brushes.White, new Pen(Brushes.Gray, 1), new Rect(30, 65, 480, 35));
+            draw.DrawText(new FormattedText("C:\\GeneratedOutput", CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, new Typeface("Segoe UI"), 16, Brushes.Black, 1), new Point(40, 72));
+            foreach (var (text, rect) in new[] { ("浏览", new Rect(530, 65, 90, 35)),
+                         ("确定", new Rect(430, 160, 90, 35)), ("取消", new Rect(530, 160, 90, 35)) })
+            {
+                draw.DrawRectangle(Brushes.LightGray, new Pen(Brushes.Gray, 1), rect);
+                draw.DrawText(new FormattedText(text, CultureInfo.GetCultureInfo("zh-CN"),
+                    FlowDirection.LeftToRight, new Typeface("Microsoft YaHei"), 16, Brushes.Black, 1),
+                    new Point(rect.X + 20, rect.Y + 7));
+            }
+        }
+        var bitmap = new RenderTargetBitmap(660, 220, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = new MemoryStream();

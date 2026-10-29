@@ -23,6 +23,8 @@ public sealed class BallWindow : Window
     IntPtr _hwnd;
     IntPtr _target;
     bool _dragging;
+    bool _pressed;
+    Point _pressPoint;
     bool _redrawPending;
     long _pendingTicks;
     Point _grabPoint;
@@ -33,10 +35,15 @@ public sealed class BallWindow : Window
     public event Action<IntPtr>? TargetSelected;
     public event Action<string>? TrackingStopped;
     public event Action? TargetMoved;
+    public event Action? MenuRequested;
     public Func<IntPtr, bool>? AllowsForeground { get; set; }
 
     public static Point DragPosition(Point pointer, Point grab, double scale) =>
         new(pointer.X / scale - grab.X, pointer.Y / scale - grab.Y);
+
+    public static bool IsDrag(Point start, Point current, double scale) =>
+        Math.Abs(current.X - start.X) / scale >= SystemParameters.MinimumHorizontalDragDistance ||
+        Math.Abs(current.Y - start.Y) / scale >= SystemParameters.MinimumVerticalDragDistance;
 
     public static Point ConstrainPosition(Point position, Rect work) => new(
         Math.Clamp(position.X, work.Left, Math.Max(work.Left, work.Right - BallSize)),
@@ -86,6 +93,7 @@ public sealed class BallWindow : Window
         MouseLeftButtonDown += OnDown;
         MouseMove += OnMove;
         MouseLeftButtonUp += OnUp;
+        LostMouseCapture += (_, _) => { _pressed = false; _dragging = false; };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { StopTracking("esc"); e.Handled = true; }
@@ -114,11 +122,18 @@ public sealed class BallWindow : Window
     {
         if (e.LeftButton != MouseButtonState.Pressed) return;
         _grabPoint = e.GetPosition(this);
-        StopTracking("drag_start");
-        _dragging = true;
-        if (_overlay.IsVisible) _overlay.Hide();
+        var pointer = Native.Cursor();
+        _pressPoint = new Point(pointer.X, pointer.Y);
+        _pressed = true;
         CaptureMouse();
         e.Handled = true;
+    }
+
+    void BeginDrag()
+    {
+        StopTracking("drag_start");
+        _dragging = true;
+        if (_overlay.IsVisible) _overlay.HideAndReset();
 
         var fg = Native.GetForegroundWindow();
         ProbeLog.Log("drag_start",
@@ -131,18 +146,23 @@ public sealed class BallWindow : Window
 
     void OnMove(object sender, MouseEventArgs e)
     {
-        if (!_dragging) return;
+        if (!_pressed) return;
         var p = Native.Cursor();
+        if (!_dragging && IsDrag(_pressPoint, new Point(p.X, p.Y), _scale)) BeginDrag();
+        if (!_dragging) return;
         PlaceBall(DragPosition(new Point(p.X, p.Y), _grabPoint, _scale));
     }
 
     void OnUp(object sender, MouseButtonEventArgs e)
     {
-        if (!_dragging) return;
+        if (!_pressed) return;
+        var p = Native.Cursor();
+        if (!_dragging && IsDrag(_pressPoint, new Point(p.X, p.Y), _scale)) BeginDrag();
+        var wasDragging = _dragging;
+        _pressed = false;
         _dragging = false;
         ReleaseMouseCapture();
-
-        var p = Native.Cursor();
+        if (!wasDragging) { MenuRequested?.Invoke(); return; }
         var target = HitTestUnderCursor(p);
         ProbeLog.Log("guide_drop", ("found", target != IntPtr.Zero));
 
@@ -341,7 +361,7 @@ public sealed class BallWindow : Window
         if (_destroyHook != IntPtr.Zero) { Native.UnhookWinEvent(_destroyHook); _destroyHook = IntPtr.Zero; }
         if (_contentHook != IntPtr.Zero) { Native.UnhookWinEvent(_contentHook); _contentHook = IntPtr.Zero; }
         _target = IntPtr.Zero;
-        if (_overlay.IsVisible) _overlay.Hide();
+        if (_overlay.IsVisible) _overlay.HideAndReset();
         TrackingStopped?.Invoke(reason);
 
         ProbeLog.Log("cleanup",

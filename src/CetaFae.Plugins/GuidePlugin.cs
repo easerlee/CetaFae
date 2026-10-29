@@ -39,9 +39,36 @@ public sealed class PointBlockRule
 }
 
 /// <summary>Data-only application rules; no callback can obtain native, UI, file or model authority.</summary>
+public sealed class ObservationScopeRule
+{
+    public IReadOnlyList<string> IntentContainsAny { get; }
+    public IReadOnlyList<string> AnchorNameContainsAny { get; }
+    public IReadOnlyList<string> AnchorControlTypes { get; }
+    public int Padding { get; }
+
+    [JsonConstructor]
+    public ObservationScopeRule(IReadOnlyList<string> intentContainsAny, IReadOnlyList<string> anchorNameContainsAny,
+        IReadOnlyList<string> anchorControlTypes, int padding)
+    {
+        IntentContainsAny = PluginData.Texts(intentContainsAny, 16, 200);
+        AnchorNameContainsAny = PluginData.Texts(anchorNameContainsAny, 16, 200);
+        AnchorControlTypes = PluginData.Texts(anchorControlTypes, 8, 64);
+        if (padding is < 0 or > 64 || AnchorControlTypes.Any(t => t is not
+            ("ControlType.Text" or "ControlType.Button" or "ControlType.CheckBox" or "ControlType.ComboBox" or
+             "ControlType.RadioButton" or "ControlType.Hyperlink" or "ControlType.Edit")))
+            throw new InvalidDataException("plugin_scope");
+        Padding = padding;
+    }
+
+    public bool MatchesIntent(string intent) => IntentContainsAny.Any(s => intent.Contains(s, StringComparison.OrdinalIgnoreCase));
+    public bool MatchesAnchor(string name, string type) => AnchorControlTypes.Contains(type, StringComparer.Ordinal) &&
+        AnchorNameContainsAny.Any(s => name.Contains(s, StringComparison.OrdinalIgnoreCase));
+}
+
 public sealed class GuidePlugin
 {
     public int SchemaVersion { get; }
+    public string Kind { get; }
     public string Id { get; }
     public string Version { get; }
     public string DisplayName { get; }
@@ -49,6 +76,7 @@ public sealed class GuidePlugin
     public string UiaView { get; }
     public IReadOnlyList<string> TaskIds { get; }
     public IReadOnlyList<PointBlockRule> BlockedPoints { get; }
+    public IReadOnlyList<ObservationScopeRule> ObservationScopes { get; }
 
     [JsonIgnore]
     public bool UsesRawView => UiaView == "raw";
@@ -56,15 +84,19 @@ public sealed class GuidePlugin
     [JsonConstructor]
     public GuidePlugin(int schemaVersion, string id, string version, string displayName,
         IReadOnlyList<PluginTarget> targets, string uiaView, IReadOnlyList<string> taskIds,
-        IReadOnlyList<PointBlockRule> blockedPoints)
+        IReadOnlyList<PointBlockRule> blockedPoints, IReadOnlyList<ObservationScopeRule>? observationScopes = null,
+        string kind = "application")
     {
-        if (schemaVersion != 1 || !PluginData.IsToken(id, 64) ||
+        if (schemaVersion is not (1 or 2 or 3) || kind is not ("application" or "general") ||
+            kind == "general" && schemaVersion != 3 || !PluginData.IsToken(id, 64) ||
             !System.Version.TryParse(version, out _) || !PluginData.IsText(displayName, 200) ||
-            targets is not { Count: > 0 and <= 16 } || targets.Any(t => t is null) ||
+            targets is null || targets.Count > 16 || targets.Any(t => t is null) ||
+            (kind == "general" ? targets.Count != 0 : targets.Count == 0) ||
             uiaView is not ("control" or "raw") ||
             blockedPoints is null || blockedPoints.Count > 32 || blockedPoints.Any(r => r is null))
             throw new InvalidDataException("plugin_definition");
         SchemaVersion = schemaVersion;
+        Kind = kind;
         Id = id;
         Version = version;
         DisplayName = displayName;
@@ -73,12 +105,24 @@ public sealed class GuidePlugin
         TaskIds = PluginData.Texts(taskIds, 32, 64);
         if (TaskIds.Any(task => !PluginData.IsToken(task, 64))) throw new InvalidDataException("plugin_task");
         BlockedPoints = Array.AsReadOnly(blockedPoints.ToArray());
+        if (schemaVersion >= 2 && kind != "general" && observationScopes is not { Count: > 0 and <= 16 } ||
+            kind == "general" && (blockedPoints.Count != 0 || observationScopes is { Count: > 0 }) ||
+            schemaVersion == 1 && observationScopes is { Count: > 0 } ||
+            observationScopes?.Any(s => s is null) == true)
+            throw new InvalidDataException("plugin_scope");
+        ObservationScopes = Array.AsReadOnly(observationScopes?.ToArray() ?? []);
     }
 
-    public bool Matches(string processName, string title) => Targets.Any(t => t.Matches(processName, title));
+    public bool Matches(string processName, string title) => Kind == "general" || Targets.Any(t => t.Matches(processName, title));
 
     public bool AllowsPoint(string? intent, string candidateName) =>
         !string.IsNullOrWhiteSpace(intent) && !BlockedPoints.Any(rule => rule.Blocks(intent, candidateName));
+
+    public ObservationScopeRule ScopeFor(string intent)
+    {
+        var matches = ObservationScopes.Where(s => s.MatchesIntent(intent)).Take(2).ToArray();
+        return matches.Length == 1 ? matches[0] : throw new InvalidDataException("scope_unavailable");
+    }
 }
 
 static class PluginData

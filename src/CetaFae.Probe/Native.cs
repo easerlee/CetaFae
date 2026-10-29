@@ -26,6 +26,31 @@ internal static class Native
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 
+    [StructLayout(LayoutKind.Sequential)]
+    struct GUITHREADINFO
+    {
+        public uint Size, Flags;
+        public IntPtr Active, Focus, Capture, MenuOwner, MoveSize, Caret;
+        public RECT CaretRect;
+    }
+
+    [DllImport("user32.dll")] static extern bool GetGUIThreadInfo(uint thread, ref GUITHREADINFO info);
+    [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr window, ref POINT point);
+
+    internal static System.Windows.Rect? CaretRect(IntPtr window)
+    {
+        if (GetForegroundWindow() != window) return null;
+        var thread = GetWindowThreadProcessId(window, out var pid);
+        var info = new GUITHREADINFO { Size = (uint)Marshal.SizeOf<GUITHREADINFO>() };
+        if (thread == 0 || !GetGUIThreadInfo(thread, ref info) || info.Caret == IntPtr.Zero ||
+            GetAncestor(info.Caret, GA_ROOT) != window || ProcessId(info.Caret) != pid) return null;
+        var top = new POINT { X = info.CaretRect.Left, Y = info.CaretRect.Top };
+        var bottom = new POINT { X = info.CaretRect.Right, Y = info.CaretRect.Bottom };
+        if (!ClientToScreen(info.Caret, ref top) || !ClientToScreen(info.Caret, ref bottom) ||
+            bottom.X <= top.X || bottom.Y <= top.Y || GetForegroundWindow() != window) return null;
+        return new System.Windows.Rect(top.X, top.Y, bottom.X - top.X, bottom.Y - top.Y);
+    }
+
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
     [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);

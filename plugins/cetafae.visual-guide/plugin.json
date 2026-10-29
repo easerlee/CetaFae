@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "kind": "general",
+  "id": "cetafae.visual-guide",
+  "version": "0.1.0",
+  "displayName": "通用视觉指导（开发验证）",
+  "targets": [],
+  "uiaView": "control",
+  "taskIds": ["guide.visual"],
+  "blockedPoints": [],
+  "observationScopes": []
+}

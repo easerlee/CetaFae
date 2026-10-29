@@ -1,0 +1,153 @@
+# CetaFae Concentrated Verification Plan
+
+Updated: 2026-10-29
+
+## Authority and status
+
+Planned coverage, not a results report. `需求文档.md` v1.8 owns scope and thresholds; `Tech-Spec.md` owns the development roadmap; `验证记录.md` owns frozen actual cases, results, failures and release claims. This plan does not pass any pending gate or replace historical failures. The first-release baseline is19 tasks:18 explanation/guidance tasks plus conditional D-01. X-01 and generic visual experiments remain separately bounded development cases.
+
+The user requested concentrated desktop acceptance. During development run affected headless regression automatically. At a stable candidate run the complete applicable automated suite, then a prepared native/real-app batch under scoped permission. Do not defer safety checks to the end, or repeatedly ask the user to perform accepted Edge steps after unrelated edits.
+
+## Evidence and case records
+
+| Level | Purpose | Does not establish |
+|---|---|---|
+| H — Headless | Deterministic policy, parsing, geometry, ownership, IPC, cancellation and generated failure tests | Actual UIA/capture, human input, correct real-task semantics or release timing |
+| M — Synthetic model | Send only generated images/controls/questions to the configured receiver/model; verify decision and output mapping | Real application support, native focus, privacy completeness or resource acceptance |
+| N — Owned native fixture | Generated windows for provider properties, capture, input, focus, marker and failure behavior | Compatibility with every real application/version |
+| R — Real application | Frozen target/version/state, human input and observed position/state/cleanup | Untested tasks, versions, OS paths or universal software coverage |
+
+Each actual case recorded before execution includes: case ID; requirement/AC/TC IDs; candidate binary hash/module identity; plugin catalog/package versions; OS/application version and language; resolution/single-screen100% scale; starting state; explicit user goal; expected explanation/first control/state; allowed fallback; prohibited action; trigger; expected cleanup; observation method; timing start/end; data/consent scope; result and limitations. Record retries as separate attempts. Do not persist screenshots, live control text, user answers or full requests in product logs; only generated fixture data may be kept as fixture assets. Evidence collection itself needs the applicable consent.
+
+Result states: **pass / fail / not run / blocked / conditional-unpublished / not applicable with reason**. A safe refusal passes only a case whose frozen expectation is refusal. It fails a normal supported pointing case. Build success, model confidence, output readability and a whole-window selection outline cannot pass a control-pointing case.
+
+## Task and state matrix
+
+For every S/W/E task create `.normal`, `.ambiguous`, `.satisfied-or-unavailable` where applicable, and `.cancel-or-refuse` cases. Split genuinely different branches instead of hiding them under one pass. For each applicable normal processing case run at least five attempts, including a fresh-process first recognition; preserve all attempts and require every one to meet correctness and3000ms. Abnormal cases have their own expected failure/safety criteria.
+
+`TaskChecks.cs` freezes62 generated probes for these18 guidance tasks:18 normal,18 unknown-goal,18 unavailable-entry and8 applicable satisfied states. Each expected mode/ID and selected factual phrase is defined before a model request, independently of its output; the image/control payload contains no expected answer. `--live-tasks` sends each once through the existing host/model contract with deliberately selected generated target regions. `--task-case=<ID/state>` makes a separately recorded diagnostic attempt, not an automatic retry or replacement for the batch. Fixed mode/ID checks and a few factual substrings do not grade the entire Chinese explanation, establish an error's root cause, or prove all required native states. Initial unknown-goal cases include the host's normal answer normalization. Keep real task freezing, five-run timing and full explanation review separate.
+
+| Task | Normal case / oracle | Additional required states and safety boundary |
+|---|---|---|
+| S-01 | Freeze an actual application-start error text/code; explain only what it establishes; point to close/details when appropriate | Ambiguous goal, missing details, unsupported error; distinguish hypothesis from confirmed cause. No hidden root-cause claim or machine-wide collection |
+| S-02 | Frozen file-in-use dialog: explain occupancy and cancel | Owner not visible, retry versus cancel intent; no process termination, deletion or lock bypass |
+| S-03 | Frozen delete-permission dialog: explain restriction and return/cancel | Elevation button visible/target itself elevated; reject before content read where required; no elevation or deletion |
+| S-04 | Frozen not-responding prompt: explain wait versus force-close; point to Wait if available | Missing Wait/control/provider, unreadable target; explanation-only when grounded; no strong-close recommendation masquerading as waiting |
+| S-05 | Frozen update/backup status: explain visible state and suitable Details | In progress/completed/failed/unknown, absent details; no update/restart/restore action inferred from a viewing goal |
+| S-06 | Frozen connection error: explain visible failure; locate Retry only when requested | Missing retry, ambiguous intent, already recovered state; no network configuration changes |
+| W-01 | Actual Update page: pause entry when not paused and explicitly requested | Already paused with exact visible date, policy-disabled, no intent; never select Resume as Pause |
+| W-02 | Actual protocol association: locate a specified visible protocol's selection entry | Missing/nonvisible protocol, current association already desired, ambiguous protocol; no automatic association change |
+| W-03 | Locate notifications for specified application and intent | Already desired, global/policy-disabled, target absent, application unspecified; no unrelated toggle |
+| W-04 | Locate automatic-detection or manual-proxy entry according to explicit goal | Goal type missing, already desired, disabled/managed; no address entry or toggle change |
+| W-05 | Locate Add device on actual Bluetooth/device page | Bluetooth unavailable/off, add entry disabled, ambiguous goal; no pairing or changing radios |
+| W-06 | Locate specified application's permission on a specified permission page | Global denial, policy control, app missing, already desired, category/app unspecified; no opposite action |
+| E-01 | Locate a specified site's notification rule/menu for explicit allow/block goal | Rule absent, ambiguous site/action, managed/disabled, already desired; no permission changes |
+| E-02 | Locate default-search selector and explain visible state | Already desired, managed selector, wrong page, unspecified engine if needed; no engine selection |
+| E-03 | Locate clear-data entry and explain scope/consequences | Existing confirmation dialog, scope ambiguity, unavailable entry; stop before deletion and never describe deletion as recoverable |
+| E-04 | Locate actual graphics/hardware acceleration control for frozen Edge version | Alternate version label, already desired, managed/disabled, visible restart notice; no toggle or restart |
+| E-05 | Locate named extension's enable/disable control | Not installed, managed, already desired, target unspecified; no uninstall/enable action |
+| E-06 | Locate Ask where to save each download; explain actual current state | On/off/unknown state, ambiguous download goal, unavailable/nonvisible control; no switch/directory changes |
+| D-01 | Conditional local WPS.docx date preview/commit/restore only after TC-3 | Entire separate transaction suite below; remain unpublished until passed |
+| X-01 | Generated ZIP, WinRAR6.22 zh-CN extraction-options dialog, destination-path input | Retention, clear, dialog Cancel, cloud-off, unavailable path; no extraction, path editing or inherited formal support |
+
+Actual OS prompts must be safely obtained and frozen; generated lookalikes prepare policy but cannot pass S-class real-dialog acceptance. Do not induce destructive operations on personal files or force real application crashes merely to obtain a prompt. Use disposable copies/test environments where a state needs setup. Current prohibition on changing Windows/Edge settings still applies; if a state needs setup, seek separate scope or mark it not run.
+
+## Cross-cutting suites
+
+| Suite / planned case IDs | Coverage and expected behavior | Requirements / evidence |
+|---|---|---|
+| HOST-01…05 | Same contract for first-party/general/new generated adapter; unique application adapter wins; general only if explicitly enabled; conflicts, missing/invalid package, disabled-all refuse; startup snapshot immutable | EXT-01–05; H/M; source review confirms no software-specific host branches |
+| HOST-06 | Add a generated independent application package using documented data only; invalid version/schema/oversized knowledge cannot alter receiver, permission or execution authority | EXT-02/04, PV-8; H/M. Not public installer/sandbox acceptance |
+| INTENT-01…06 | Unique goal, multiple same-page goals, absent intent, already satisfied, conflicting pointer/focus, one clarification then safe explanation/refusal; no stale cross-session task | FR-02/03/05, TC-5, AC-1/2/14; H/M/R |
+| SCOPE-01…08 | Reliable adapter crop, no anchor, multiple anchors, manual crop, deliberate whole-target manual crop, too-small/out-of-target rectangle, geometry change, zero actionable controls | EXT-06/07, PV-4, AC-16; H/N/R. No new explicit-goal send before scope; candidate IDs wholly within scope |
+| SCOPE-09…14 | Selection Esc, cloud-off, foreground change, target move/minimize/close, new drop, Clear; bound intent/session/HWND/PID/geometry; no abandoned selection resumes | EXT-07, FR-09, AC-7/11/13/14; H/N/R |
+| POINT-01…05 | Exact observed control, absent/wrong/stale ID, unknown state, completely contained control; model coordinates never become a real marker | FR-04/08, TC-1, NFR-07; H/M/R |
+| REGION-01…03 | Conditional TC-2: independently known correct region, unrelated region, no reliable region. No fabricated precise control. Explain-only always tested | FR-10, TC-2/4/6, AC-3; H/M/N/R. Outbound crop is not a region-hint oracle |
+| LIFE-01…08 | Clear, local Esc, drag away/new drop, close, minimize, foreground change, genuine page/text change and geometry invalidation; remove all invalid markers/input/results | FR-09, NFR-05, TC-4, AC-7/11; H/N/R; actual visible cleanup≤500ms |
+| LIFE-09…13 | Unchanged30s, pointer movement/title-button hover, supported exact caret inversion, caret disappearance, real edit after caret exception | AC-11/14, TC-4; H/N/R. No broad pixel masking/tolerance and no false stability from empty candidate list |
+| RACE-01…06 | New drop before old result, reverse response order, server ignores cancel, close-cloud after request, answer then target change, queued UI callback after cancel | AC-13/14, PV-7; H controlled transport first, selected N/R checks;30s no resurrection |
+| TIMEOUT-01…07 | Offline/service unavailable, malformed/oversized response, invalid decision/ID, hanging provider/capture, model stalls, child failure/parent exit | NFR-08, AC-8; H/N plus approved R outage.15s processing boundary, owned worker terminated/reaped, no orphan pileup, next help can recover |
+| TRANSPORT-01…03 | Known UTF8 byte length before sending; unchanged large generated image/Chinese/escaped text/state/coordinates and request disposal; repeated allocation diagnostic plus generated scoped model requests through the configured receiver | NFR-06/08, PV-7; H/M. Compare equal configurations without forcedGC; allocation reduction does not establish idle-memory or latency acceptance. Preserve any rejected transport experiment |
+| FOCUS-01…09 | Cloud-on drop from another window activates selected target once; cloud-off does not; actual OS refusal; drag/marker no self-activation; Chinese input/IME Enter/collapse; submit returns once; target text input and target Esc unaffected | FR-01, TC-6, AC-9/12/14; H/N/R. Foreground HWND plus human result; no global Escape hook |
+| GEOM-01…07 | Four-edge ball visibility/continued pickup, initial pointer grab offset, attach without covering key action, panel within work area, long Chinese text, marker move/resize, occlusion | FR-01/04/09, TC-4/6; H/N/R at single-screen100%. No color-only focus judgment |
+| PRIV-01…06 | New process default-off, personal consent, deny/off drop no activation/content/requests, receiver/scope/terms change reconsent, revoke in-flight, post-revoke new drop | PV-5/6/7, AC-13/16; H/N/R with dispatch counters; visible lack of text alone cannot prove no send |
+| PRIV-07…13 | Visible password, credential labels/text, unsupported/malformed privacy properties, hidden subtree pruning before reading names/values, background sensitive tab, ordinary page recovery | PV-4/7/8, AC-16; H plus7-item native fixture and R browser checks. Conservative recognition is not universal sensitive-pixel masking |
+| PRIV-14…18 | Selected target only, overlapping unrelated foreground window, private content outside selected crop, excluded control metadata, memory-only image handling | PV-4/7, EXT-06/07; H/N, bounded R. No full-screen capture then crop; no real secrets in fixtures |
+| LOG-01…06 | Fixed metadata schema excludes image/text/title/question/answer/token/full payload;7-day cleanup/startup/hourly, locked file, reparse path, unrelated/nested files, cleanup failure disclosure | PV-7, AC-16; H and generated filesystem cases. Runtime secrets never printed |
+| TRUST-01…05 | Hostile screen/plugin/model text asks to run commands, read another window, change receiver, bypass consent or execute clicks | EXT-02, PV-8, NFR-08; H/M. Content grants no authority |
+| CAPTURE-01…07 | Correct selected-window pixels and crop, stale/black/unavailable capture, target obscured/minimized/closed, geometry change, blocking native provider, honest failure/recovery | PV-4, TC-1/4/6, AC-8/11/16; H/N/R. Nonblack image alone is not freshness |
+| PRIVILEGE-01…04 | Normal target versus elevated target, inaccessible integrity metadata, product remains non-admin, no UIAccess/injection/permission bypass | FR-08, AC-5/9/16; H/N/R in approved test environment, deny before reading target contents |
+| UI-01…08 | Consent long text/receiver readable, all3 fixed actions reachable, clarification and submit states, awaiting-selection instruction, selecting/cancel, processing, success/explanation-only, error/refusal | FR-01/03/08/09, AC-9/12; fixed-data preview first; N/R visual check after art integration |
+
+Test IDs with ranges are planned inventories, not claims that every fixture exists. Before candidate freeze expand each range into individual cases with exact actions/oracles in the verification record. Deterministic fixtures should use the existing check runner and fake transports; do not create a general-purpose workflow/test framework for this plan.
+
+## Conditional document suite — D-01 / TC-3
+
+Keep all write/restore controls unavailable until this complete independent gate passes. Planning these tests does not authorize writes to existing user documents.
+
+| Cases | Required coverage |
+|---|---|
+| DOC-01…05 | One explicitly selected local unprotected ordinary.docx; known WPS saved/editor state; explicit target format; exact preview count/examples; zero-match no write |
+| DOC-06…10 | Valid four-digit-year Gregorian dates with each accepted separator; leap/invalid dates, short/missing year, ambiguous text/ranges excluded; dates split across ordinary formatted runs; non-target text/format unchanged |
+| DOC-11…15 | Tables, headers/footers, notes, text boxes, fields/content controls excluded; protection/revisions/unsaved/readonly/locked files refused; network/cloud/coauthoring/unknown sync refused |
+| DOC-16…20 | Full snapshot before change; capability consent separate from each concrete preview confirmation; file/editor changes after preview trigger new preview; commit only confirmed object; truthful changed-location display |
+| DOC-21…25 | Normal restore byte-identical to snapshot and consistent WPS view; later saved/unsaved edits trigger conflict, no overwrite; cancel/failed Save As does not continue recovery; snapshot inaccessible or mismatched safely refuses |
+| DOC-26…31 | Permission loss, full disk, concurrent lock, crash before/during/after commit and during restore, controlled power-loss injection in disposable VM/test copies; restart lists incomplete transactions and never auto-overwrites unknown state |
+| DOC-32…36 | Cancel at transaction boundaries with completed/not-started/failed summary; recovery entry survives cloud-off/clear;15-second completion notice behavior and persistent discoverable restore; R-7 ordinary snapshot24-hour expiry with notice, protected failure/crash snapshot minimum7days and no unattended deletion,2GB decimal total cap; explicit cleanup and failure disclosure preserve remaining materials |
+
+Map DOC to FR-06/07/11, R-1–R-9, PV-1–3, TC-3, AC-4/6/10 and write-related AC-7/13, NFR-03/04/08. Process termination is not power-loss coverage. A transform/hash check alone cannot pass editor consistency or recovery. If the gate is not undertaken/passed, the whole capability is explicitly conditional-unpublished; other P0 obligations remain.
+
+## Performance protocol
+
+### Timing and cleanup
+
+- Freeze each applicable normal case before measuring. Use the same configured receiver/model/network and report them. Start at release, or valid clarification submission; finish at actually readable correct output/painted marker. Include activation, observation, proxy queue/network, model, validation and drawing. A progress label or selection outline is not a successful result.
+- At least five runs per applicable normal case, one being a fresh-process first recognition. Report every result, median and maximum; all five must be correct and≤3000ms. Separate real human input/selection/confirmation waiting; automatic fallback/retry never resets the same processing budget. Preserve raw stage durations and failures.
+- At15s fail visibly, stop new work, isolate late outputs, terminate/reap blocked owned collectors and demonstrate recovery. Do not call only cancelling the awaiting Task native-call termination.
+- Cleanup≤500ms is action/system-event-to-actual-disappearance, including change detection delay. Use an approved native observer/counter method that can establish visible completion; an internal cancellation log is insufficient. Unchanged output retains30s; after invalidation observe30s without old results. Unknown timing is not pass.
+- Current external latency failures remain documented even though the user deferred optimization. Changing provider/model needs separate agreement and a newly identified environment, not replacement of old failures.
+
+### Resource acceptance
+
+Use the existing `src/CetaFae.Checks/Measure-IdleResources.ps1`; extend only for a demonstrated missing oracle. Freeze Release binary, enabled packages, OS/.NET, screen/scale, process start identity, receiver/model and sample method. No debugger/profiler, forcedGC, working-set trimming, hidden/minimized product, or diagnostic-only runtime configuration in a formal run.
+
+1. Fresh process/no session: initialize30s; sample600s at1Hz.
+2. Same process:20 actual user help-and-clear/cancel cycles, keeping exact case/attempt IDs and errors. Reuse eligible cases from this batch rather than adding20 arbitrary Edge repetitions. Generated/headless calls do not count as actual uses. Record activity peaks separately.
+3. Same process/no active target/request: wait30s; sample600s at1Hz. Human confirms the normal idle interface remained visible in both rounds: the old engineering build's ball/panel or the integrated v1.8 whale-only idle. Freeze that actual UI contract before sampling; do not hide a normally visible surface, mix build histories or relabel historical failed panel samples. Any PID/restart/sample-identity loss invalidates continuity; do not silently restart a sampler against a new process.
+4. Every sample aggregates Private Bytes over host and all owned helper processes and must be≤90,000,000 decimal bytes. Working Set is separate. Both rounds independently meet mean normalized CPU≤0.3%: product-process CPU delta / elapsed wall time / logical processor count ×100. Record counter precision, missing samples and unexpected children.
+5. Confirm no idle UIA/image/model polling from source plus bounded event/dispatch evidence. Counter polling by the external sampler is allowed. Failed read is unknown, not zero.
+
+Cold-start timing tests requiring process restarts are a separate sub-batch; they cannot interrupt the formal same-process fresh→20uses→post-use sequence. Reuse their functional observations only when environment/version/state match. Do not start another formal20-use round until a plausible resource repair survives lower-cost engineering checks.
+
+## v1.8 presentation acceptance batch
+
+G4 first supplies a fixed-data static preview and one style source. Engineering owns card/menu layout and tokens; these do not wait for external art. `--render-cards` renders the same GuideCard component hosted by GuidePanel, without a native window or model request. Check menu/disclosure/processing/question/result/selection/refusal and long-text viewport/action bounds at320/360DIP, and inspect the generated PNG before session integration. This is layout evidence, not native IME/focus or final whale/motion acceptance. Final art and reduced-motion states remain separate; do not treat raster studies or source inspection as their visual QA.
+
+After integration, freeze new cases UI-01…08: whale-only startup with cloud off; menu and complete personal disclosure; one-shot edge wave/blue target outline without implying success; one-question input/IME/no focus theft; valid result persistence with readable card and correct marker; region-button lifetime and all selection cancellations; Clear/end closes session card/frames/animation while retaining whale; cloud-off/exit always accessible, with no old result revival. Include title-button avoidance, work-area edges, quiet idle and reduced-motion semantics. Requirements v1.8 §7 changes the Clear oracle: historical “panel remains” passes remain valid only for their old build/contract and are not reused as new-card dismissal acceptance.
+
+The new presentation remains subject to the same500ms cleanup,3000ms processing and90MB resource gates. Animation never restarts a processing deadline or permits background content polling. A static pass does not pass native focus, pointer tracking, overlay memory, or general visual accuracy.
+
+## Platforms and capture paths
+
+| Environment | Planned obligation |
+|---|---|
+| Current Windows11 reference machine | Freeze actual build/app versions, single screen100%, full applicable task/native/focus/timing/resource suite |
+| Windows10 1809 | Independently exercise declared UI/task paths and target-only capture availability/failure. A newer WGC API is not assumed available; any system selector requires explicit binding/consent |
+| Windows10 1903+ | Independently verify any implemented target-specific WGC path and its refusal/freshness/lifecycle. Do not invent a capture fallback just to claim this row passed |
+| No available OS/fixture | Mark not run/blocked and narrow the publication claim; no emulation-by-label or borrowing Windows11 results |
+| HighDPI/multiple screens/other languages | Outside current baseline; do not advertise acceptance. Safety/failure should remain honest if encountered |
+
+No OS reinstall, live network/permission-policy change, VM power-off or administrator dialog launch is implied by this document. Prepare disposable environments and request their operation scope separately when needed.
+
+## Concentrated execution and regression selection
+
+1. **Preparation without desktop:** finalize cases and safe fixtures, source/dependency review, clean Debug/isolated Release build, complete headless suite, synthetic model/fault cases, no sensitive artifacts. Resolve reproducible defects before user testing.
+2. **Native engineering batch:** approved generated privacy/capture/focus/marker tests on the candidate. One failure triage may block promotion; don't repeatedly launch one experiment per guess.
+3. **Real task batch:** freeze cases by application; one set of clear instructions/choices per batch. Include ordinary/intended/satisfied/refusal cases and generic region selection. Existing accepted evidence is reusable only if its dependencies/build/environment remain relevant; record partial reuse honestly.
+4. **Timing/resource batch:** cold starts and warm cases, then fresh→20actualuses→post-use on one process. Fit existing functional cycles into resource use history. Allow breaks outside timed windows; do not claim a fixed short duration for all19 tasks.
+5. **Repair batch:** defect → smallest fix → affected headless regression → affected native/real cases. Shared privacy/collector/transport changes reopen all paths they can affect; an isolated plugin anchor doesn't automatically require full formal resources or every other application.
+6. **Release audit:** separate correct behavior, task/state coverage, performance, platform, upstream disclosure and conditional gates. No single combined score can conceal a failed privacy/latency/memory gate.
+
+Gate map: TC-1 POINT/CAPTURE + real tasks; TC-2 REGION; TC-3 DOC; TC-4 LIFE/GEOM/cleanup; TC-5 INTENT/task states; TC-6 FOCUS/GEOM. AC-1/2 task matrix, AC-3 REGION, AC-4/6/10 DOC, AC-5 PRIVILEGE, AC-7 LIFE, AC-8 TIMEOUT, AC-9 UI/FOCUS, AC-11 LIFE, AC-12 FOCUS, AC-13 PRIV, AC-14 RACE/INTENT, AC-15 performance, AC-16 privacy/log/trust/retention.
+
+Complete declaration requires all applicable nonconditional P0 cases and release gates passed. Missing provider retention evidence prevents formal release; state unknown upstream retention explicitly in development preview. Conditional TC-2/TC-3 failure/unavailability withdraws those whole capabilities only. It cannot hide missing S/W/E tasks or relax3000ms/90MB. Public executable-plugin loading and hidden root-cause diagnosis are not tested or claimed by this release plan.

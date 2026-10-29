@@ -7,7 +7,7 @@ namespace CetaFae.Probe;
 
 public sealed class OverlayWindow : Window
 {
-    public OverlayWindow()
+    public OverlayWindow(bool control = false)
     {
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
@@ -25,8 +25,9 @@ public sealed class OverlayWindow : Window
 
         Content = new Border
         {
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0xE0, 0xFF, 0x4C, 0x1F)),
-            BorderThickness = new Thickness(2),
+            BorderBrush = control ? GuideTheme.Accent : GuideTheme.Outline,
+            BorderThickness = new Thickness(control ? 3 : 2),
+            CornerRadius = new CornerRadius(control ? 5 : 0),
             Background = Brushes.Transparent
         };
 
@@ -37,5 +38,14 @@ public sealed class OverlayWindow : Window
             Native.SetWindowLong(hwnd, Native.GWL_EXSTYLE,
                 ex | Native.WS_EX_NOACTIVATE | Native.WS_EX_TOOLWINDOW | Native.WS_EX_TRANSPARENT);
         };
+    }
+
+    public void HideAndReset()
+    {
+        Hide();
+        // Keep a tiny idle surface; native sizing can round one unit up to two.
+        // Callers restore the target bounds before Show.
+        Width = 2;
+        Height = 2;
     }
 }

@@ -15,6 +15,7 @@ public static class Program
             return;
         }
         ProbeLog.Open(ArgValue(args, "--log") ?? System.IO.Path.Combine(".artifacts", "logs"));
+        ProbeLog.Log("guide_runtime", ("buildId", typeof(Program).Module.ModuleVersionId.ToString("N")));
         var switches = new[] { "--guide", "--guide-preview", "--base-url", "--model", "--text-only", "--log", "--exit-after" };
         if (args.Any(a => a.StartsWith("--", StringComparison.Ordinal) && !switches.Contains(a)))
         {
@@ -44,11 +45,12 @@ public static class Program
             Environment.ExitCode = 2;
             return;
         }
+        System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var ball = new BallWindow();
         ball.Show();
         var session = new GuideSession(ball, options, args.Contains("--guide-preview"), plugins);
-        app.Exit += (_, _) => { session.Dispose(); ball.Cleanup(); };
+        app.Exit += (_, _) => { session.Dispose(); ball.Cleanup(); ProbeLog.Close(); };
         if (int.TryParse(ArgValue(args, "--exit-after"), out var exitAfter) && exitAfter > 0)
             app.Dispatcher.InvokeAsync(async () =>
             {

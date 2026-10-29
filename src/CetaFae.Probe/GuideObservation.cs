@@ -7,7 +7,8 @@ using CetaFae.Plugins;
 namespace CetaFae.Probe;
 
 public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
-    IReadOnlyList<GuideCandidate> Candidates, byte[]? Png, bool RawView = false, string PluginId = "")
+    IReadOnlyList<GuideCandidate> Candidates, byte[]? Png, bool RawView = false, string PluginId = "",
+    GuideScope? Scope = null, string? ScopeIntent = null, string? VisualHash = null, GuideVisual? Visual = null)
 {
     public const string TaskDescription = "用户尚未说明目标。只根据本次所选窗口的可见内容，用一句话说明当前界面，" +
         "再用一句短问询问用户希望在此界面处理什么。不要引入画面和用户目标之外的应用、设置或任务，" +
@@ -24,7 +25,8 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         Native.GetForegroundWindow() == window && Native.ProcessId(window) == processId &&
         WindowRect(window) == frame;
 
-    public static GuideObservation Read(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token)
+    public static GuideObservation Read(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
+        string? intent = null, Rect? selection = null)
     {
         var clock = Stopwatch.StartNew();
         ProbeLog.Log("guide_observe_start");
@@ -45,15 +47,49 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             throw new InvalidDataException("unsupported_target");
         if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
         var rawView = plugin.UsesRawView;
+        var rule = intent is null || selection is not null ? null : plugin.ScopeFor(intent);
+        var anchors = EnsureSafeContent(window, token, rule);
+        var scope = selection is { } region ? GuideScope.FromUserSelection(frame, region) :
+            rule is null ? null : GuideScope.Resolve(frame, rule, anchors);
         var candidates = ReadCandidates(window, token, rawView);
         var uiaMs = clock.ElapsedMilliseconds;
         ProbeLog.Log("guide_uia_complete", ("elapsedMs", uiaMs), ("candidates", candidates.Count));
         token.ThrowIfCancellationRequested();
-        var png = includeImage ? Capture.ReadTarget(window) : null;
+        Rect? caret = null;
+        var png = includeImage ? Capture.ReadTarget(window, scope?.Region, out caret) : null;
+        if (includeImage)
+        {
+            var after = EnsureSafeContent(window, token, rule);
+            if (rule is not null && scope is not null && !scope.HasSameAnchor(GuideScope.Resolve(frame, rule, after)))
+                throw new InvalidDataException("target_changed");
+        }
         ProbeLog.Log("guide_capture_complete", ("elapsedMs", clock.ElapsedMilliseconds - uiaMs),
             ("imageBytes", png?.Length ?? 0));
         if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
-        return new GuideObservation(window, pid, frame, candidates, png, rawView, plugin.Id);
+        var hash = png is not null && (plugin.Kind == "general" || scope?.UserSelected == true) ? Fingerprint(png) : null;
+        var visual = hash is not null ? GuideVisual.Read(png!, scope?.Region ?? frame, caret) : null;
+        return new GuideObservation(window, pid, frame, candidates, png, rawView, plugin.Id, scope, intent, hash, visual);
+    }
+
+    public bool HasSameScope(GuideObservation current) => Scope is null ? current.Scope is null : Scope.HasSameAnchor(current.Scope);
+    public bool HasSameVisual(GuideObservation current) => VisualHash is null || VisualHash == current.VisualHash ||
+        Visual is not null && current.Visual is not null && Visual.Matches(current.Visual);
+    internal static string Fingerprint(byte[] png) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(png));
+
+    public void ValidateTargetContext(GuideObservation current)
+    {
+        if (Window != current.Window || ProcessId != current.ProcessId || Frame != current.Frame ||
+            PluginId != current.PluginId || RawView != current.RawView)
+            throw new InvalidDataException("target_changed");
+        ValidateContext(current.Candidates, null);
+    }
+
+    public Rect? ValidateContext(GuideObservation current, int? id)
+    {
+        ValidateTargetContext(current);
+        if (ScopeIntent != current.ScopeIntent ||
+            !HasSameScope(current) || !HasSameVisual(current)) throw new InvalidDataException("target_changed");
+        return ValidateContext(current.Candidates, id);
     }
 
     public static bool HasSameContext(IReadOnlyList<GuideCandidate> previous,
@@ -100,25 +136,14 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         var root = AutomationElement.FromHandle(window) ?? throw new InvalidDataException("uia_unavailable");
         var types = new[] { ControlType.Button, ControlType.ComboBox, ControlType.Hyperlink,
             ControlType.ListItem, ControlType.MenuItem, ControlType.CheckBox, ControlType.RadioButton };
-        var condition = new AndCondition(
-            new PropertyCondition(AutomationElement.IsOffscreenProperty, false),
-            new PropertyCondition(AutomationElement.IsEnabledProperty, true),
-            new OrCondition(types.Select(t => new PropertyCondition(AutomationElement.ControlTypeProperty, t)).ToArray()));
         var cache = new CacheRequest { TreeFilter = Automation.RawViewCondition };
-        foreach (var property in new[] { AutomationElement.NameProperty, AutomationElement.AutomationIdProperty,
-                     AutomationElement.ControlTypeProperty, AutomationElement.BoundingRectangleProperty,
+        // Traversal caches contain metadata only; content is read after eligibility checks.
+        foreach (var property in new[] { AutomationElement.ControlTypeProperty, AutomationElement.BoundingRectangleProperty,
                      AutomationElement.IsPasswordProperty, AutomationElement.ProcessIdProperty,
                      AutomationElement.IsEnabledProperty, AutomationElement.IsOffscreenProperty,
-                     TogglePattern.ToggleStateProperty }) cache.Add(property);
-        IEnumerable<AutomationElement> found;
-        if (rawView) found = WalkRaw(root, cache, token);
-        else
-        {
-            AutomationElementCollection matches;
-            using (cache.Activate()) matches = root.FindAll(TreeScope.Descendants, condition);
-            if (matches.Count > 128) throw new InvalidDataException("too_many_candidates");
-            found = matches.Cast<AutomationElement>();
-        }
+                     AutomationElement.IsControlElementProperty }) cache.Add(property);
+        // Walk the raw hierarchy explicitly so a filtered walker cannot descend through a hidden wrapper.
+        var found = WalkElements(root, cache, token, TreeWalker.RawViewWalker);
         var frame = WindowRect(window);
         var candidates = new List<GuideCandidate>();
         var providerProcesses = new HashSet<int>();
@@ -127,14 +152,17 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         {
             token.ThrowIfCancellationRequested();
             var c = element.Cached;
-            if (!types.Contains(c.ControlType) || !c.IsEnabled || c.IsOffscreen) continue;
+            if (!types.Contains(c.ControlType) || !c.IsEnabled || c.IsOffscreen || !rawView && !c.IsControlElement) continue;
             providerProcesses.Add(c.ProcessId);
-            if (c.IsPassword || string.IsNullOrWhiteSpace(c.Name) || c.Name.Length > 200 ||
-                !UsableBounds(c.BoundingRectangle, frame)) continue;
+            if (!UsableBounds(c.BoundingRectangle, frame)) continue;
             if (IsScrollControl(element, root, token)) { scrollControls++; continue; }
+            var name = ReadVisibleElementName(element, root, window, token);
+            if (string.IsNullOrWhiteSpace(name) || name.Length > 200) continue;
             if (candidates.Count >= 128) throw new InvalidDataException("too_many_candidates");
-            var state = element.GetCachedPropertyValue(TogglePattern.ToggleStateProperty, true);
-            candidates.Add(new GuideCandidate(candidates.Count + 1, c.Name, c.AutomationId,
+            var automationId = element.Current.AutomationId;
+            GuidePrivacy.EnsureTextSafe(automationId);
+            var state = element.GetCurrentPropertyValue(TogglePattern.ToggleStateProperty, true);
+            candidates.Add(new GuideCandidate(candidates.Count + 1, name, automationId,
                 c.ControlType.ProgrammaticName, c.BoundingRectangle, element.GetRuntimeId(),
                 state is ToggleState toggle ? toggle.ToString() : null));
         }
@@ -143,20 +171,91 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         return candidates;
     }
 
-    static IEnumerable<AutomationElement> WalkRaw(AutomationElement root, CacheRequest cache, CancellationToken token)
+    static IReadOnlyList<GuideScopeAnchor> EnsureSafeContent(IntPtr window, CancellationToken token, ObservationScopeRule? rule = null)
+    {
+        try
+        {
+            var root = AutomationElement.FromHandle(window) ?? throw new InvalidDataException("privacy_unavailable");
+            var cache = new CacheRequest { TreeFilter = Automation.RawViewCondition };
+            cache.Add(AutomationElement.IsOffscreenProperty);
+            cache.Add(AutomationElement.IsPasswordProperty);
+            cache.Add(AutomationElement.ControlTypeProperty);
+            var elements = new[] { root.GetUpdatedCache(cache) }.Concat(
+                WalkElements(root, cache, token, TreeWalker.RawViewWalker, false));
+            var anchors = new List<GuideScopeAnchor>();
+            foreach (var element in elements)
+            {
+                token.ThrowIfCancellationRequested();
+                var name = ReadVisibleElementName(element, root, window, token);
+                var type = element.Cached.ControlType.ProgrammaticName;
+                if (name is not null && rule?.MatchesAnchor(name, type) == true)
+                    anchors.Add(new GuideScopeAnchor(name, type, element.Current.BoundingRectangle, element.GetRuntimeId()));
+            }
+            return anchors;
+        }
+        catch (Exception ex) when (ex is ElementNotAvailableException or InvalidOperationException or
+            System.Runtime.InteropServices.COMException || ex is InvalidDataException { Message: "uia_traversal_limit" })
+        {
+            throw new InvalidDataException("privacy_unavailable");
+        }
+    }
+
+    static string? ReadVisibleElementName(AutomationElement element, AutomationElement root, IntPtr window, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var offscreen = element.GetCurrentPropertyValue(AutomationElement.IsOffscreenProperty, true);
+        if (offscreen is true) return null;
+        var password = element.GetCurrentPropertyValue(AutomationElement.IsPasswordProperty, true);
+        var role = element.Cached.ControlType.ProgrammaticName;
+        var caption = (ReferenceEquals(password, AutomationElement.NotSupported) || ReferenceEquals(offscreen, AutomationElement.NotSupported)) &&
+            (role is "ControlType.TitleBar" or "ControlType.MenuBar" or "ControlType.MenuItem" or "ControlType.Button") &&
+            IsTitleBarChrome(element, root, window, token);
+        return GuidePrivacy.ReadVisibleName(offscreen, password, () => element.Current.Name, role, caption);
+    }
+
+    static bool IsTitleBarChrome(AutomationElement element, AutomationElement root, IntPtr window, CancellationToken token)
+    {
+        var current = element;
+        for (var depth = 0; depth < 32 && current is not null; depth++)
+        {
+            token.ThrowIfCancellationRequested();
+            if (Automation.Compare(current, root)) return false;
+            if (current.Current.ControlType == ControlType.TitleBar) return true;
+            // Hosted system captions can use a native child Window instead of a UIA TitleBar role.
+            if (current.Current.ControlType == ControlType.Window &&
+                current.GetCurrentPropertyValue(AutomationElement.NativeWindowHandleProperty, true) is int rawHandle && rawHandle != 0)
+            {
+                var handle = new IntPtr(rawHandle);
+                if (Native.IsWindow(handle) && Native.Class(handle) == "ApplicationFrameTitleBarWindow" &&
+                    Native.GetAncestor(handle, Native.GA_ROOT) == window && Native.ProcessId(handle) == Native.ProcessId(window))
+                    return true;
+            }
+            current = TreeWalker.RawViewWalker.GetParent(current);
+        }
+        return false;
+    }
+
+    static IEnumerable<AutomationElement> WalkElements(AutomationElement root, CacheRequest cache, CancellationToken token,
+        TreeWalker walker, bool skipScrollBars = true) =>
+        WalkVisible(root, parent => walker.GetFirstChild(parent, cache), child => walker.GetNextSibling(child, cache),
+            child => child.GetCurrentPropertyValue(AutomationElement.IsOffscreenProperty, true),
+            child => skipScrollBars && child.Cached.ControlType == ControlType.ScrollBar, token);
+
+    internal static IEnumerable<T> WalkVisible<T>(T root, Func<T, T?> firstChild, Func<T, T?> nextSibling,
+        Func<T, object?> offscreen, Func<T, bool> skip, CancellationToken token) where T : class
     {
         var visited = 0;
         return Walk(root, 0);
 
-        IEnumerable<AutomationElement> Walk(AutomationElement parent, int depth)
+        IEnumerable<T> Walk(T parent, int depth)
         {
-            var walker = TreeWalker.RawViewWalker;
-            for (var child = walker.GetFirstChild(parent, cache); child is not null;
-                 child = walker.GetNextSibling(child, cache))
+            token.ThrowIfCancellationRequested();
+            if (offscreen(parent) is true) yield break;
+            for (var child = firstChild(parent); child is not null; child = nextSibling(child))
             {
                 token.ThrowIfCancellationRequested();
                 if (++visited > 4096 || depth >= 48) throw new InvalidDataException("uia_traversal_limit");
-                if (child.Cached.ControlType == ControlType.ScrollBar) continue;
+                if (offscreen(child) is true || skip(child)) continue;
                 yield return child;
                 foreach (var descendant in Walk(child, depth + 1)) yield return descendant;
             }

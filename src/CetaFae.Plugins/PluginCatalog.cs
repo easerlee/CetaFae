@@ -22,7 +22,8 @@ public sealed class PluginCatalog
     {
         var definitions = plugins.Take(33).ToArray();
         if (definitions.Length > 32 || definitions.Any(p => p is null) ||
-            definitions.Select(p => p.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != definitions.Length)
+            definitions.Select(p => p.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != definitions.Length ||
+            definitions.Count(p => p.Kind == "general") > 1)
             throw new InvalidDataException("plugin_catalog");
         Plugins = Array.AsReadOnly(definitions);
     }
@@ -32,11 +33,11 @@ public sealed class PluginCatalog
 
     public GuidePlugin Resolve(string processName, string title)
     {
-        var matches = Plugins.Where(p => p.Matches(processName, title)).Take(2).ToArray();
+        var matches = Plugins.Where(p => p.Kind == "application" && p.Matches(processName, title)).Take(2).ToArray();
         return matches.Length switch
         {
             1 => matches[0],
-            0 => throw new InvalidDataException("unsupported_target"),
+            0 => Plugins.SingleOrDefault(p => p.Kind == "general") ?? throw new InvalidDataException("unsupported_target"),
             _ => throw new InvalidDataException("plugin_conflict")
         };
     }

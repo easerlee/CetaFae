@@ -1,0 +1,141 @@
+using System.Globalization;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using CetaFae.Probe;
+
+namespace CetaFae.Checks;
+
+static class CardChecks
+{
+    static GuideCard New() => new(GuideOptions.Create("http://127.0.0.1:8787/v1", "deepseek-v4.1-flash"));
+    static IEnumerable<(string Name, GuideCard Card)> States()
+    {
+        var menu = New();
+        yield return ("01 Menu - cloud off", menu);
+        var consent = New(); consent.ShowConsent();
+        yield return ("02 Personal cloud disclosure", consent);
+        var processing = New(); processing.SetCloud(true); processing.SetStatus("正在识别当前窗口，请稍候…");
+        yield return ("03 Processing", processing);
+        var question = New(); question.SetCloud(true); question.SetStatus("当前是浏览器的下载设置。你希望在此页面处理什么？"); question.ShowQuestion();
+        yield return ("04 One clarification", question);
+        var result = New(); result.SetCloud(true); result.SetStatus("你要找的开关位于右侧，当前为开启状态。这里只指出位置，不会修改。"); result.SetRegionAvailable(true);
+        yield return ("05 Result and optional selection", result);
+        var selection = New(); selection.SetCloud(true); selection.SetStatus("没有可靠的自动识别范围。请选择此窗口内将发送的区域，无需重新回答。"); selection.SetRegionAvailable(true);
+        yield return ("06 Waiting for region", selection);
+        var refusal = New(); refusal.SetCloud(true); refusal.SetStatus(GuideSession.FailureMessage(new InvalidDataException("sensitive_content")));
+        yield return ("07 Privacy refusal", refusal);
+        var longText = New(); longText.SetCloud(true); longText.SetStatus(string.Concat(Enumerable.Repeat("生成长文本，仅用于检查完整换行、滚动与按钮可达性。", 24))); longText.ShowQuestion();
+        yield return ("08 Long generated result", longText);
+        var enabled = New(); enabled.SetCloud(true);
+        yield return ("09 Menu - cloud on", enabled);
+    }
+
+    static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
+    {
+        card.Measure(new Size(width, GuideTheme.CardMaxHeight));
+        card.Arrange(new Rect(0, 0, width, Math.Min(card.DesiredSize.Height, GuideTheme.CardMaxHeight)));
+        card.UpdateLayout();
+    }
+
+    static Button Find(GuideCard card, string label) => card.Actions.Children.Cast<Button>().Single(b => Equals(b.Content, label));
+    static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+    internal static void Run(Action<bool, string> check)
+    {
+        var card = New();
+        var consent = 0; var regions = 0; var submitted = 0;
+        card.CloudToggled += () => consent++;
+        card.RegionRequested += () => regions++;
+        card.AnswerSubmitted += _ => submitted++;
+        Click(Find(card, "同意并启用云端"));
+        check(consent == 0, "hidden or stale consent callback cannot enable cloud before disclosure");
+        Click(Find(card, "查看云端授权"));
+        check(card.View == GuideCardView.Consent && consent == 0, "opening cloud disclosure alone never grants consent");
+        Click(Find(card, "同意并启用云端"));
+        check(consent == 1, "only an explicit action in the disclosure requests cloud consent");
+        card.SetCloud(true);
+        card.SetStatus("Generated question"); card.ShowQuestion(); card.SetRegionAvailable(true);
+        card.Answer.Text = "生成回答";
+        card.ShowMenu();
+        check(!card.HasQuestion && !card.HasRegion && card.HasSession, "menu hides session actions without submitting or clearing its pending answer");
+        Click(Find(card, "选择识别区域"));
+        check(regions == 0, "stale hidden region action cannot start selection from the menu");
+        Click(Find(card, "返回"));
+        check(card.HasQuestion && card.HasRegion && card.Answer.Text == "生成回答" && submitted == 0,
+            "returning from menu retains the current question without dispatching it");
+        card.Reset();
+        check(!card.HasQuestion && !card.HasRegion && !card.HasSession && card.Answer.Text.Length == 0,
+            "ending a card removes old answer, region and reusable session state");
+        check(!BallWindow.IsDrag(new Point(10, 10), new Point(11, 11), 1) &&
+              BallWindow.IsDrag(new Point(10, 10), new Point(30, 10), 1) &&
+              !BallWindow.IsDrag(new Point(10, 10), new Point(12, 12), 2),
+            "menu clicks tolerate pointer jitter and real dragging uses scaled system thresholds");
+        var targetFrame = new OverlayWindow();
+        var controlFrame = new OverlayWindow(control: true);
+        try
+        {
+            var targetBorder = (Border)targetFrame.Content;
+            var controlBorder = (Border)controlFrame.Content;
+            check(targetBorder.BorderBrush == GuideTheme.Outline && controlBorder.BorderBrush == GuideTheme.Accent &&
+                  targetBorder.BorderThickness != controlBorder.BorderThickness && targetBorder.CornerRadius != controlBorder.CornerRadius,
+                "target and validated-control frames use distinct blue line weights and shapes");
+            check(new System.Windows.Interop.WindowInteropHelper(targetFrame).Handle == IntPtr.Zero &&
+                  new System.Windows.Interop.WindowInteropHelper(controlFrame).Handle == IntPtr.Zero,
+                "frame style verification does not create native windows");
+        }
+        finally { targetFrame.Close(); controlFrame.Close(); }
+        foreach (var (name, state) in States())
+        {
+            foreach (var width in new[] { 320d, GuideTheme.CardWidth })
+            {
+                Layout(state, width);
+                var actions = state.Actions.Children.Cast<Button>().Where(b => b.Visibility == Visibility.Visible).ToArray();
+                check(actions.Length > 0 && actions.All(button =>
+                {
+                    var bounds = button.TransformToAncestor(state).TransformBounds(new Rect(button.RenderSize));
+                    return bounds.Left >= 0 && bounds.Right <= width + 1 && bounds.Top >= 0 && bounds.Bottom <= state.ActualHeight + 1;
+                }), $"{name}: all required actions fit outside scroll content at width{width}");
+                check(state.View == GuideCardView.Menu || state.BodyScroll.ViewportWidth > 0 && state.BodyScroll.ViewportHeight > 0 &&
+                      state.BodyScroll.ExtentWidth <= state.BodyScroll.ViewportWidth + 1,
+                    $"{name}: visible text has a positive viewport without horizontal clipping at width{width}");
+            }
+        }
+        var longCard = States().Single(s => s.Name.StartsWith("08", StringComparison.Ordinal)).Card;
+        Layout(longCard);
+        check(longCard.BodyScroll.ExtentHeight > longCard.BodyScroll.ViewportHeight,
+            "long generated text scrolls while the footer remains outside its viewport");
+    }
+
+    internal static void Render()
+    {
+        var visual = new DrawingVisual();
+        using (var draw = visual.RenderOpen())
+        {
+            draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(231, 241, 247)), null, new Rect(0, 0, 1140, 1518));
+            var index = 0;
+            foreach (var (name, card) in States())
+            {
+                Layout(card);
+                var point = new Point(index % 3 * 380 + 10, index / 3 * 506 + 38);
+                draw.DrawText(new FormattedText(name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                    new Typeface("Segoe UI"), 13, Brushes.Black, 1), new Point(point.X, point.Y - 24));
+                // Render the arranged viewport, not VisualBrush's descendant bounds (which include scroll overflow).
+                var cardImage = new RenderTargetBitmap((int)Math.Ceiling(card.ActualWidth),
+                    (int)Math.Ceiling(card.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+                cardImage.Render(card);
+                draw.DrawImage(cardImage, new Rect(point, card.RenderSize));
+                index++;
+            }
+        }
+        var bitmap = new RenderTargetBitmap(1140, 1518, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        var path = Path.GetFullPath(".artifacts/checks/cards-preview-20261029.png");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var output = File.Create(path); encoder.Save(output);
+        Console.WriteLine("Generated offscreen card preview: " + path + "; no native window, capture or network");
+    }
+}

@@ -1,135 +1,87 @@
-using System.Diagnostics;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 
 namespace CetaFae.Probe;
 
 public sealed class GuidePanel : Window
 {
-    readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 14, LineHeight = 22 };
-    readonly Button _cloud = new() { Content = "同意并启用云端", Padding = new Thickness(12, 6, 12, 6) };
-    readonly TextBox _answer = new() { MaxLength = 300, AcceptsReturn = false, MinWidth = 160,
-        VerticalContentAlignment = VerticalAlignment.Center, Padding = new Thickness(6),
-        ToolTip = "点击后输入你想处理的事，按 Enter 回答" };
-    readonly DockPanel _question = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 12) };
+    readonly GuideCard _card;
     public event Action? CloudToggled;
     public event Action? Cancelled;
     public event Action<string>? AnswerSubmitted;
-    public bool IsAnswering => _question.Visibility == Visibility.Visible && IsActive;
+    public event Action? RegionRequested;
+    public bool IsAnswering => _card.HasQuestion && IsActive;
+    public bool IsSessionInteraction => _card.HasSession && IsActive;
     public IntPtr Handle => new WindowInteropHelper(this).Handle;
+    internal GuideCard Card => _card;
 
     public GuidePanel(GuideOptions options)
     {
         Title = "鲸汐";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
-        ShowInTaskbar = true;
+        ShowInTaskbar = false;
         ShowActivated = false;
         Topmost = true;
-        Width = Math.Min(360, SystemParameters.WorkArea.Width - 24);
-        MaxHeight = Math.Min(460, SystemParameters.WorkArea.Height - 24);
+        Width = Math.Min(GuideTheme.CardWidth, SystemParameters.WorkArea.Width - 24);
+        MaxHeight = Math.Min(GuideTheme.CardMaxHeight, SystemParameters.WorkArea.Height - 24);
         SizeToContent = SizeToContent.Height;
-        var body = new StackPanel();
-        body.Children.Add(new TextBlock { Text = "鲸汐", FontWeight = FontWeights.SemiBold,
-            FontSize = 16, Margin = new Thickness(0, 0, 0, 10) });
-        body.Children.Add(new TextBlock
+        _card = new GuideCard(options);
+        Content = _card;
+        _card.CloudToggled += () => CloudToggled?.Invoke();
+        _card.Cancelled += () => Cancelled?.Invoke();
+        _card.AnswerSubmitted += text => AnswerSubmitted?.Invoke(text);
+        _card.RegionRequested += () => RegionRequested?.Invoke();
+        _card.ExitRequested += () => Application.Current.Shutdown();
+        _card.Dismissed += Hide;
+        _card.AnswerFocusRequested += () =>
         {
-            Text = $"启用后，仅在拖放时读取目标窗口，将{(options.IncludeImage ? "窗口画面及控件文字" : "控件文字（不含图片）")}发送至\n" +
-                $"{options.BaseUrl.GetLeftPart(UriPartial.Authority)}\n模型：{options.Model}。代理可能转发至上游服务，留存策略尚未核实。拒绝则不读取、不发送；随时可关闭。",
-            TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 12)
-        });
-        body.Children.Add(new ScrollViewer { Content = _status, MaxHeight = 170,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 0, 0, 12) });
-        var submit = new Button { Content = "回答", Padding = new Thickness(10, 6, 10, 6),
-            Margin = new Thickness(8, 0, 0, 0) };
-        var actions = new StackPanel { Orientation = Orientation.Horizontal };
-        void Submit()
-        {
-            if (!string.IsNullOrWhiteSpace(_answer.Text)) AnswerSubmitted?.Invoke(_answer.Text);
-        }
-        submit.Click += (_, _) => Submit();
-        _answer.PreviewMouseLeftButtonDown += (_, _) =>
-        {
-            // Activation is permitted only by the user's deliberate click in this transient field.
-            SetKeyboardAccess(true);
+            _card.SetKeyboardAccess(true);
             Activate();
-            _answer.Focus();
+            _card.Answer.Focus();
         };
-        _answer.PreviewKeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Enter) { Submit(); e.Handled = true; }
-        };
-        DockPanel.SetDock(submit, Dock.Right);
-        _question.Children.Add(submit);
-        _question.Children.Add(_answer);
-        body.Children.Add(_question);
-        _cloud.Click += async (_, _) =>
-        {
-            var elapsed = Stopwatch.StartNew();
-            CloudToggled?.Invoke();
-            // Sample the foreground without activating either window or reading its contents.
-            foreach (var delay in new[] { 0, 200, 800 })
-            {
-                if (delay > 0) await Task.Delay(delay);
-                ProbeLog.Log("guide_consent_focus", ("elapsedMs", elapsed.ElapsedMilliseconds),
-                    ("fg", Native.Hex(Native.GetForegroundWindow())), ("panelActive", IsActive));
-            }
-        };
-        actions.Children.Add(_cloud);
-        var stop = new Button { Content = "清除标记", Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(8, 0, 0, 0) };
-        stop.Click += (_, _) => Cancelled?.Invoke();
-        actions.Children.Add(stop);
-        var close = new Button { Content = "退出", Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(8, 0, 0, 0) };
-        close.Click += (_, _) => Application.Current.Shutdown();
-        actions.Children.Add(close);
-        body.Children.Add(actions);
-        // WPF buttons may request keyboard focus even on a WS_EX_NOACTIVATE window.
-        // Enable keyboard navigation only after an explicit activation (for example, from the taskbar).
-        void SetKeyboardAccess(bool active)
-        {
-            Focusable = active;
-            _answer.Focusable = active;
-            submit.Focusable = active;
-            foreach (Button button in actions.Children) button.Focusable = active;
-        }
-        SetKeyboardAccess(false);
-        Activated += (_, _) =>
-        {
-            SetKeyboardAccess(true);
-            ProbeLog.Log("guide_panel_activation", ("active", true), ("fg", Native.Hex(Native.GetForegroundWindow())));
-        };
-        Deactivated += (_, _) =>
-        {
-            SetKeyboardAccess(false);
-            ProbeLog.Log("guide_panel_activation", ("active", false), ("fg", Native.Hex(Native.GetForegroundWindow())));
-        };
-        Content = new Border { Background = Brushes.White, BorderBrush = Brushes.SlateGray,
-            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16), Child = body };
+        // Ordinary card buttons must not steal focus from the selected target.
+        _card.SetKeyboardAccess(false);
+        Activated += (_, _) => SetKeyboardAccess(true);
+        Deactivated += (_, _) => SetKeyboardAccess(false);
         SourceInitialized += (_, _) =>
         {
-            var hwnd = new WindowInteropHelper(this).Handle;
+            var hwnd = Handle;
             Native.SetWindowLong(hwnd, Native.GWL_EXSTYLE, Native.GetWindowLong(hwnd, Native.GWL_EXSTYLE) |
-                Native.WS_EX_NOACTIVATE);
+                Native.WS_EX_NOACTIVATE | Native.WS_EX_TOOLWINDOW);
             HwndSource.FromHwnd(hwnd)!.AddHook(PreventMouseActivation);
         };
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { Cancelled?.Invoke(); e.Handled = true; } };
-        SetStatus("尚未启用。此验证版仅解释和指路，不会替你点击或修改设置。");
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) { Cancelled?.Invoke(); e.Handled = true; }
+        };
         Place(null);
     }
 
-    public void SetCloud(bool enabled) => _cloud.Content = enabled ? "关闭云端" : "同意并启用云端";
-    public void SetStatus(string message) => _status.Text = message;
-    public void ShowQuestion() => _question.Visibility = Visibility.Visible;
-    public void ClearQuestion()
+    void SetKeyboardAccess(bool active)
     {
-        _answer.Clear();
-        _question.Visibility = Visibility.Collapsed;
+        Focusable = active;
+        _card.SetKeyboardAccess(active);
+        ProbeLog.Log("guide_panel_activation", ("active", active), ("fg", Native.Hex(Native.GetForegroundWindow())));
     }
 
+    public void SetCloud(bool enabled) => _card.SetCloud(enabled);
+    public void SetStatus(string message) { _card.SetStatus(message); if (!IsVisible) Show(); }
+    public void ShowMenu() { _card.ShowMenu(); if (!IsVisible) Show(); }
+    public void ShowQuestion() => _card.ShowQuestion();
+    public void SetRegionAvailable(bool available) => _card.SetRegionAvailable(available);
+    public void ClearQuestion() => _card.ClearQuestion();
+    public void EndSession() { _card.Reset(); Hide(); }
+
+    internal static string Disclosure(GuideOptions options) =>
+        "开发验证版。启用后，拖放及提交回答会读取所选窗口；展示期间按窗口变化在本机复核控件。\n" +
+        (options.IncludeImage ? "通用视觉插件可尝试理解未适配的软件，不代表所有软件已正式支持。目标未明时可能发送所选整窗画面；明确目标后发送可靠适配范围的局部画面，或由你框选的区域（可主动选整个目标窗）、范围内控件文字及用户输入的回答。范围不明时先等待选区，不自动改发整窗。PrintWindow先在本机内存绘制所选整窗，再裁剪外发。\n" :
+            "目标未明时发送所选窗口控件文字；明确目标后仅发送适配或你框选范围内文字及用户输入的回答，不含图片；范围不明先等待选区。\n") +
+        $"接收地址：{options.BaseUrl.AbsoluteUri}\n模型：{options.Model}。\n" +
+        "客户端不保存画面、控件原文和问答；会话结束清除显示与可复用引用。元数据日志保留7天，按小时清理；清理失败可能延迟。\n" +
+        "代理可能转发；代理与模型服务商留存均未核实，不具备正式发布条件。\n" +
+        "拒绝或关闭后不采集识别内容、不发新请求。可随时关闭；已发送内容无法从上游撤回。";
     static IntPtr PreventMouseActivation(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (message == 0x0021) // WM_MOUSEACTIVATE

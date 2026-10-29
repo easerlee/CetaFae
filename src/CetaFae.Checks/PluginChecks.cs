@@ -18,7 +18,18 @@ static class PluginChecks
         }
 
         var installed = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
-        check(installed.Plugins.Count == 2, "both first-party packages are deployed with the check runner");
+        var winrar = installed.Resolve("WinRAR", "解压路径和选项");
+        check(installed.Plugins.Count == 4 && winrar.TaskIds.SequenceEqual(new[] { "X-01" }),
+            "the WinRAR development package is deployed through the common catalog with its bounded task");
+        check(!winrar.UsesRawView && installed.Resolve("winrar", "Extraction path and options").Id == winrar.Id,
+            "the WinRAR package declares control traversal and both exact dialog-title candidates");
+        Reject(() => new PluginCatalog([winrar]).Resolve("WinRAR", "generated.zip - WinRAR"),
+            "enabling the extraction-dialog package does not admit the archive manager window");
+        Reject(() => new PluginCatalog([winrar]).Resolve("WinRAR", "unreviewed dialog"),
+            "an unreviewed dialog title cannot inherit WinRAR task support");
+        Reject(() => new PluginCatalog(installed.Plugins.Where(p => p.Id != winrar.Id && p.Kind != "general"))
+                .Resolve("WinRAR", "解压路径和选项"),
+            "disabling the real third-application package removes its support without a fallback");
         var settings = installed.Resolve("ApplicationFrameHost", "设置");
         var edge = installed.Resolve("msedge", "Downloads");
         var transferred = JsonSerializer.Deserialize<GuidePlugin>(JsonSerializer.Serialize(settings, ObservationWorker.Json),
@@ -28,8 +39,8 @@ static class PluginChecks
             "collector IPC preserves and validates the session's plugin definition and task guard");
         check(settings.Id != edge.Id && !settings.UsesRawView && edge.UsesRawView,
             "the same resolver selects first-party identity and collection strategy from data");
-        Reject(() => installed.Resolve("notepad", "设置"), "a familiar title cannot grant application support");
-        Reject(() => installed.Resolve("ApplicationFrameHost", "other application"), "hosted windows require their plugin title constraint");
+        Reject(() => new PluginCatalog([settings, edge]).Resolve("notepad", "设置"), "a familiar title cannot grant application support");
+        Reject(() => new PluginCatalog([settings, edge]).Resolve("ApplicationFrameHost", "other application"), "hosted windows require their plugin title constraint");
         check(installed.Resolve("MSEDGE", "Downloads").Id == edge.Id, "process matching uses Windows case-insensitive identity");
         check(!settings.AllowsPoint("暂停更新", "继续更新") && !settings.AllowsPoint("pause updates", "Resume updates") &&
               settings.AllowsPoint("暂停更新", "暂停更新"), "the first-party task plugin preserves the opposite-action guard");
@@ -42,6 +53,9 @@ static class PluginChecks
              "blockedPoints":[{"intentContainsAny":["keep"],"candidateNameContainsAny":["delete"]}]}
             """;
         var third = PluginCatalog.ParsePlugin(generated);
+        Reject(() => new PluginCatalog([winrar, PluginCatalog.ParsePlugin(generated.Replace("generated-editor", "WinRAR"))])
+                .Resolve("WinRAR", "解压路径和选项"),
+            "a conflicting extraction-dialog package rejects resolution rather than winning by order");
         var extended = new PluginCatalog(installed.Plugins.Append(third));
         check(extended.Resolve("generated-editor", "generated page").Id == third.Id &&
               !third.AllowsPoint("keep the object", "delete object") && third.AllowsPoint("find the object", "search"),
@@ -54,7 +68,7 @@ static class PluginChecks
             "overlapping packages fail rather than choosing by load order");
         foreach (var (json, name) in new[]
                  {
-                     (generated.Replace("\"schemaVersion\":1", "\"schemaVersion\":2"), "incompatible contract"),
+                     (generated.Replace("\"schemaVersion\":1", "\"schemaVersion\":4"), "incompatible contract"),
                      (generated.Replace("\"id\":\"example.editor\"", "\"id\":\"../outside\""), "path traversal identity"),
                      (generated.Replace("\"uiaView\":\"control\"", "\"uiaView\":\"execute\""), "unsupported collection capability"),
                      (generated.Replace("\"schemaVersion\":1", "\"command\":\"run\",\"schemaVersion\":1"), "executable field"),
