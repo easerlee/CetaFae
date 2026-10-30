@@ -1,10 +1,16 @@
 # CetaFae Concentrated Verification Plan
 
-Updated: 2026-10-29
+Updated: 2026-10-30
+
+## Window identity and purpose batch (FR-15 / AC-17)
+
+- L: strict initial `application/page/question` JSON; independent nulls; blank/oversized/control/credential strings, duplicate/extra fields and invented coordinates refuse. Local process labels are bounded and never enter outbound payload/logs. Initial identification cannot mark controls; explicit guidance retains its existing contract. Model-only failures preserve local ownership; privacy/revalidation/revocation failures cannot reuse it.
+- M: generated unfamiliar tool, document, error dialog, unknown-brand page and information-free canvas, all without actionable controls or software adapters. Check known facts independently from the model; accept explicit unknown where evidence is insufficient. Include hostile screenshot text. No saved real screen or additional model request per drop. Record timings and every failed attempt, without claiming native/general coverage.
+- N/R (not yet run): freeze one candidate and batch an unfamiliar tool/document/error, zero-control content, partial unknown and a restricted target. Check immediate initial description before any goal, local ownership vs inferred software, one question, input/guidance transition, clear/revoke/page change, stale responses, network failure and screenshot privacy. Reuse affected existing cases; no repeated 20-cycle manual resource test absent a relevant fix. Real target reads/launches need prior scoped permission; product cloud consent remains personal. Numeric/resource gates are unchanged.
 
 ## Authority and status
 
-Planned coverage, not a results report. `需求文档.md` v1.8 owns scope and thresholds; `Tech-Spec.md` owns the development roadmap; `验证记录.md` owns frozen actual cases, results, failures and release claims. This plan does not pass any pending gate or replace historical failures. The first-release baseline is19 tasks:18 explanation/guidance tasks plus conditional D-01. X-01 and generic visual experiments remain separately bounded development cases.
+Planned coverage, not a results report. `需求文档.md` v1.9 owns scope and thresholds; `Tech-Spec.md` owns the development roadmap; `验证记录.md` owns frozen actual cases, results, failures and release claims. This plan does not pass any pending gate or replace historical failures. The first-release baseline is19 tasks:18 explanation/guidance tasks plus conditional D-01. X-01 and generic visual experiments remain separately bounded development cases.
 
 The user requested concentrated desktop acceptance. During development run affected headless regression automatically. At a stable candidate run the complete applicable automated suite, then a prepared native/real-app batch under scoped permission. Do not defer safety checks to the end, or repeatedly ask the user to perform accepted Edge steps after unrelated edits.
 

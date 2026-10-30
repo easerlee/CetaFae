@@ -10,7 +10,8 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
     IReadOnlyList<GuideCandidate> Candidates, byte[]? Png, bool RawView = false, string PluginId = "",
     GuideScope? Scope = null, string? ScopeIntent = null, string? VisualHash = null, GuideVisual? Visual = null)
 {
-    public const string TaskDescription = "用户尚未说明目标。只根据本次所选窗口的可见内容，用一句话说明当前界面，" +
+    public const string TaskDescription = "用户尚未说明目标。只根据本次所选窗口的可见内容，分别判断所属软件和当前界面用途；" +
+        "两者独立判断，缺少依据的部分明确未知，不从普通界面风格猜测软件。即使没有可操作控件，也先说明可知的界面内容，" +
         "再用一句短问询问用户希望在此界面处理什么。不要引入画面和用户目标之外的应用、设置或任务，" +
         "不猜测目标，不预先指向控件，不执行操作。";
 

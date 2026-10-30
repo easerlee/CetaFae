@@ -1,12 +1,20 @@
 # Selected-Window Guidance: Implementation Specification
 
-Updated: 2026-10-29
+Updated: 2026-10-30
+
+## Generic window identification increment (2026-10-30)
+
+Requirements v1.9 FR-15/AC-17 makes identification independent of task guidance. Reuse the explicitly enabled general plugin and existing selected-window collection, privacy, deadline, revalidation and one-question lifecycle. No application table, dependency, extra capture or extra model round trip is needed. Application adapters remain optional enhancements; catalog conflicts and disabling retain their existing semantics.
+
+The initial request uses a separate bounded JSON contract: `application` and `page` are nullable plain strings, `question` is one bounded string. These are visual interpretations, not verified executable identity or execution instructions. Null preserves uncertainty independently for each field. The host supplies a local-only process label from the already selected PID after successful collection; it does not inspect executable paths/version resources, send titles/process metadata, or log them. Present verified process ownership separately from model interpretation. Initial results never carry a candidate ID; subsequent explicit-intent requests keep the existing guidance contract and scope rules.
+
+After a successfully collected initial observation, model-stage network/timeout/invalid-output failures may show only the bounded local process label and a clear unrecognized-purpose message. Never do this for collection/privacy/privilege failures or changed/revoked sessions. Source revalidation and existing version guards apply before displaying interpretations. Acceptance: strict response/unknown/hostile input checks, generated zero-control model examples, offscreen layout, full affected suites, then a consolidated consent-bound native batch on unfamiliar applications. New binaries do not inherit old native acceptance; existing 3000ms/90MB failures remain open.
 
 ## Authority and Current Increment
 
 ### Autonomous development roadmap (2026-10-29)
 
-This is the single engineering roadmap. The user authorized staged implementation and concentrated verification, not a planning-only exercise. [Test-Plan.md](Test-Plan.md) owns planned test coverage; [Art-Assets.md](Art-Assets.md) is the separate art handoff. `验证记录.md` alone owns actual results. Requirements v1.8, including unchanged numeric gates, remain authoritative. A stage being prepared is not a passed product gate.
+This is the single engineering roadmap. The user authorized staged implementation and concentrated verification, not a planning-only exercise. [Test-Plan.md](Test-Plan.md) owns planned test coverage; [Art-Assets.md](Art-Assets.md) is the separate art handoff. `验证记录.md` alone owns actual results. Requirements v1.9, including unchanged numeric gates, remain authoritative. A stage being prepared is not a passed product gate.
 
 **Current decision:** the selected-window explanation/guidance mechanism is feasible in the exercised paths. The existing evidence does not establish full first-release feasibility at the required resource/latency limits. Resolve these risks before expanding implementation indiscriminately. Existing failures remain failures: the current short product diagnostic exceeds90MB and exercised model processing exceeds3000ms. Do not restart the same Edge/manual20-use experiment without a change that could alter the conclusion.
 
@@ -101,7 +109,7 @@ Use these verification batches without changing requirements or historical outco
 3. Stable candidate: freeze one build and test cases; request one scoped desktop block covering the prepared functional, privacy, cancellation and focus checks. Reuse eligible actual help/clear operations for the resource round's20-use history on the same process. New-process idle must precede that history and post-use idle must follow it; do not turn diagnostic restarts or generated calls into formal uses. Five-run timing cases retain all failures and cannot pass from averages.
 4. Release: complete declared task/platform coverage and upstream disclosure, plus independent gates for any conditional capability to be published. If a regression fails, repair and retest the affected path and shared dependencies; repeat the entire batch only when the shared change warrants it. Keep incomplete/P0, failed, conditional-unpublished and outside-scope work distinct. Do not claim a completion percentage from check counts.
 
-`需求文档.md` v1.8 is the sole product and acceptance authority. This specification describes FR-01/02/03/04/08/09, PV-4/5/8, EXT-01–07 and bounded X-01 development validation; it does not replace the full support list or its criteria. The general visual/selection candidate has bounded native evidence in验证记录; the v1.8 on-demand presentation still requires static design and integration acceptance.
+`需求文档.md` v1.9 is the sole product and acceptance authority. This specification describes FR-01/02/03/04/08/09, PV-4/5/8, EXT-01–07 and bounded X-01 development validation; it does not replace the full support list or its criteria. The general visual/selection candidate has bounded native evidence in验证记录; the v1.8 on-demand presentation still requires static design and integration acceptance.
 
 Windows Update has historical human evidence. Edge Downloads has human evidence for clarification, Chinese input, a control marker, state explanation, retention and cancellation. Activation on release has normal-path and cloud-off human/log confirmation after correcting asynchronous foreground completion; genuine OS refusal remains unverified. Other support-list tasks, visual-region fallback, document execution, snapshots, and rollback remain incomplete. TC-2 and TC-3 still govern their associated requirements.
 

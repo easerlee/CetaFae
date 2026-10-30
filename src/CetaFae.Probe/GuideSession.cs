@@ -212,6 +212,10 @@ public sealed class GuideSession : IDisposable
         _panel.ClearQuestion();
         var total = Stopwatch.StartNew();
         var stage = ProcessingStage.Activation;
+        string? identifiedProcess = null;
+        string? CurrentOwnership() => stage == ProcessingStage.Model && identifiedProcess is not null &&
+            _contextVersion == version && _context is { } context &&
+            GuideObservation.IsCurrent(window, context.ProcessId, context.Frame) ? identifiedProcess : null;
         try
         {
             token.ThrowIfCancellationRequested();
@@ -250,12 +254,18 @@ public sealed class GuideSession : IDisposable
             if (!_gate.Accepts(version)) return;
             stage = ProcessingStage.TargetValidation;
             previous?.ValidateTargetContext(observation);
+            if (intent is null)
+            {
+                // The PID has survived collection/privacy checks; retain ownership locally only.
+                identifiedProcess = GuideIdentification.BindProcess(targetProcess.Id, observation.ProcessId, targetProcess.ProcessName);
+            }
             _context = observation with { Png = null };
             _contextVersion = version;
             _pendingIntent = intent;
             if (_contextCheckPending) OnTargetChanged();
             var observeMs = total.ElapsedMilliseconds;
-            _panel.SetStatus("正在识别下一步…");
+            _panel.SetStatus(identifiedProcess is null ? "正在识别下一步…" :
+                GuideIdentification.Ownership(identifiedProcess) + "\n正在识别软件和当前界面…");
             stage = ProcessingStage.Payload;
             var payload = GuidePayload.From(observation);
             ProbeLog.Log("guide_request_start", ("observeMs", observeMs),
@@ -264,7 +274,10 @@ public sealed class GuideSession : IDisposable
             var task = intent is null ? GuideObservation.TaskDescription :
                 "用户明确提出的目标：" + intent + "。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。";
             stage = ProcessingStage.Model;
-            var modelAnswer = await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext));
+            var modelAnswer = intent is null
+                ? (await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext)))
+                    .ToAnswer(identifiedProcess!)
+                : await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext));
             var answer = modelAnswer.ForIntent(intent);
             var modelMs = total.ElapsedMilliseconds - observeMs;
             ProbeLog.Log("guide_response_received", ("modelMs", modelMs), ("mode", answer.Mode),
@@ -308,8 +321,10 @@ public sealed class GuideSession : IDisposable
             var cancelled = request.IsCancellationRequested;
             if (_gate.Accepts(version))
             {
+                var ownership = CurrentOwnership();
                 _ball.StopTracking("processing_timeout");
-                _panel.SetStatus("识别超时，请重新拖放。此次没有指向任何位置。");
+                var message = "识别超时，请重新拖放。此次没有指向任何位置。";
+                _panel.SetStatus(ownership is not null ? GuideIdentification.Unavailable(ownership, message) : message);
             }
             ProbeLog.Log("guide_failure", ("category", cancelled ? "cancelled" : "timeout"), ("stage", stage.ToString()));
         }
@@ -333,8 +348,11 @@ public sealed class GuideSession : IDisposable
             }
             if (_gate.Accepts(version))
             {
+                var ownership = CurrentOwnership();
                 _ball.StopTracking("recognition_failed");
-                _panel.SetStatus(FailureMessage(ex));
+                _panel.SetStatus(ownership is not null &&
+                    ex is not InvalidDataException { Message: "sensitive_content" }
+                    ? GuideIdentification.Unavailable(ownership, FailureMessage(ex)) : FailureMessage(ex));
             }
             // Exception messages can contain provider content or URLs; log categories only.
             ProbeLog.Log("guide_failure", ("category", ex is InvalidDataException ? "validation" :

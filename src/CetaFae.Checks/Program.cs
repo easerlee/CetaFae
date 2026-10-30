@@ -87,6 +87,7 @@ public static class Program
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);
         GeneralGuideChecks.Run(Check);
+        await IdentificationChecks.RunAsync(Check);
         CaretChecks.Run(Check);
         ScopeChecks.Run(Check);
         await ScopeChecks.CheckTransportAsync(Check);
@@ -327,8 +328,10 @@ public static class Program
                 "HTTP handler ignoring cancellation cannot revive an expired version or invalidate its replacement");
         }
 
+        await IdentificationChecks.CheckLateReplyAsync(Check);
         if (args.Contains("--live-scopes")) await ScopeChecks.RunLiveAsync(Check);
         if (args.Contains("--live-general")) await GeneralGuideChecks.RunLiveAsync(Check);
+        if (args.Contains("--live-identification")) await IdentificationChecks.RunLiveAsync(Check);
         if (args.Contains("--live-tasks")) await TaskChecks.RunLiveAsync(Check,
             args.SingleOrDefault(a => a.StartsWith("--task-case=", StringComparison.Ordinal))?[12..]);
         if (args.Contains("--live") || args.Contains("--live-winrar"))

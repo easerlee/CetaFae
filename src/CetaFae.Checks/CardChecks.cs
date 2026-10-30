@@ -31,6 +31,17 @@ static class CardChecks
         yield return ("08 Long generated result", longText);
         var enabled = New(); enabled.SetCloud(true);
         yield return ("09 Menu - cloud on", enabled);
+        var identity = New(); identity.SetCloud(true);
+        identity.SetStatus(new GuideIdentification("生成文档工具", "显示生成文档内容", "你希望在这里处理什么？")
+            .ToAnswer("generated-editor").Explanation); identity.ShowQuestion();
+        yield return ("10 Window identification", identity);
+        var unknown = New(); unknown.SetCloud(true);
+        unknown.SetStatus(new GuideIdentification(null, null, "你希望了解这个窗口的什么内容？")
+            .ToAnswer("generated-editor").Explanation); unknown.ShowQuestion();
+        yield return ("11 Unknown window purpose", unknown);
+        var unavailable = New(); unavailable.SetCloud(true);
+        unavailable.SetStatus(GuideIdentification.Unavailable("generated-editor", "识别服务不可用，请检查本机模型代理。"));
+        yield return ("12 Local ownership after model failure", unavailable);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
@@ -111,12 +122,14 @@ static class CardChecks
 
     internal static void Render()
     {
+        var states = States().ToArray();
+        var height = (int)Math.Ceiling(states.Length / 3d) * 506;
         var visual = new DrawingVisual();
         using (var draw = visual.RenderOpen())
         {
-            draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(231, 241, 247)), null, new Rect(0, 0, 1140, 1518));
+            draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(231, 241, 247)), null, new Rect(0, 0, 1140, height));
             var index = 0;
-            foreach (var (name, card) in States())
+            foreach (var (name, card) in states)
             {
                 Layout(card);
                 var point = new Point(index % 3 * 380 + 10, index / 3 * 506 + 38);
@@ -130,10 +143,10 @@ static class CardChecks
                 index++;
             }
         }
-        var bitmap = new RenderTargetBitmap(1140, 1518, 96, 96, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap(1140, height, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var path = Path.GetFullPath(".artifacts/checks/cards-preview-20261029.png");
+        var path = Path.GetFullPath(".artifacts/checks/cards-identification-20261030.png");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         using var output = File.Create(path); encoder.Save(output);
         Console.WriteLine("Generated offscreen card preview: " + path + "; no native window, capture or network");
