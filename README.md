@@ -1,143 +1,185 @@
-# CetaFae
+# 鲸汐 CetaFae
 
-Windows selected-window explanation and visual guidance, built with C# / WPF and .NET 8.
+把悬浮入口拖到一个窗口，理解当前界面，并找到下一步该操作的位置。
 
-Private development repository: [easerlee/CetaFae](https://github.com/easerlee/CetaFae). This is a development preview, not an accepted production release. See `验证记录.md` for actual results, failures and remaining gates.
+鲸汐使用 C#、WPF 和 .NET 8 开发，是一个面向 Windows 的**单窗口解释与指路助手**。底座负责授权、采集、模型通信和安全边界；包括第一方功能在内的所有具体应用能力，都通过插件提供。
 
-## What Works Today
+私有开发仓库：[easerlee/CetaFae](https://github.com/easerlee/CetaFae)。**当前是开发预览版，尚未通过正式发布验收。** 实际测试结果、失败和未完成事项统一记录在[验证记录](验证记录.md)中。
 
-CetaFae is an explanation and guidance assistant. Personally enable cloud processing from its menu, drag the floating handle onto a window, answer one short question when needed, and read the explanation. A small marker appears only when a returned control can be validated against the current target. The user operates the target software; the assistant does not click switches, enter paths, extract archives or change system settings.
+## 当前能实现什么
 
-The following flows have recorded human verification on earlier development candidates:
+用户先在菜单中亲自启用云端，再将悬浮入口拖到目标窗口。鲸汐解释可见界面；需要明确目标时，只追问一次。只有模型返回的控件能够与当前目标窗口重新核对时，才显示指路小框。
 
-- **Edge Downloads:** ask where the save-location prompt switch is; receive its location and visible state, with a control marker. Chinese input, result retention and clearing have been exercised.
-- **Windows Update:** explain the visible paused state and end date without confusing “Resume updates” with pausing.
-- **WinRAR extraction-options dialog:** identify the destination-path input without performing extraction. This is the bounded X-01 flow, not general WinRAR automation.
-- **Generic visual explanation:** read generated text in Notepad, preserve the result through the exercised caret transition, clear after an edit, and explain a user-selected image region. No Notepad-specific adapter was added.
-- **Cancellation and refusal:** exercised cases include cloud-off rejection, revocation, switching pages/windows, minimizing or closing the target, selection cancellation, visible password refusal, and recovery on a normal page with the password page in a background tab.
+**操作由用户完成。** 鲸汐目前不会替用户点击开关、填写路径、执行解压或修改系统设置。
 
-These are evidence for the exact recorded builds and conditions, not a guarantee that every version, page, language, error or latest candidate works. The general visual plugin can attempt other non-elevated windows using selected-window images and available controls. When an explicit goal has no reliable automatic scope, the user selects the outbound region. Unknown privacy metadata, inaccessible targets, unreliable capture and invalid model results can stop the attempt.
+以下流程已经在此前的开发候选版中取得人工实测记录：
 
-The current source also includes a native card/menu presentation with centralized style values: idle starts with the handle only; clicking it opens the menu and separate cloud disclosure; question/result/error cards appear on demand; ending a session dismisses its card. Static generated previews and checks are separate from the pending native focus, IME and lifecycle acceptance. The question-mark handle remains an engineering placeholder; the final whale, water trail and window-edge wave are not integrated.
+- **Edge 下载设置**：找到“在下载之前询问每个文件的保存位置”开关，说明可见状态并标记位置；已验证中文输入、结果保留和清除。
+- **Windows 更新**：解释页面显示的暂停状态与截止日期，不把“继续更新”误认为暂停入口。
+- **WinRAR 解压对话框**：指出目标路径输入区域，不实际解压。仅限 X-01 这一有明确边界的流程，不代表通用 WinRAR 自动化。
+- **通用画面解释**：在记事本中解释生成测试文字；已验证特定光标变化下保留结果、正文修改后清除，以及解释用户框选区域中的状态与日期。没有增加记事本专用适配。
+- **取消与拒绝**：已覆盖的场景包括云端关闭时拒绝新读取、识别中撤权、换页或切窗、目标最小化或关闭、取消选区、可见密码字段拒绝，以及敏感页面留在后台标签时正常页面的恢复识别。
 
-## What Is Not Accepted or Implemented
+这些记录只证明对应构建和测试条件下的流程，不能推广为所有版本、页面、语言或错误提示都可用，也不能直接替代最新版的验收。
 
-- No automatic computer control, system repair, hidden root-cause investigation, or arbitrary document writing. Conditional WPS editing/undo remains unpublished behind TC-3.
-- No universal application support, executable third-party plugins, public plugin installation or marketplace. All concrete capabilities, including first-party adapters and the general visual guide, use the same validated declarative plugin contract.
-- The full 18-task guidance baseline and conditional nineteenth document task have not passed real-task release acceptance. A 62-state generated-model batch returned 61 expected outcomes and one failure; a separate successful diagnostic does not replace that failed batch.
-- The **3000ms processing** and **90,000,000-byte Private Bytes** gates remain unpassed. Earlier resource/timing failures are retained; latency deferral does not waive acceptance. Provider/proxy retention, complete sensitive-pixel coverage and platform/version coverage remain open.
-- No production release, installer, signed distribution or final-art acceptance is claimed. New shared code/UI needs a frozen, authorized native verification batch; previous manual tests do not automatically transfer.
+通用视觉插件可以结合**所选窗口画面与可读取控件**，尝试理解尚未专门适配的软件。明确目标后，如果无法可靠确定自动识别范围，会请用户框选将发送的区域。隐私属性不明、目标不可访问、捕获不可靠或模型结果无效时，本次处理可能停止。
 
-## Repository Map
+### 最新交互的开发状态
 
-- `需求文档.md`: sole product scope and acceptance criteria; v1.8 records the approved whale/wave and on-demand-card direction. The general visual plugin, user-selected outbound regions, bounded WinRAR task X-01 and19-task baseline remain. Timing, resource, recovery and privacy gates are unchanged. The latest presentation is a candidate; document revision is not implementation acceptance.
-- `AGENTS.md`: current engineering and desktop-consent rules.
-- `MEMORY.md`: durable project decisions and pitfalls.
-- `Tech-Spec.md`: current implementation, contracts and outstanding gates.
-- `Test-Plan.md`: comprehensive planned task/state, privacy, failure, platform and performance coverage; concentrated candidate verification, not actual results.
-- `Art-Assets.md`: interaction-reference breakdown and the separate original-art production handoff.
-- `验证记录.md`: consolidated direct Codex verification, including failures and unverified areas.
-- `src/CetaFae.Probe/`: software-independent Windows guidance host.
-- `src/CetaFae.Plugins/`: UI-independent data contract, validation and enabled-plugin resolver.
-- `plugins/`: all concrete application/task plugins and their explicit enabled development catalog.
-- `src/CetaFae.Checks/`: executable checks and generated desktop fixtures.
-- `Directory.Build.props`: places build output/intermediates under ignored `.artifacts/`.
+当前源码已接入按需卡片和菜单：待命只保留悬浮入口；点击打开菜单与独立授权说明；需要时显示问题、结果或错误卡片；清除或结束会话后收起卡片。
 
-Keep verification results in the existing record. Do not add parallel legacy plans, per-attempt reports, browser profiles or runtime dumps. Runtime logs default to `.artifacts/logs/` and stay out of Git. Owned metadata logs expire seven days after their last write, checked on startup and hourly; daily segmentation bounds the active log. Locked files report incomplete retention. Unrelated/nested files and reparse paths are not followed or deleted.
+该版本 Debug、Release 各通过 **571 项本地检查**，9 种生成界面已做离屏渲染与静态检查。**新版真实桌面的焦点、中文输入法和会话生命周期验收仍待集中完成。** 当前问号入口仍是工程占位，最终小鲸鱼、水迹和窗边浪花尚未接入。
 
-The host refuses observations containing visible password fields, explicit credential-field labels or recognized credential text, with additional text checks before model dispatch and display. This is conservative refusal, not general secret recognition or pixel redaction. Custom-drawn sensitive pixels and incomplete provider metadata remain release gaps. See `Tech-Spec.md` for the privacy boundary and native regression requirements.
+## 尚未实现或未通过验收的部分
 
-The host retains consent, target-only collection mechanisms, model transport, validation, rendering and cancellation. Every software-specific capability is a plugin, including first-party features. The current build loads declarative packages through the common validated contract; it has no public installation manager or executable plugin loader. See `Tech-Spec.md` for the contract and remaining release gates.
+- **自动控制与修复**：不提供自动操作电脑、系统修复、隐藏根因调查或任意文档写入。WPS 修改与还原属于条件能力，TC-3 未通过前不发布。
+- **完整软件覆盖与插件生态**：不承诺所有软件可用；尚无可执行第三方插件、面向用户的公开安装管理器或插件市场。第一方适配和通用视觉指导使用相同的声明式插件契约。
+- **完整任务验收**：18 项指导任务及条件性的第 19 项文档任务，尚未全部通过真实任务发布验收。62 个生成状态的模型批次中，61 个符合固定预期、1 个失败；单独重测成功不能覆盖该批次失败。
+- **性能门槛**：**3000ms 处理时限**和 **90,000,000 字节专用内存（Private Bytes）上限**仍未通过。历史资源、时延失败保留；暂缓优化不等于通过验收。
+- **隐私与兼容性**：代理和模型服务商的留存策略、完整敏感像素覆盖、系统与软件版本覆盖仍有未完成项。
+- **正式交付**：尚未完成生产版本、安装包、签名分发和最终美术验收。共享代码或界面变动后，需要冻结候选并做经授权的集中实机验证，不能直接沿用旧版本手测结论。
 
-## Application Plugins
+## 如何使用当前候选版
 
-`plugins/catalog.json` explicitly lists enabled package IDs. Each maps to `plugins/<id>/plugin.json`. Application adapters and the general visual guide are preinstalled packages with no privileged host path. Resolve a unique matching application adapter first; otherwise use the unique explicitly enabled general package. Application conflicts never fall through to general guidance; multiple general packages reject. An empty enabled list supports no applications. Missing or invalid catalogs reject startup. Disabling an adapter removes its enhancement; disable the general package as well to remove generic coverage.
+1. 启动后，点击问号入口打开菜单。
+2. 选择“查看云端授权”，阅读发送范围、接收方与留存说明，亲自点击“同意并启用云端”。仅打开说明不会授权，也不会自动重做之前的拖放。
+3. 将入口拖到目标窗口并释放。启用云端后，程序会尝试将有效目标激活一次；若 Windows 拒绝，按提示手动点击目标，再重新拖放。云端关闭时不自动激活、不采集识别内容。
+4. 如果出现问题，点击单行输入框回答，最多 300 字，按 Enter 提交。
+5. 阅读解释与标记。整窗蓝框表示选择范围，较粗的圆角控件框表示经过核对的控件；两者都不表示软件已经被修改。
+6. 若提示需要范围，点击“选择识别区域”，在目标窗口内拖出矩形。可以主动选择整个目标窗口，但程序不会因范围不明自动扩大外发范围。选区工具本身不截图；恢复处理时仍会执行目标、隐私、捕获和模型检查。
+7. 点击“清除标记”结束当前会话，清除两个框、待处理状态和卡片，保留入口。点击入口可关闭云端或退出。
 
-The development catalog also includes `cetafae.winrar` for X-01 only: locating the destination control in the extraction-options dialog. Exact Chinese/English title candidates constrain matching. The recorded Chinese dialog flow has earlier candidate evidence; English behavior and the newest shared presentation remain unverified. Use a generated ZIP, open the dialog manually and stop before extraction. Other WinRAR windows, automatic extraction, repair and personal archives are outside this validation. All three adapters use the same data-only contract; the new package does not add an application-specific host branch or prove independent third-party contributions.
+普通卡片按钮不主动要求激活，回答框在用户点击后取得必要焦点。Esc 仅在本程序收到按键时生效，不是全局快捷键。以上是最新候选的实现行为说明，未通过的实机验收仍按前文列出。
 
-For a developer contribution, start from an existing package, choose a unique ID/version and declare target process names, optional exact titles, `control`/`raw` traversal, task IDs and any blocked intent/control-name pairs. Enable it in the development catalog, build, and run the non-desktop checks. No host application-name branch is needed. More complex application rules require an explicitly extended contract, not hidden host special cases. Package matching does not establish that all pages/tasks in that software are supported.
+## 隐私与数据边界
 
-Application packages use contract v2 `observationScopes`: each rule declares `intentContainsAny`, `anchorNameContainsAny`, `anchorControlTypes`, and `padding` (0–64 physical pixels). Exactly one intent rule and one visible safe anchor must match for automatic cropping. An unmatched/ambiguous scope pauses transmission and offers user selection within the bound target, retaining the submitted intent. User selection may deliberately include that entire target; the program never expands to it automatically. The host crops outbound pixels, sends only fully contained controls and optional anchor text, and validates returned IDs against that subset while retaining full local context. V1 packages still parse and use user selection for explicit goals. Initial unknown-goal context may include the disclosed selected whole window. PrintWindow still uses a transient local whole-window buffer before crop encoding: this is outbound minimization, not proof of complete local or pixel-secret isolation.
+- 只读取用户选定的目标窗口，不使用“先截全屏再裁剪”的回退方式。
+- 初次目标不明确时，在已披露的授权范围内，可能发送所选整窗画面。目标明确后发送可靠适配范围或用户框选范围内的画面、控件文字及回答；无法确定范围时先等待选择，不自动改发整窗。
+- PrintWindow 会先在本机内存绘制所选整窗，再裁剪外发。因此，外发范围缩小不等于本机从未生成整窗缓冲，也不证明敏感像素已经完整隔离。
+- 发现可见密码字段、明确凭据标签或可识别的凭据文字时拒绝处理；发送模型请求和显示结果前还有文字检查。这是保守拒绝，不是通用秘密识别或像素脱敏。自绘敏感画面和不完整的控件属性仍是限制。
+- 客户端不保存窗口画面、控件原文和问答；会话结束时清除显示内容和可复用引用。元数据日志默认写入忽略目录 `.artifacts/logs/`，不进入 Git。
+- 自有元数据日志按最后写入时间保留 7 天，启动及每小时检查，按天分段。锁定文件会报告清理未完成；不跟随重解析路径，不删除无关文件或嵌套目录内文件。
+- 关闭云端后不再读取识别内容或发新请求；已经发往上游的内容无法撤回。代理可能继续转发，其与模型服务商的留存策略尚未核实。
 
-The schema3 `cetafae.visual-guide` package declares `kind: general`, empty `targets`/`observationScopes`/`blockedPoints`, and control-view traversal. It supplies generic eligibility through the same catalog/worker path, not host application-name branches. Images support explanation even with zero actionable candidates; markers still require validated observed IDs. Generic and user-selected images are fingerprinted locally and recaptured before display and on target events. Comparison accepts an exact inversion at a stable, target-owned native thin caret; it never masks a region or tolerates arbitrary changed pixels. Unknown/custom carets and other animation can still cancel. Missing privacy metadata still refuses; screenshots do not bypass password/elevation/privacy checks.
+完整设计与限制见[技术规格](Tech-Spec.md)，真实结果见[验证记录](验证记录.md)。
 
-The 2026-10-28 caret candidate has human evidence for generated-text Notepad initial explanation, 15-second retention through caret disappearance, clearing after a real edit, and correct state/date interpretation from a user-selected image with zero outbound actionable controls. No Notepad adapter was added. Its isolated Debug/Release suites each pass 428 headless checks, and seven authorized native generated privacy checks pass. This establishes that exercised generic image path, not universal application coverage or release acceptance. Processing still exceeds the 3000ms gate; full privacy, resource and support-list gates remain open. See `验证记录.md` for the exact evidence and preserved failures.
+## 底座与插件
 
-The build copies the catalog and packages beside the executable; they must be distributed together. The running process retains a validated startup snapshot, so editing files does not change an active session. Development catalog changes take effect after rebuilding/restarting; visible restarts still need the user's permission. Public contribution readiness also needs version/language metadata, installation review, user-facing disable/remove, and affected-session cancellation for live changes. Executable third-party code remains unsupported.
+底座负责授权、目标窗口采集机制、模型传输、结果验证、显示和取消；软件身份、遍历选择及具体任务规则放在插件中。**所有具体应用能力都是插件，包括第一方功能。**
 
-## Build and Non-Desktop Checks
+`plugins/catalog.json` 显式列出启用的包 ID，对应文件为 `plugins/<id>/plugin.json`。先匹配唯一的软件适配；没有匹配项时才使用唯一且已启用的通用插件。软件匹配冲突不会退回通用指导；多个通用插件也会拒绝。启用列表为空时不支持任何应用；目录缺失或无效时拒绝启动。关闭某个适配只会移除它的增强，若要关闭通用尝试，还需关闭通用插件。
 
-Requires Windows and the .NET 8 SDK. No external NuGet package is added.
+当前开发目录包含：
 
-Non-desktop checks include hidden child-process fixtures with generated data. They open no app windows, inspect no desktop content and send no model requests unless `--live`, `--live-winrar`, `--live-scopes`, `--live-general` or `--live-tasks` is explicitly supplied. The application also uses the installed `dotnet` host for short-lived, headless observation workers; ship the normal DLL/deps/runtimeconfig output together. These workers are part of product resource measurements.
+- `cetafae.visual-guide`：通用视觉指导。
+- `cetafae.windows-settings`：Windows 设置适配。
+- `cetafae.edge`：Edge 适配。
+- `cetafae.winrar`：仅用于 X-01 的解压目标路径定位。
+
+WinRAR 包按候选中英文精确标题限制匹配。此前中文版对话框已有实测，英文行为和最新共享界面仍未验证。测试使用生成 ZIP，人工打开对话框，在执行解压前停止；不代表其他 WinRAR 窗口、修复或个人压缩包已被覆盖。三个软件适配与通用包使用相同的数据契约，没有软件专用的底座分支，也不代表独立第三方贡献流程已经验证。
+
+### 如何补充适配
+
+开发者可以从现有包开始，填写唯一 ID、版本、目标进程名、可选精确标题、`control` 或 `raw` 遍历方式、任务 ID，以及禁止指向的意图与控件名称组合。加入开发目录后构建，并运行无桌面检查。复杂规则需要显式扩展契约，不能在底座暗加软件特例。包匹配成功也不代表这个软件的所有页面和任务均受支持。
+
+v2 契约通过 `observationScopes` 声明范围规则：`intentContainsAny`、`anchorNameContainsAny`、`anchorControlTypes` 及 `padding`（0–64 个物理像素）。只有一个意图规则及一个可见安全锚点同时匹配时才自动裁剪；无匹配或存在歧义时保留已提交目标，等待用户选区。外发控件须完整落在范围内，返回 ID 只能来自该子集；完整上下文在本机保留用于复核。旧版 v1 包仍可解析，明确目标时使用用户选区。
+
+schema3 的通用包声明 `kind: general`，`targets`、`observationScopes` 和 `blockedPoints` 为空，采用控件视图遍历。即使没有可操作控件候选，图像仍可用于解释；画控件框仍须有经过核对的已观察 ID。通用画面与用户选区会在本机生成特征，并在显示前和目标变化事件发生时重新捕获比对。只允许特定稳定、归属目标窗口的原生细光标产生精确像素反转，不会屏蔽一块区域或容忍任意变化；未知光标和动画仍可能取消会话。图片不能绕过密码、权限或隐私检查。
+
+2026-10-28 的光标候选曾取得记事本生成文字初次解释、光标消失期间保留 15 秒、正文修改后清除及用户选区状态/日期解释的人工证据；当时 Debug、Release 各 428 项本地检查、7 项获授权的原生生成隐私检查通过。这只是对应旧版通用画面路径的证据，不是最新版、所有软件或正式发布的验收。
+
+构建会把目录和插件包复制到程序旁，分发时须一起携带。进程保留启动时的已验证快照，修改插件文件不会改变当前会话；开发目录调整后须重新构建、重启。公开贡献还需版本和语言元数据、安装审查、用户可操作的禁用/移除，以及热更新时取消受影响会话等能力。**目前不加载可执行第三方代码。**
+
+## 构建与无桌面检查
+
+需要 Windows 与 .NET 8 SDK。当前未增加外部 NuGet 包。
+
+无桌面检查包含只处理生成数据的隐藏子进程，不打开应用窗口、不读取桌面，也不发送模型请求；只有显式指定下节的 `--live` 等参数才会调用模型。实际产品还通过安装的 `dotnet` 启动短命后台采集进程，分发时须保留 DLL、deps 和 runtimeconfig；这些自有辅助进程计入资源验收。
 
 ```powershell
 dotnet build src/CetaFae.Checks/CetaFae.Checks.csproj -c Debug
 dotnet run --project src/CetaFae.Checks -c Debug --no-build
-# Render generated card states offscreen, without a desktop window or model request.
+# 离屏渲染生成卡片，不打开桌面窗口、不调用模型。
 dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --render-cards
-# Also use the application's runtime configuration to catch deployment-option regressions.
+# 使用产品的运行时配置，检查部署选项是否引入回归。
 dotnet exec --runtimeconfig .artifacts/bin/CetaFae.Probe/Debug/net8.0-windows/CetaFae.Probe.runtimeconfig.json .artifacts/bin/CetaFae.Checks/Debug/net8.0-windows/CetaFae.Checks.dll
 ```
 
-To diagnose managed request allocations without windows, network or forced collection, run `dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --transport-allocation`. It warms up three generated 1MiB payloads and measures five requests drained by an in-process handler. Compare identical configurations in separate processes; this is not the90MB idle-memory or3000ms end-to-end acceptance test.
+无窗口、无网络、无强制回收的请求托管分配诊断：`dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --transport-allocation`。它用 3 次生成的 1MiB 负载预热，再测量由进程内处理器接收的 5 次请求。只能比较独立进程中的相同配置，不是 90MB 待命内存或 3000ms 端到端验收。
 
-Generated-data real-model checks through the selected local proxy:
+### 生成数据的真实模型检查
+
+以下命令只通过既定本机代理发送生成画面、控件和问题，不读取真实应用窗口：
 
 ```powershell
 dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --live
-# Focused generated extraction-dialog checks only (plus the non-desktop suite).
+# 生成的解压对话框专项检查，同时运行本地检查。
 dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --live-winrar
-# Focused cropped-payload checks for the three generated task fixtures.
+# 三个生成任务的局部载荷检查。
 dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --live-scopes
-# Generated image-only general guidance with no actionable UIA controls.
+# 无可操作 UIA 控件的通用图像解释。
 dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --live-general
-# All18 baseline guidance tasks,62 frozen generated state cases. No native task acceptance.
+# 18 项指导任务的 62 个固定生成状态，不代表原生任务验收。
 dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --live-tasks
-# A separately recorded diagnostic attempt; never replaces a failed batch result.
+# 单独的诊断尝试，不替换失败批次。
 dotnet run --project src/CetaFae.Checks -c Debug --no-build -- --live-tasks --task-case=W-04/unavailable
 ```
 
-Model: `deepseek-v4.1-flash`. Default endpoint: `http://127.0.0.1:8787/v1`, the user's opencode Go channel. Optional authentication comes from process variable `CETAFAE_API_KEY`; do not place secrets in files or commands.
+模型：`deepseek-v4.1-flash`。默认地址：`http://127.0.0.1:8787/v1`，使用既定的 opencode Go 通道。可选鉴权从进程环境变量 `CETAFAE_API_KEY` 获取，不将密钥写入文件或命令。
 
-## Desktop Runs
+## 桌面运行与资源验收
 
-Passive Release resource sampler (run only after permission to start the required idle round):
+以下可见程序、桌面检查和实际资源采样，须先取得用户同意；产品云端仍须由用户亲自启用。本节提供命令，不表示这些项目已经通过。
+
+### Release 资源采样
 
 ```powershell
-# Generated arithmetic checks only: no application/window launch or real resource sampling.
+# 只检查生成数据的采样计算逻辑，不启动程序或实际采样。
 powershell -NoProfile -File src/CetaFae.Checks/Measure-IdleResources.ps1 -SelfTest
 
-# Bind a freshly launched Release process by its actual PID/path and its startup metadata log.
-# Replace the placeholders. Keep the product visible and idle; do not drag, toggle consent or minimize.
+# 替换占位符，绑定新启动 Release 的真实 PID、路径与启动元数据日志。
+# 产品须可见并保持待命，不拖球、不切换授权、不最小化。
 powershell -NoProfile -File src/CetaFae.Checks/Measure-IdleResources.ps1 `
   -TargetProcessId <actual-pid> -ExecutablePath <release-exe> `
   -LogPath <startup-jsonl> -OutputPath .artifacts/checks/idle-fresh.jsonl -Round fresh
 ```
 
-The tool waits 30 seconds, then samples for 600 seconds, includes owned descendants and records every interval. Outputs must not already exist. Process/counter failures, delayed samples or log changes prevent a pass; Private Bytes and working set stay separate. It does not launch/stop apps, read windows/command lines, invoke the model, force GC or trim memory. A fresh round alone never establishes full acceptance. Run `-Round post-use` on the same process only after the separately recorded 20 actual help/cancel/clear cycles. Freeze display, OS, runtime, model and network conditions in `验证记录.md` before either actual round.
+工具等待 30 秒，再采样 600 秒，统计主进程及自建子进程的每个间隔。输出文件必须不存在。计数器或进程读取失败、样本延迟、待命日志变化都会阻止通过；Private Bytes 与工作集分开记录。工具不会启动或停止程序、读取窗口或命令行、调用模型、强制 GC 或裁剪内存。
 
-`-Round activity -StopPath .artifacts/checks/activity.stop` records the actual help period without applying idle thresholds or the 30-second warmup. The stop marker must not exist when starting; create it only when the human test ends. Keep the same PID. Its one-second peak is a sampled lower bound, not an instantaneous maximum; missing short-lived helper counters are recorded, never replaced with zero. Stop this sampler before starting `-Round post-use`. Activity results cannot establish idle or full resource acceptance.
+新启动轮单独通过不等于完整资源验收。同一进程完成另行记录的 20 次真实求助/取消/清除后，再运行 `-Round post-use`。两轮前在[验证记录](验证记录.md)中固定显示、系统、运行时、模型和网络条件。
 
-The agent must obtain permission before these commands or any desktop interaction. The user personally enables cloud processing in the panel.
+`-Round activity -StopPath .artifacts/checks/activity.stop` 记录真实使用期，不应用待命阈值或 30 秒预热。开始时停止标记必须不存在，仅在人工测试结束时创建；保持同一 PID，并在使用后待命采样前停止活动采样。每秒峰值只是采样下界，不是瞬时最大值；短命辅助进程计数器缺失会保留记录，不补成零。活动采样不能代替待命或完整资源验收。
+
+### 程序与生成窗口检查
 
 ```powershell
-# Fixed data only; no other app is read and no model request is sent.
+# 固定演示数据，不读取其他应用、不发模型请求。
 dotnet run --project src/CetaFae.Probe -c Debug -- --guide-preview
 
-# Live application; cloud is off until the user enables it.
+# 实际程序；用户启用前，云端保持关闭。
 dotnet run --project src/CetaFae.Probe -c Debug -- --guide
 
-# Owned generated windows only; no model or saved screenshots.
+# 只读取自有生成窗口，不调用模型、不保存截图。
 dotnet run --project src/CetaFae.Checks -c Debug -- --capture-desktop
 dotnet run --project src/CetaFae.Checks -c Debug -- --scroll-desktop
 
-# Owned generated privacy window only; no model, real credentials or saved screenshots.
+# 生成隐私窗口，不使用真实凭据、不调用模型、不保存截图。
 dotnet run --project src/CetaFae.Checks -c Debug -- --privacy-desktop
 ```
 
-The current candidate starts with a question-mark handle, the placeholder for the planned whale. Click it to open the menu; choose “查看云端授权”, read the disclosure and personally click “同意并启用云端”. Opening the menu/disclosure alone never grants consent or resumes an old drop. Dragging beyond the system pointer threshold selects a window. With cloud enabled, release on a valid target attempts to activate it once before recognition; Windows may refuse and require a manual click before a new drop. Cloud-off drops do not activate or collect recognition content.
+## 项目目录与文档
 
-Cards appear only when needed. A question accepts one answer of up to300 characters; click the field to type. The whole-window blue outline identifies selection, while a thicker rounded control outline identifies a validated control. Neither is evidence that the target was modified. Clear/end removes both frames, pending state and the session card, leaving the handle. Click the handle for cloud-off or exit. Ordinary buttons do not request activation; the answer field requires deliberate focus. Esc applies when this application receives it, not as a global hotkey. Generated offscreen visual QA does not establish native focus/IME, target binding or dismissal acceptance for this new presentation. Final whale and wave integration remains pending.
+- [需求文档.md](需求文档.md)：唯一产品范围和验收依据。v1.8 明确鲸鱼/浪花/按需卡片；19 项基线、X-01、性能、回退及隐私门槛不因界面调整改变。
+- [AGENTS.md](AGENTS.md)：工程与桌面授权规则。
+- [MEMORY.md](MEMORY.md)：长期决策与易错事项。
+- [Tech-Spec.md](Tech-Spec.md)：当前实现、契约和未完成门禁。
+- [Test-Plan.md](Test-Plan.md)：任务状态、隐私、异常、平台和性能的集中测试计划，不是执行结果。
+- [Art-Assets.md](Art-Assets.md)：交互参考拆解和原创美术交接。
+- [验证记录.md](验证记录.md)：真实执行结果、失败和未验证范围。
+- `src/CetaFae.Probe/`：与具体软件无关的 Windows 指导底座。
+- `src/CetaFae.Plugins/`：与界面无关的数据契约、校验与插件解析。
+- `plugins/`：具体应用/任务插件及显式启用目录。
+- `src/CetaFae.Checks/`：可执行检查与生成窗口夹具。
+- `Directory.Build.props`：将构建输出和中间文件放入忽略目录 `.artifacts/`。
 
-The catalog offers specific adapters and an explicit general visual guide for other non-elevated targets. In an active session, “选择识别区域” opens a target-only selection overlay: drag an area to submit that scope, or press Esc to cancel the session. No screenshot is taken by the picker. The resumed stage revalidates target/context and applies the normal privacy/capture/model gates. General eligibility is not tested coverage for every application. Human evidence from earlier candidates does not establish the new selector or binary's behavior. See `验证记录.md` for the precise boundary; this is not a release.
+验证结果集中维护，不另建旧计划、逐次报告、浏览器配置或运行时转储。构建产物、临时诊断和美术候选保存在忽略目录，不作为已验收功能上传。

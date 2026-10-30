@@ -1,9 +1,11 @@
 # CetaFae Project Memory
 
-Updated: 2026-10-29
+Updated: 2026-10-30
 
 
 ## Authority and Working Agreement
+
+- On 2026-10-30 the user explicitly requested a Chinese README. Keep the main README Chinese, with current capabilities and evidence/limitations prominent; preserve command flags, contract identifiers and the distinction between earlier human evidence and the newest candidate's pending native acceptance.
 
 - On 2026-10-29 the user clarified that cards and design tokens are engineering-owned, not missing external inputs. GuideTheme is the native style source and GuideCard is reused for generated offscreen previews and the live GuidePanel. Menu/disclosure do not grant cloud consent by opening; the separate explicit action remains personal. Idle hides the card, a click opens the menu without starting a drag, and ending/clearing resets and hides the session card. The44DIP question-mark handle remains a placeholder until the independently produced whale/water assets are accepted; do not integrate arbitrary art candidates. New native focus/IME/menu/drag/dismissal acceptance is still required.
 
