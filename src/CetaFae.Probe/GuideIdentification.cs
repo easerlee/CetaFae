@@ -58,10 +58,10 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         return processName;
     }
 
-    public GuideAnswer ToAnswer(string processName) => new("ask",
-        Ownership(processName) + "\n软件（画面判断）：" + (Application ?? "尚无法确认") +
+    public GuideAnswer ToAnswer(string processName, SoftwareIdentity? identity = null) => new("ask",
+        Ownership(processName) + (identity is null ? "" : "\n" + identity.Describe()) + "\n软件（画面判断）：" + (Application ?? "尚无法确认") +
         "。\n当前界面：" + (Page ?? "尚无法确定用途") + "。\n" + Question, null);
 
-    internal static string Unavailable(string processName, string reason) =>
-        Ownership(processName) + "\n尚未可靠识别软件和界面用途。" + reason;
+    internal static string Unavailable(string processName, string reason, SoftwareIdentity? identity = null) =>
+        Ownership(processName) + (identity is null ? "" : "\n" + identity.Describe()) + "\n尚未可靠识别软件和界面用途。" + reason;
 }

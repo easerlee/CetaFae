@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 4,
+  "kind": "identity",
+  "id": "cetafae.software-identity",
+  "version": "1.0.0",
+  "displayName": "通用软件身份与公共资料核对",
+  "targets": [],
+  "uiaView": "control",
+  "taskIds": ["IDENTITY-01"],
+  "blockedPoints": [],
+  "observationScopes": [],
+  "identityPolicy": "local-metadata-public-reference"
+}

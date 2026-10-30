@@ -17,6 +17,8 @@ public sealed class GuideSession : IDisposable
     readonly GuideOptions _options;
     readonly GuideModel _model;
     readonly PluginCatalog _plugins;
+    readonly SoftwareReference _references = new();
+    CancellationTokenSource? _referenceRequest;
     CancellationTokenSource? _request;
     GuideObservation? _context;
     int _contextVersion;
@@ -40,6 +42,7 @@ public sealed class GuideSession : IDisposable
         _panel.Cancelled += () => _ball.StopTracking("cancelled");
         _panel.AnswerSubmitted += OnAnswerSubmitted;
         _panel.RegionRequested += OnRegionRequested;
+        _panel.ReferenceRequested += OnReferenceRequested;
         _ball.AllowsForeground = IsAllowedForeground;
         _ball.TargetSelected += OnSelected;
         _ball.TrackingStopped += Cancel;
@@ -78,6 +81,8 @@ public sealed class GuideSession : IDisposable
 
     void Cancel(string reason)
     {
+        _referenceRequest?.Cancel();
+        _panel.SetReferenceQuery(null);
         _activationVersion = null;
         var picker = _picker;
         _picker = null;
@@ -92,6 +97,53 @@ public sealed class GuideSession : IDisposable
         if (_marker.IsVisible) _marker.HideAndReset();
         _panel.EndSession();
         ProbeLog.Log("guide_cancel", ("reason", reason));
+    }
+
+    async void OnReferenceRequested(string query)
+    {
+        if (_preview || !_gate.CloudEnabled || _context is not { } context || !_gate.Accepts(_contextVersion) ||
+            context.Identity?.ReferenceQuery != query || _plugins.IdentityProvider is null) return;
+        var version = _contextVersion;
+        _referenceRequest?.Cancel();
+        using var request = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        _referenceRequest = request;
+        var token = request.Token;
+        var validating = true;
+        bool Current() => _gate.Accepts(version) && ReferenceEquals(_context, context) &&
+            GuideObservation.IsCurrent(context.Window, context.ProcessId, context.Frame);
+        try
+        {
+            // A deliberately focused answer box may own focus when the user confirms lookup.
+            if (IsInputForeground(Native.GetForegroundWindow()))
+            {
+                if (!Native.IsWindow(context.Window) || Native.ProcessId(context.Window) != context.ProcessId ||
+                    GuideObservation.WindowRect(context.Window) != context.Frame || !Native.IsNonElevated(context.Window))
+                    throw new InvalidDataException("target_changed");
+                var activated = await ActivateSelectedAsync(context.Window, version, token);
+                if (!_gate.Accepts(version)) return;
+                if (!activated) throw new InvalidDataException("target_activation_failed");
+            }
+            context.ValidateContext(await ReadContextAsync(context, token), null);
+            token.ThrowIfCancellationRequested();
+            if (!Current()) return;
+            validating = false;
+            _panel.SetReferenceResult("正在查询公共百科资料；本机信息和画面判断保留。\n资料仅为候选，不代表本机身份认证。");
+            var result = await _references.FindAsync(query, token);
+            validating = true;
+            context.ValidateContext(await ReadContextAsync(context, token), null);
+            token.ThrowIfCancellationRequested();
+            if (Current()) _panel.SetReferenceResult(result);
+        }
+        catch (InvalidDataException ex) when (ex.Message is "target_changed" or "sensitive_content" or "privacy_unavailable")
+        { if (_gate.Accepts(version)) _ball.StopTracking("target_changed"); }
+        catch (Exception ex) when (ex is OperationCanceledException or HttpRequestException or InvalidDataException or JsonException)
+        {
+            if (_gate.Accepts(version) && validating) _ball.StopTracking("target_context_unavailable");
+            else if (Current()) _panel.SetReferenceResult("公共资料查询未完成；本机信息与画面判断保留。可重新拖入后再试，不会自动重发。");
+        }
+        catch (Exception)
+        { if (_gate.Accepts(version)) _ball.StopTracking("reference_failed"); }
+        finally { if (ReferenceEquals(_referenceRequest, request)) _referenceRequest = null; }
     }
 
     async void OnTargetChanged()
@@ -193,6 +245,9 @@ public sealed class GuideSession : IDisposable
     async Task RecognizeAsync(IntPtr window, string? intent, GuideObservation? previous, Rect? selection = null)
     {
         if (_preview) return;
+        _referenceRequest?.Cancel();
+        _panel.SetReferenceQuery(null);
+        _panel.SetReferenceResult("");
         if (!_gate.CloudEnabled)
         {
             _ball.StopTracking("consent_required");
@@ -222,35 +277,22 @@ public sealed class GuideSession : IDisposable
             if (!Native.IsWindow(window) || !Native.IsWindowVisible(window) || Native.IsIconic(window))
                 throw new InvalidDataException("target_unavailable");
             using var targetProcess = Process.GetProcessById((int)Native.ProcessId(window));
+            var selectedStart = targetProcess.StartTime.ToUniversalTime().Ticks;
             var plugin = _plugins.Resolve(targetProcess.ProcessName, Native.Title(window));
             if (previous is not null && previous.PluginId != plugin.Id)
                 throw new InvalidDataException("target_changed");
             if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
             _panel.Place(GuideObservation.WindowRect(window));
             _panel.SetStatus("正在读取所选窗口…");
-            if (Native.GetForegroundWindow() != window)
-            {
-                // The release selects this target explicitly; never activate the panel or retry in the background.
-                _activationVersion = version;
-                _activationSource = Native.GetForegroundWindow();
-                try
-                {
-                    var accepted = Native.SetForegroundWindow(window);
-                    ProbeLog.Log("guide_target_activation", ("target", Native.Hex(window)),
-                        ("fg", Native.Hex(Native.GetForegroundWindow())), ("accepted", accepted));
-                    var confirmed = await WaitForForegroundAsync(window, Native.GetForegroundWindow, token);
-                    if (!_gate.Accepts(version)) return;
-                    ProbeLog.Log("guide_target_activation_complete", ("target", Native.Hex(window)),
-                        ("fg", Native.Hex(Native.GetForegroundWindow())), ("confirmed", confirmed));
-                    if (!confirmed) throw new InvalidDataException("target_activation_failed");
-                }
-                finally { if (_activationVersion == version) _activationVersion = null; }
-            }
+            var activated = await ActivateSelectedAsync(window, version, token);
+            if (!_gate.Accepts(version)) return;
+            if (!activated) throw new InvalidDataException("target_activation_failed");
             stage = ProcessingStage.SourceValidation;
             if (previous is not null)
                 previous.ValidateContext(await ReadContextAsync(previous, token), null);
             stage = ProcessingStage.Collection;
-            var observation = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, _options.IncludeImage, plugin, t, intent, selection));
+            var observation = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, _options.IncludeImage, plugin, t, intent, selection,
+                intent is null && selection is null ? _plugins.IdentityProvider : null));
             if (!_gate.Accepts(version)) return;
             stage = ProcessingStage.TargetValidation;
             previous?.ValidateTargetContext(observation);
@@ -258,6 +300,8 @@ public sealed class GuideSession : IDisposable
             {
                 // The PID has survived collection/privacy checks; retain ownership locally only.
                 identifiedProcess = GuideIdentification.BindProcess(targetProcess.Id, observation.ProcessId, targetProcess.ProcessName);
+                if (observation.Identity is { } identity && identity.StartedAt != selectedStart)
+                    throw new InvalidDataException("target_changed");
             }
             _context = observation with { Png = null };
             _contextVersion = version;
@@ -265,7 +309,8 @@ public sealed class GuideSession : IDisposable
             if (_contextCheckPending) OnTargetChanged();
             var observeMs = total.ElapsedMilliseconds;
             _panel.SetStatus(identifiedProcess is null ? "正在识别下一步…" :
-                GuideIdentification.Ownership(identifiedProcess) + "\n正在识别软件和当前界面…");
+                GuideIdentification.Ownership(identifiedProcess) + (observation.Identity is null ? "" : "\n" + observation.Identity.Describe()) +
+                "\n正在识别软件和当前界面…");
             stage = ProcessingStage.Payload;
             var payload = GuidePayload.From(observation);
             ProbeLog.Log("guide_request_start", ("observeMs", observeMs),
@@ -276,7 +321,7 @@ public sealed class GuideSession : IDisposable
             stage = ProcessingStage.Model;
             var modelAnswer = intent is null
                 ? (await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext)))
-                    .ToAnswer(identifiedProcess!)
+                    .ToAnswer(identifiedProcess!, observation.Identity)
                 : await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext));
             var answer = modelAnswer.ForIntent(intent);
             var modelMs = total.ElapsedMilliseconds - observeMs;
@@ -305,6 +350,7 @@ public sealed class GuideSession : IDisposable
             }
             _panel.Place(observation.Frame, bounds);
             _panel.SetStatus(answer.Explanation);
+            _panel.SetReferenceQuery(observation.Identity?.ReferenceQuery);
             _panel.SetRegionAvailable(true);
             if (answer.Mode == "ask")
             {
@@ -322,9 +368,10 @@ public sealed class GuideSession : IDisposable
             if (_gate.Accepts(version))
             {
                 var ownership = CurrentOwnership();
+                var localIdentity = ownership is null ? null : _context?.Identity;
                 _ball.StopTracking("processing_timeout");
                 var message = "识别超时，请重新拖放。此次没有指向任何位置。";
-                _panel.SetStatus(ownership is not null ? GuideIdentification.Unavailable(ownership, message) : message);
+                _panel.SetStatus(ownership is not null ? GuideIdentification.Unavailable(ownership, message, localIdentity) : message);
             }
             ProbeLog.Log("guide_failure", ("category", cancelled ? "cancelled" : "timeout"), ("stage", stage.ToString()));
         }
@@ -349,10 +396,11 @@ public sealed class GuideSession : IDisposable
             if (_gate.Accepts(version))
             {
                 var ownership = CurrentOwnership();
+                var localIdentity = ownership is null ? null : _context?.Identity;
                 _ball.StopTracking("recognition_failed");
                 _panel.SetStatus(ownership is not null &&
                     ex is not InvalidDataException { Message: "sensitive_content" }
-                    ? GuideIdentification.Unavailable(ownership, FailureMessage(ex)) : FailureMessage(ex));
+                    ? GuideIdentification.Unavailable(ownership, FailureMessage(ex), localIdentity) : FailureMessage(ex));
             }
             // Exception messages can contain provider content or URLs; log categories only.
             ProbeLog.Log("guide_failure", ("category", ex is InvalidDataException ? "validation" :
@@ -364,6 +412,26 @@ public sealed class GuideSession : IDisposable
             // Keep the active token available for event-driven revalidation after displaying the answer.
             if (!ReferenceEquals(_request, request)) request.Dispose();
         }
+    }
+
+    async Task<bool> ActivateSelectedAsync(IntPtr window, int version, CancellationToken token)
+    {
+        if (Native.GetForegroundWindow() == window) return true;
+        // Only an explicit drop, answer or confirmed lookup may reactivate its selected target once.
+        _activationVersion = version;
+        _activationSource = Native.GetForegroundWindow();
+        try
+        {
+            var accepted = Native.SetForegroundWindow(window);
+            ProbeLog.Log("guide_target_activation", ("target", Native.Hex(window)),
+                ("fg", Native.Hex(Native.GetForegroundWindow())), ("accepted", accepted));
+            var confirmed = await WaitForForegroundAsync(window, Native.GetForegroundWindow, token);
+            if (!_gate.Accepts(version)) return false;
+            ProbeLog.Log("guide_target_activation_complete", ("target", Native.Hex(window)),
+                ("fg", Native.Hex(Native.GetForegroundWindow())), ("confirmed", confirmed));
+            return confirmed;
+        }
+        finally { if (_activationVersion == version) _activationVersion = null; }
     }
 
     public static async Task<bool> WaitForForegroundAsync(IntPtr target, Func<IntPtr> getForeground,
@@ -408,6 +476,11 @@ public sealed class GuideSession : IDisposable
     {
         if (!GuideObservation.IsCurrent(previous.Window, previous.ProcessId, previous.Frame))
             throw new InvalidDataException("target_changed");
+        if (previous.Identity is { } identity)
+        {
+            using var process = Process.GetProcessById((int)previous.ProcessId);
+            if (process.StartTime.ToUniversalTime().Ticks != identity.StartedAt) throw new InvalidDataException("target_changed");
+        }
         GuideObservation current;
         try { current = await ObservationWorker.ReadAsync(previous.Window, previous.VisualHash is not null, _plugins.Get(previous.PluginId), token,
             previous.ScopeIntent, previous.Scope?.UserSelected == true ? previous.Scope.Region : null); }
@@ -427,6 +500,9 @@ public sealed class GuideSession : IDisposable
         _ball.AllowsForeground = null;
         _panel.AnswerSubmitted -= OnAnswerSubmitted;
         _panel.RegionRequested -= OnRegionRequested;
+        _panel.ReferenceRequested -= OnReferenceRequested;
+        _referenceRequest?.Cancel();
+        _references.Dispose();
         _picker?.Abort();
         _picker = null;
         _panel.EndSession();

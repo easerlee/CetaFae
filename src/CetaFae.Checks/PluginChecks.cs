@@ -19,7 +19,7 @@ static class PluginChecks
 
         var installed = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
         var winrar = installed.Resolve("WinRAR", "解压路径和选项");
-        check(installed.Plugins.Count == 4 && winrar.TaskIds.SequenceEqual(new[] { "X-01" }),
+        check(installed.Plugins.Count == 5 && winrar.TaskIds.SequenceEqual(new[] { "X-01" }),
             "the WinRAR development package is deployed through the common catalog with its bounded task");
         check(!winrar.UsesRawView && installed.Resolve("winrar", "Extraction path and options").Id == winrar.Id,
             "the WinRAR package declares control traversal and both exact dialog-title candidates");

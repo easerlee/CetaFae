@@ -77,6 +77,7 @@ public sealed class GuidePlugin
     public IReadOnlyList<string> TaskIds { get; }
     public IReadOnlyList<PointBlockRule> BlockedPoints { get; }
     public IReadOnlyList<ObservationScopeRule> ObservationScopes { get; }
+    public string? IdentityPolicy { get; }
 
     [JsonIgnore]
     public bool UsesRawView => UiaView == "raw";
@@ -85,18 +86,21 @@ public sealed class GuidePlugin
     public GuidePlugin(int schemaVersion, string id, string version, string displayName,
         IReadOnlyList<PluginTarget> targets, string uiaView, IReadOnlyList<string> taskIds,
         IReadOnlyList<PointBlockRule> blockedPoints, IReadOnlyList<ObservationScopeRule>? observationScopes = null,
-        string kind = "application")
+        string kind = "application", string? identityPolicy = null)
     {
-        if (schemaVersion is not (1 or 2 or 3) || kind is not ("application" or "general") ||
-            kind == "general" && schemaVersion != 3 || !PluginData.IsToken(id, 64) ||
+        if (schemaVersion is not (1 or 2 or 3 or 4) || kind is not ("application" or "general" or "identity") ||
+            kind == "general" && schemaVersion != 3 ||
+            (kind == "identity" ? schemaVersion != 4 || identityPolicy != "local-metadata-public-reference" : identityPolicy is not null || schemaVersion == 4) ||
+            !PluginData.IsToken(id, 64) ||
             !System.Version.TryParse(version, out _) || !PluginData.IsText(displayName, 200) ||
             targets is null || targets.Count > 16 || targets.Any(t => t is null) ||
-            (kind == "general" ? targets.Count != 0 : targets.Count == 0) ||
+            (kind != "application" ? targets.Count != 0 : targets.Count == 0) ||
             uiaView is not ("control" or "raw") ||
             blockedPoints is null || blockedPoints.Count > 32 || blockedPoints.Any(r => r is null))
             throw new InvalidDataException("plugin_definition");
         SchemaVersion = schemaVersion;
         Kind = kind;
+        IdentityPolicy = identityPolicy;
         Id = id;
         Version = version;
         DisplayName = displayName;
@@ -105,8 +109,9 @@ public sealed class GuidePlugin
         TaskIds = PluginData.Texts(taskIds, 32, 64);
         if (TaskIds.Any(task => !PluginData.IsToken(task, 64))) throw new InvalidDataException("plugin_task");
         BlockedPoints = Array.AsReadOnly(blockedPoints.ToArray());
-        if (schemaVersion >= 2 && kind != "general" && observationScopes is not { Count: > 0 and <= 16 } ||
-            kind == "general" && (blockedPoints.Count != 0 || observationScopes is { Count: > 0 }) ||
+        if (schemaVersion >= 2 && kind == "application" && observationScopes is not { Count: > 0 and <= 16 } ||
+            kind != "application" && (blockedPoints.Count != 0 || observationScopes is { Count: > 0 }) ||
+            kind == "identity" && uiaView != "control" ||
             schemaVersion == 1 && observationScopes is { Count: > 0 } ||
             observationScopes?.Any(s => s is null) == true)
             throw new InvalidDataException("plugin_scope");

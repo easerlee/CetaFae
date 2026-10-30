@@ -87,6 +87,7 @@ public static class Program
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);
         GeneralGuideChecks.Run(Check);
+        SoftwareIdentityChecks.Run(Check);
         await IdentificationChecks.RunAsync(Check);
         CaretChecks.Run(Check);
         ScopeChecks.Run(Check);
@@ -329,6 +330,8 @@ public static class Program
         }
 
         await IdentificationChecks.CheckLateReplyAsync(Check);
+        await SoftwareIdentityChecks.RunTransportAsync(Check);
+        if (args.Contains("--live-reference")) await SoftwareIdentityChecks.RunLiveAsync(Check);
         if (args.Contains("--live-scopes")) await ScopeChecks.RunLiveAsync(Check);
         if (args.Contains("--live-general")) await GeneralGuideChecks.RunLiveAsync(Check);
         if (args.Contains("--live-identification")) await IdentificationChecks.RunLiveAsync(Check);

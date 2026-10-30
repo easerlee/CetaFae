@@ -15,7 +15,7 @@ public static class ObservationWorker
 {
     const int MaxReplyCharacters = 12 * 1024 * 1024;
     // JSON escaping can expand each byte of a validated data package into six characters.
-    internal const int MaxRequestCharacters = PluginCatalog.MaxFileBytes * 6 + 4096;
+    internal const int MaxRequestCharacters = PluginCatalog.MaxFileBytes * 12 + 4096;
     static readonly SemaphoreSlim Gate = new(1, 1);
     internal static readonly JsonSerializerOptions Json = new()
     {
@@ -23,13 +23,14 @@ public static class ObservationWorker
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         Converters = { new HandleConverter(), new RectangleConverter() }
     };
-    internal sealed record Request(long Window, bool IncludeImage, GuidePlugin Plugin, string? Intent = null, Rect? Selection = null);
+    internal sealed record Request(long Window, bool IncludeImage, GuidePlugin Plugin, string? Intent = null, Rect? Selection = null,
+        GuidePlugin? IdentityProvider = null);
     sealed record Reply(GuideObservation? Observation, string? Error);
 
     internal static string SerializeRequest(Request request) => JsonSerializer.Serialize(request, Json);
 
     public static async Task<GuideObservation> ReadAsync(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
-        string? intent = null, Rect? selection = null)
+        string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null)
     {
         await Gate.WaitAsync(token);
         try
@@ -38,7 +39,7 @@ public static class ObservationWorker
             start.Environment.Remove("CETAFAE_API_KEY");
             start.ArgumentList.Add(typeof(ObservationWorker).Assembly.Location);
             start.ArgumentList.Add("--observe-worker");
-            var body = await ExchangeAsync(start, SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection)), token);
+            var body = await ExchangeAsync(start, SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection, identityProvider)), token);
             var reply = JsonSerializer.Deserialize<Reply>(body, Json) ?? throw new InvalidDataException("worker_reply");
             if (reply.Error is { } error) throw new InvalidDataException(SafeError(error));
             var observation = reply.Observation ?? throw new InvalidDataException("worker_reply");
@@ -49,6 +50,8 @@ public static class ObservationWorker
                 !GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
             ValidateScopeReply(observation, plugin, intent, selection, includeImage);
+            if (observation.Identity is { } identity && (identityProvider?.Kind != "identity" || intent is not null || selection is not null ||
+                !includeImage || !identity.IsValid(observation.ProcessId))) throw new InvalidDataException("worker_reply");
             ProbeLog.Log("guide_worker_complete", ("candidates", observation.Candidates.Count),
                 ("imageBytes", observation.Png?.Length ?? 0));
             return observation;
@@ -159,6 +162,8 @@ public static class ObservationWorker
             var input = ReadBoundedAsync(Console.In, MaxRequestCharacters, CancellationToken.None).GetAwaiter().GetResult();
             var request = JsonSerializer.Deserialize<Request>(input, Json) ?? throw new InvalidDataException("worker_request_invalid");
             if (request.Plugin is null) throw new InvalidDataException("worker_request_invalid");
+            if (request.IdentityProvider is not null && request.IdentityProvider.Kind != "identity")
+                throw new InvalidDataException("worker_request_invalid");
             if (request.Intent is { } intent)
             {
                 if (string.IsNullOrWhiteSpace(intent) || intent.Length > 300 || intent.Any(char.IsControl))
@@ -166,7 +171,7 @@ public static class ObservationWorker
                 GuidePrivacy.EnsureTextSafe(intent);
             }
             var observation = GuideObservation.Read(new IntPtr(request.Window), request.IncludeImage, request.Plugin, CancellationToken.None,
-                request.Intent, request.Selection);
+                request.Intent, request.Selection, request.IdentityProvider);
             reply = new Reply(observation, null);
         }
         catch (Exception ex) { reply = new Reply(null, ex is InvalidDataException ? SafeError(ex.Message) :

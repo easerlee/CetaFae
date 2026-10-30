@@ -42,6 +42,17 @@ static class CardChecks
         var unavailable = New(); unavailable.SetCloud(true);
         unavailable.SetStatus(GuideIdentification.Unavailable("generated-editor", "识别服务不可用，请检查本机模型代理。"));
         yield return ("12 Local ownership after model failure", unavailable);
+        var layered = New(); layered.SetCloud(true);
+        layered.SetStatus(new GuideIdentification("生成文档工具", "显示生成文档", "你希望处理什么？")
+            .ToAnswer("generated-editor", SoftwareIdentityChecks.Generated).Explanation);
+        layered.ShowQuestion(); layered.SetRegionAvailable(true); layered.SetReferenceQuery(SoftwareIdentityChecks.Generated.ReferenceQuery);
+        yield return ("13 Layered identity and optional lookup", layered);
+        var reference = New(); reference.SetCloud(true); reference.SetStatus("已有本机和画面判断，等待可选查询确认。");
+        reference.SetReferenceQuery(SoftwareIdentityChecks.Generated.ReferenceQuery); Click(Find(reference, "联网核对软件"));
+        yield return ("14 Explicit public receiver disclosure", reference);
+        var referenced = New(); referenced.SetCloud(true); referenced.SetStatus("原软件与页面说明保留。");
+        referenced.SetReferenceResult("联网候选（未确认与本机软件相同）：\nGenerated Editor：An example software tool.\n来源：https://en.wikipedia.org/?curid=42\n不代表软件真伪或安全。");
+        yield return ("15 Public reference candidate result", referenced);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
@@ -80,6 +91,25 @@ static class CardChecks
         card.Reset();
         check(!card.HasQuestion && !card.HasRegion && !card.HasSession && card.Answer.Text.Length == 0,
             "ending a card removes old answer, region and reusable session state");
+        var queries = new List<string>(); card.ReferenceRequested += queries.Add;
+        card.SetCloud(true); card.SetStatus("Generated current result"); card.ShowQuestion();
+        card.SetReferenceQuery("Generated Editor software");
+        Click(Find(card, "确认本次联网"));
+        check(queries.Count == 0, "a hidden confirmation cannot authorize a public reference request");
+        Click(Find(card, "联网核对软件"));
+        check(queries.Count == 0 && card.View == GuideCardView.ReferenceConsent && !card.HasQuestion,
+            "opening reference disclosure does not send or submit the pending answer");
+        Click(Find(card, "返回"));
+        check(card.HasQuestion && queries.Count == 0, "return cancels the disclosure without losing the current question");
+        Click(Find(card, "联网核对软件")); Click(Find(card, "确认本次联网")); Click(Find(card, "确认本次联网"));
+        check(queries.SequenceEqual(new[] { "Generated Editor software" }) && card.View == GuideCardView.Session,
+            "explicit query confirmation is consumed once and returns to the existing result");
+        card.SetReferenceQuery("Generated Editor software"); Click(Find(card, "联网核对软件")); card.SetCloud(false);
+        Click(Find(card, "确认本次联网"));
+        check(queries.Count == 1, "cloud revocation invalidates a visible reference consent callback");
+        card.SetCloud(true); card.SetReferenceQuery("Generated Editor software"); Click(Find(card, "联网核对软件")); card.Reset();
+        Click(Find(card, "确认本次联网"));
+        check(queries.Count == 1 && !card.HasSession, "reset clears query, confirmation and public result state");
         check(!BallWindow.IsDrag(new Point(10, 10), new Point(11, 11), 1) &&
               BallWindow.IsDrag(new Point(10, 10), new Point(30, 10), 1) &&
               !BallWindow.IsDrag(new Point(10, 10), new Point(12, 12), 2),
@@ -146,7 +176,7 @@ static class CardChecks
         var bitmap = new RenderTargetBitmap(1140, height, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var path = Path.GetFullPath(".artifacts/checks/cards-identification-20261030.png");
+        var path = Path.GetFullPath(".artifacts/checks/cards-layered-identity-20261030.png");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         using var output = File.Create(path); encoder.Save(output);
         Console.WriteLine("Generated offscreen card preview: " + path + "; no native window, capture or network");

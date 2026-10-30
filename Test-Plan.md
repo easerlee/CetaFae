@@ -2,6 +2,12 @@
 
 Updated: 2026-10-30
 
+## Layered identity batch (FR-16 / AC-18)
+
+- L: independent schema-v4 identity provider enable/disable/conflict/invalid capability; no application mappings. Read owned generated assembly metadata without touching real targets. Sanitize malformed, credential, path, multiline and oversize fields. Bind PID/start time; missing version/signature/package remain independent unknowns. Offline trust never grants execution or safety.
+- L: production lookup transport with generated responses checks exact product-only query and fixed recipient, no credentials/cookies/redirects, bounds, malformed/empty/oversize/error responses, cancellation and late responses. Card requires visible disclosure then explicit single-query confirmation; cloud off/reset clears confirmation and pending result. Local/model payloads remain separate.
+- N/R (pending, separate desktop permission): unknown ordinary application and packaged application; real local/visual disagreement; absent/unsigned file; browser hosting a web app; sensitive refusal before identity collection; foreground/IME/card consent; online failure/recovery and clear/revoke/switch races. New prerelease is not these passes or full privacy/performance acceptance.
+
 ## Window identity and purpose batch (FR-15 / AC-17)
 
 - L: strict initial `application/page/question` JSON; independent nulls; blank/oversized/control/credential strings, duplicate/extra fields and invented coordinates refuse. Local process labels are bounded and never enter outbound payload/logs. Initial identification cannot mark controls; explicit guidance retains its existing contract. Model-only failures preserve local ownership; privacy/revalidation/revocation failures cannot reuse it.

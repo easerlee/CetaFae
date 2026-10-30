@@ -8,7 +8,8 @@ namespace CetaFae.Probe;
 
 public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
     IReadOnlyList<GuideCandidate> Candidates, byte[]? Png, bool RawView = false, string PluginId = "",
-    GuideScope? Scope = null, string? ScopeIntent = null, string? VisualHash = null, GuideVisual? Visual = null)
+    GuideScope? Scope = null, string? ScopeIntent = null, string? VisualHash = null, GuideVisual? Visual = null,
+    SoftwareIdentity? Identity = null)
 {
     public const string TaskDescription = "用户尚未说明目标。只根据本次所选窗口的可见内容，分别判断所属软件和当前界面用途；" +
         "两者独立判断，缺少依据的部分明确未知，不从普通界面风格猜测软件。即使没有可操作控件，也先说明可知的界面内容，" +
@@ -27,7 +28,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         WindowRect(window) == frame;
 
     public static GuideObservation Read(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
-        string? intent = null, Rect? selection = null)
+        string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null)
     {
         var clock = Stopwatch.StartNew();
         ProbeLog.Log("guide_observe_start");
@@ -69,7 +70,16 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
         var hash = png is not null && (plugin.Kind == "general" || scope?.UserSelected == true) ? Fingerprint(png) : null;
         var visual = hash is not null ? GuideVisual.Read(png!, scope?.Region ?? frame, caret) : null;
-        return new GuideObservation(window, pid, frame, candidates, png, rawView, plugin.Id, scope, intent, hash, visual);
+        SoftwareIdentity? identity = null;
+        if (identityProvider is not null && intent is null && selection is null && includeImage)
+        {
+            if (identityProvider.Kind != "identity") throw new InvalidDataException("worker_reply");
+            try { identity = SoftwareIdentity.Read(pid, token); }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or UnauthorizedAccessException or InvalidOperationException)
+            { /* Unavailable metadata must not disable independent visual understanding. */ }
+        }
+        if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
+        return new GuideObservation(window, pid, frame, candidates, png, rawView, plugin.Id, scope, intent, hash, visual, identity);
     }
 
     public bool HasSameScope(GuideObservation current) => Scope is null ? current.Scope is null : Scope.HasSameAnchor(current.Scope);

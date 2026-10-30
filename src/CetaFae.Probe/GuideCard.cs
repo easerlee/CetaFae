@@ -6,7 +6,7 @@ using System.Windows.Media;
 
 namespace CetaFae.Probe;
 
-internal enum GuideCardView { Session, Menu, Consent }
+internal enum GuideCardView { Session, Menu, Consent, ReferenceConsent }
 
 /// <summary>The same fixed-data visual is rendered offscreen and hosted in the live window.</summary>
 internal sealed class GuideCard : Border
@@ -14,6 +14,8 @@ internal sealed class GuideCard : Border
     readonly TextBlock _caption = new() { FontSize = 12, Foreground = GuideTheme.Muted };
     readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 14, LineHeight = 23 };
     readonly TextBlock _disclosure;
+    readonly TextBlock _referenceDisclosure = new() { TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 21 };
+    readonly TextBlock _referenceResult = new() { TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 21, Margin = new Thickness(0, 10, 0, 0) };
     readonly DockPanel _question = new() { Margin = new Thickness(0, 12, 0, 0) };
     readonly TextBox _answer = new() { MaxLength = 300, AcceptsReturn = false, MinWidth = 120,
         Padding = new Thickness(8), VerticalContentAlignment = VerticalAlignment.Center,
@@ -26,6 +28,9 @@ internal sealed class GuideCard : Border
     readonly Button _region;
     readonly Button _exit;
     readonly Button _back;
+    readonly Button _reference;
+    readonly Button _confirmReference;
+    string? _referenceQuery;
     bool _cloudEnabled;
     bool _regionAvailable;
     bool _questionAvailable;
@@ -45,6 +50,7 @@ internal sealed class GuideCard : Border
     internal event Action? Dismissed;
     internal event Action? AnswerFocusRequested;
     internal event Action<string>? AnswerSubmitted;
+    internal event Action<string>? ReferenceRequested;
 
     internal GuideCard(GuideOptions options)
     {
@@ -77,6 +83,8 @@ internal sealed class GuideCard : Border
         var body = new StackPanel();
         body.Children.Add(_disclosure);
         body.Children.Add(_status);
+        body.Children.Add(_referenceDisclosure);
+        body.Children.Add(_referenceResult);
         body.Children.Add(_question);
         BodyScroll = new ScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -91,7 +99,20 @@ internal sealed class GuideCard : Border
         _region = Button("选择识别区域", () => { if (HasRegion) RegionRequested?.Invoke(); });
         _exit = Button("退出", () => ExitRequested?.Invoke());
         _back = Button("返回", () => { if (_hasSession) { View = GuideCardView.Session; Refresh(); } else Dismissed?.Invoke(); });
-        foreach (var button in new[] { _region, _consent, _cloud, _clear, _menu, _exit, _back }) Actions.Children.Add(button);
+        _reference = Button("联网核对软件", () =>
+        {
+            if (View != GuideCardView.Session || !_cloudEnabled || _referenceQuery is null) return;
+            _referenceDisclosure.Text = SoftwareReference.Disclosure(_referenceQuery);
+            View = GuideCardView.ReferenceConsent; Refresh();
+        });
+        _confirmReference = Button("确认本次联网", () =>
+        {
+            if (View != GuideCardView.ReferenceConsent || !_cloudEnabled || _referenceQuery is null) return;
+            var query = _referenceQuery;
+            _referenceQuery = null; _referenceDisclosure.Text = "";
+            View = GuideCardView.Session; Refresh(); ReferenceRequested?.Invoke(query);
+        });
+        foreach (var button in new[] { _region, _reference, _confirmReference, _consent, _cloud, _clear, _menu, _exit, _back }) Actions.Children.Add(button);
         DockPanel.SetDock(Actions, Dock.Bottom);
         layout.Children.Add(Actions);
         layout.Children.Add(BodyScroll);
@@ -112,7 +133,14 @@ internal sealed class GuideCard : Border
         if (HasQuestion && !string.IsNullOrWhiteSpace(_answer.Text)) AnswerSubmitted?.Invoke(_answer.Text);
     }
 
-    internal void SetCloud(bool enabled) { _cloudEnabled = enabled; Refresh(); }
+    internal void SetCloud(bool enabled)
+    {
+        _cloudEnabled = enabled;
+        if (!enabled) { SetReferenceQuery(null); _referenceResult.Text = ""; if (View == GuideCardView.ReferenceConsent) View = GuideCardView.Session; }
+        Refresh();
+    }
+    internal void SetReferenceQuery(string? query) { _referenceQuery = query; _referenceDisclosure.Text = ""; Refresh(); }
+    internal void SetReferenceResult(string result) { _referenceResult.Text = result; Refresh(); }
     internal void SetStatus(string text) { _status.Text = text; _hasSession = true; View = GuideCardView.Session; Refresh(); }
     internal void ShowMenu() { View = GuideCardView.Menu; Refresh(); }
     internal void ShowConsent() { View = GuideCardView.Consent; Refresh(); }
@@ -123,6 +151,8 @@ internal sealed class GuideCard : Border
     {
         _answer.Clear();
         _status.Text = "";
+        _referenceQuery = null;
+        _referenceDisclosure.Text = _referenceResult.Text = "";
         _hasSession = _questionAvailable = _regionAvailable = false;
         View = GuideCardView.Menu;
         Refresh();
@@ -137,10 +167,14 @@ internal sealed class GuideCard : Border
     void Refresh()
     {
         static void Visible(UIElement element, bool visible) => element.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-        _caption.Text = View == GuideCardView.Consent ? "启用前，请了解发送与留存范围" :
+        _caption.Text = View == GuideCardView.ReferenceConsent ? "可选 · 单次公共资料查询" : View == GuideCardView.Consent ? "启用前，请了解发送与留存范围" :
             View == GuideCardView.Menu ? (_cloudEnabled ? "云端已启用 · 由你操作目标软件" : "云端关闭 · 拖动入口即可选窗") : "当前窗口 · 解释与指路";
         Visible(_disclosure, View == GuideCardView.Consent);
         Visible(_status, View == GuideCardView.Session);
+        Visible(_referenceDisclosure, View == GuideCardView.ReferenceConsent);
+        Visible(_referenceResult, View == GuideCardView.Session && _referenceResult.Text.Length > 0);
+        Visible(_reference, View == GuideCardView.Session && _cloudEnabled && _referenceQuery is not null);
+        Visible(_confirmReference, View == GuideCardView.ReferenceConsent && _cloudEnabled && _referenceQuery is not null);
         Visible(_question, HasQuestion);
         Visible(_region, HasRegion);
         Visible(_consent, View == GuideCardView.Consent && !_cloudEnabled);
