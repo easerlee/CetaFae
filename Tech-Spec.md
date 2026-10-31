@@ -2,6 +2,14 @@
 
 Updated: 2026-10-30
 
+## Whale art integration candidate (2026-10-31)
+
+The user authorized trial integration of sequence-v2, not final visual acceptance. Reuse its separate rear-water, visible-whale and front-water RGBA sources, shared center anchor, and independent pre-spout water transforms. Export small transparent sprite atlases for the native host; do not ship composited GIFs, mock windows or raster input fields. Keep only a bounded decoded-page cache. Idle is static; event animations stop at completion, reduced-motion uses static states, and cleanup immediately stops animation and removes the wash.
+
+Bind the real pointer grab point to dragging; dock at the target top (outside when space permits, inside for maximized/top-edge targets). Play settling/spout, then start the target-clipped translucent wash and input morph together. Native single-line input replaces the whale at the same anchor; it must accept Chinese IME and Enter, never auto-focus, and forward exactly one answer to the existing session. An explicit grip returns to whale dragging; a menu button retains consent/clear/exit access. Recognition and reliable results never wait for animation. Consent, capture, plugin and model authority remain unchanged.
+
+Acceptance: deterministic asset/layer/timing/cache/geometry and cancellation checks; fixed-data offscreen previews of idle, drag, docking, morph and native input at normal/fullscreen/edge layouts; Debug and Release full checks; an isolated runnable candidate. Then one consent-bound native batch for pointer alignment, top docking, input/IME, guidance, clear/revoke and moving/closing targets. Offscreen results do not establish native focus, visual acceptance, 3000ms or90MB compliance. Existing failures remain open.
+
 ## Layered identity preview 0.2.0 (2026-10-30)
 
 Requirements v1.10 FR-16/AC-18: add one explicitly enabled schema-v4 `identity` data package, independently composed with the selected application/general guide. Zero identity providers disables metadata/reference lookup; multiple providers reject catalog load. No process-name mapping or executable plugin. The fixed capability `local-metadata-public-reference` selects generic host mechanisms, never supplies URLs or commands.

@@ -4,7 +4,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 
 namespace CetaFae.Probe;
@@ -30,8 +29,29 @@ public sealed class BallWindow : Window
     Point _grabPoint;
     double _scale = 1;
     int _overlayUpdates;
+    readonly WhaleVisual _whale = new();
+    readonly WhalePrompt _prompt = new() { Visibility = Visibility.Collapsed };
+    readonly WhaleWake _wake = new();
+    readonly Border _handle = new() { Width = BallSize, Height = BallSize, Background = Brushes.Transparent };
+    readonly DispatcherTimer _animation = new(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(40) };
+    readonly Stopwatch _motion = new();
+    enum Motion { Idle, Jump, Drag, Dock }
+    Motion _state;
+    int _facing = -1;
+    double _lastPointerX;
+    bool _inline;
+    bool _question;
+    bool ReducedMotion => !SystemParameters.ClientAreaAnimation;
 
     public double Scale => _scale;
+    public IntPtr Handle => _hwnd;
+    public Rect InteractionBounds => new(Left, Top, Width, Height);
+    public bool IsAnswering => _inline && _prompt.CanAnswer && IsActive;
+    public bool IsSessionInteraction => _target != IntPtr.Zero && IsActive;
+    internal bool HasInlineInput => _inline;
+    internal bool ArtAnimating => _animation.IsEnabled;
+    internal WhalePrompt Prompt => _prompt;
+    public event Action<string>? AnswerSubmitted;
     public event Action<IntPtr>? TargetSelected;
     public event Action<string>? TrackingStopped;
     public event Action? TargetMoved;
@@ -45,15 +65,22 @@ public sealed class BallWindow : Window
         Math.Abs(current.X - start.X) / scale >= SystemParameters.MinimumHorizontalDragDistance ||
         Math.Abs(current.Y - start.Y) / scale >= SystemParameters.MinimumVerticalDragDistance;
 
-    public static Point ConstrainPosition(Point position, Rect work) => new(
-        Math.Clamp(position.X, work.Left, Math.Max(work.Left, work.Right - BallSize)),
-        Math.Clamp(position.Y, work.Top, Math.Max(work.Top, work.Bottom - BallSize)));
+    public static Point ConstrainPosition(Point position, Rect work, Size? surface = null) => new(
+        Math.Clamp(position.X, work.Left, Math.Max(work.Left, work.Right - (surface?.Width ?? BallSize))),
+        Math.Clamp(position.Y, work.Top, Math.Max(work.Top, work.Bottom - (surface?.Height ?? BallSize))));
 
     void PlaceBall(Point position)
     {
-        var visible = ConstrainPosition(position, SystemParameters.WorkArea);
-        Left = visible.X;
-        Top = visible.Y;
+        var visible = ConstrainPosition(position, SystemParameters.WorkArea, new Size(Width, Height));
+        Left = visible.X; Top = visible.Y;
+    }
+
+    public static Point TopDockPosition(Rect target, Rect work, double width = 280)
+    {
+        var centerX = Math.Clamp(target.Left + target.Width * .4, work.Left + width / 2, Math.Max(work.Left + width / 2, work.Right - width / 2));
+        var top = target.Top - 68;
+        if (top < work.Top) top = target.Top;
+        return new Point(centerX - width / 2, Math.Clamp(top, work.Top, Math.Max(work.Top, work.Bottom - WhaleVisual.CanvasSize)));
     }
 
     public BallWindow()
@@ -66,34 +93,35 @@ public sealed class BallWindow : Window
         ShowActivated = false;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.Manual;
-        Width = BallSize;
-        Height = BallSize;
+        Width = WhaleVisual.CanvasSize;
+        Height = WhaleVisual.CanvasSize;
 
         var grid = new Grid();
-        grid.Children.Add(new Ellipse
-        {
-            Fill = new SolidColorBrush(Color.FromArgb(0xD8, 0x1F, 0x6F, 0xD1)),
-            Stroke = Brushes.White,
-            StrokeThickness = 1.5
-        });
-        grid.Children.Add(new TextBlock
-        {
-            Text = "?",
-            Foreground = Brushes.White,
-            FontSize = 18,
-            FontWeight = FontWeights.SemiBold,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        });
+        grid.Children.Add(_whale);
+        grid.Children.Add(_handle);
+        grid.Children.Add(_prompt);
         Content = grid;
+        _handle.MouseEnter += (_, _) => { if (!_pressed && _target == IntPtr.Zero && _state == Motion.Idle) Animate(Motion.Jump); };
+        _animation.Tick += (_, _) => AdvanceMotion();
+        _prompt.FocusRequested += () => { Activate(); _prompt.Answer.Focus(); };
+        _prompt.Submitted += text => AnswerSubmitted?.Invoke(text);
+        _prompt.MenuRequested += () => MenuRequested?.Invoke();
 
         SourceInitialized += OnSourceInitialized;
         Loaded += (_, _) => ProbeLog.Log("ball_loaded", ("ballDip", FrameDip()),
             ("nativePx", RectPx(Native.Frame(_hwnd))));
-        MouseLeftButtonDown += OnDown;
+        _handle.MouseLeftButtonDown += OnDown;
+        _whale.MouseLeftButtonDown += OnDown;
+        _prompt.Grip.MouseLeftButtonDown += OnDown;
         MouseMove += OnMove;
         MouseLeftButtonUp += OnUp;
-        LostMouseCapture += (_, _) => { _pressed = false; _dragging = false; };
+        LostMouseCapture += (_, _) =>
+        {
+            if (!_pressed) return;
+            _pressed = false; _dragging = false;
+            StopAnimation();
+        };
+        Closed += (_, _) => { _animation.Stop(); _whale.Release(); _wake.Close(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { StopTracking("esc"); e.Handled = true; }
@@ -105,11 +133,12 @@ public sealed class BallWindow : Window
         _hwnd = new WindowInteropHelper(this).Handle;
         var ex = Native.GetWindowLong(_hwnd, Native.GWL_EXSTYLE);
         Native.SetWindowLong(_hwnd, Native.GWL_EXSTYLE, ex | Native.WS_EX_NOACTIVATE | Native.WS_EX_TOOLWINDOW);
+        HwndSource.FromHwnd(_hwnd)!.AddHook(PreventMouseActivation);
 
         _scale = Math.Max(1.0, Native.GetDpiForSystem() / 96.0);
         var work = SystemParameters.WorkArea;
-        Left = work.Right - BallSize - 8;
-        Top = work.Top + (work.Height - BallSize) / 2;
+        Left = work.Right - Width - 8;
+        Top = work.Top + (work.Height - Height) / 2;
 
         ProbeLog.Log("start",
             ("hwnd", Native.Hex(_hwnd)),
@@ -118,10 +147,99 @@ public sealed class BallWindow : Window
             ("fg", Native.Hex(Native.GetForegroundWindow())));
     }
 
+    static IntPtr PreventMouseActivation(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (message == 0x0021) { handled = true; return new IntPtr(3); }
+        return IntPtr.Zero;
+    }
+
+    void Animate(Motion state)
+    {
+        _state = state; _motion.Restart();
+        if (!ReducedMotion) _animation.Start();
+        AdvanceMotion();
+    }
+
+    void AdvanceMotion()
+    {
+        var seconds = _motion.Elapsed.TotalSeconds;
+        if (_state == Motion.Drag)
+        {
+            _whale.SetPose(new WhalePose(ReducedMotion ? 109 : 140 + (int)(seconds * 25) % 100), _facing);
+            if (!ReducedMotion) _wake.Advance(seconds);
+            else { _animation.Stop(); _wake.Reset(); }
+        }
+        else if (_state == Motion.Jump)
+        {
+            if (ReducedMotion || seconds >= 4.4) StopAnimation();
+            else _whale.SetPose(new WhalePose(Math.Min(109, (int)(seconds * 25))), _facing);
+        }
+        else if (_state == Motion.Dock)
+        {
+            var pose = WhaleArt.DockPose(seconds, ReducedMotion);
+            _whale.SetPose(pose);
+            _overlay.SetWaterProgress(pose.Progress);
+            if (ReducedMotion || seconds >= 3.16) FinishMorph();
+        }
+    }
+
+    void StopAnimation()
+    {
+        _animation.Stop(); _state = Motion.Idle;
+        _wake.Reset();
+        _whale.SetPose(new WhalePose(109), _facing);
+        _overlay.SetWaterProgress(0);
+    }
+
+    public void BeginDock()
+    {
+        if (_target == IntPtr.Zero || _state == Motion.Dock || _inline) return;
+        Width = Math.Min(280, SystemParameters.WorkArea.Width);
+        var frame = Native.Frame(_target);
+        var position = TopDockPosition(new Rect(frame.Left / _scale, frame.Top / _scale,
+            (frame.Right - frame.Left) / _scale, (frame.Bottom - frame.Top) / _scale), SystemParameters.WorkArea, Width);
+        PlaceBall(position);
+        var offset = position.Y < frame.Top / _scale ? 0 : -14;
+        _whale.RenderTransform = _prompt.RenderTransform = new TranslateTransform(0, offset);
+        Animate(Motion.Dock);
+    }
+
+    void FinishMorph()
+    {
+        _animation.Stop(); _state = Motion.Idle;
+        _overlay.SetWaterProgress(0);
+        _inline = true; _whale.Visibility = _handle.Visibility = Visibility.Collapsed;
+        _prompt.Visibility = Visibility.Visible;
+        _prompt.SetQuestion(_question);
+    }
+
+    public void ShowQuestion()
+    {
+        _question = true;
+        // A fast model result must not wait for the decorative transition.
+        FinishMorph();
+    }
+
+    public void ClearQuestion() { _question = false; _prompt.SetQuestion(false); }
+    public void SetResult() { if (_inline) _prompt.SetResult(); }
+
+    internal void ResetArt()
+    {
+        ClearQuestion(); StopAnimation();
+        var center = Left + Width / 2;
+        _inline = false; _prompt.Visibility = Visibility.Collapsed;
+        _whale.Visibility = _handle.Visibility = Visibility.Visible;
+        Width = WhaleVisual.CanvasSize;
+        _whale.RenderTransform = _prompt.RenderTransform = Transform.Identity;
+        PlaceBall(new Point(center - Width / 2, Top));
+        _whale.Release();
+    }
+
     void OnDown(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed) return;
         _grabPoint = e.GetPosition(this);
+        if (_inline) _grabPoint = new Point(WhaleVisual.CanvasSize / 2, WhaleVisual.CanvasSize / 2);
         var pointer = Native.Cursor();
         _pressPoint = new Point(pointer.X, pointer.Y);
         _pressed = true;
@@ -133,6 +251,8 @@ public sealed class BallWindow : Window
     {
         StopTracking("drag_start");
         _dragging = true;
+        _lastPointerX = Native.Cursor().X;
+        Animate(Motion.Drag);
         if (_overlay.IsVisible) _overlay.HideAndReset();
 
         var fg = Native.GetForegroundWindow();
@@ -150,7 +270,11 @@ public sealed class BallWindow : Window
         var p = Native.Cursor();
         if (!_dragging && IsDrag(_pressPoint, new Point(p.X, p.Y), _scale)) BeginDrag();
         if (!_dragging) return;
+        if (Math.Abs(p.X - _lastPointerX) >= 3 * _scale)
+        { _facing = p.X > _lastPointerX ? 1 : -1; _lastPointerX = p.X; }
         PlaceBall(DragPosition(new Point(p.X, p.Y), _grabPoint, _scale));
+        if (!ReducedMotion && WhaleArt.IsImmersed(_whale.Pose.Frame))
+            _wake.Deposit(new Point(Left + Width / 2, Top + Height / 2 + 24), _motion.Elapsed.TotalSeconds);
     }
 
     void OnUp(object sender, MouseButtonEventArgs e)
@@ -163,6 +287,7 @@ public sealed class BallWindow : Window
         _dragging = false;
         ReleaseMouseCapture();
         if (!wasDragging) { MenuRequested?.Invoke(); return; }
+        StopAnimation();
         var target = HitTestUnderCursor(p);
         ProbeLog.Log("guide_drop", ("found", target != IntPtr.Zero));
 
@@ -199,46 +324,11 @@ public sealed class BallWindow : Window
     void SnapToEdge(IntPtr target)
     {
         var r = Native.Frame(target);
-        var cur = Native.Cursor();
-        int px = (int)(BallSize * _scale);
-
-        int left = cur.X - r.Left;
-        int right = r.Right - cur.X;
-        int top = cur.Y - r.Top;
-        int bottom = r.Bottom - cur.Y;
-        int nearest = Math.Min(Math.Min(left, right), Math.Min(top, bottom));
-
-        string edge;
-        int x, y;
-        if (nearest == left)
-        {
-            edge = "left";
-            x = r.Left - px;
-            y = cur.Y - px / 2;
-        }
-        else if (nearest == right)
-        {
-            edge = "right";
-            x = r.Right;
-            y = cur.Y - px / 2;
-        }
-        else if (nearest == top)
-        {
-            edge = "top";
-            x = cur.X - px / 2;
-            y = r.Top - px;
-        }
-        else
-        {
-            edge = "bottom";
-            x = cur.X - px / 2;
-            y = r.Bottom;
-        }
-
-        PlaceBall(new Point(x / _scale, y / _scale));
+        PlaceBall(TopDockPosition(new Rect(r.Left / _scale, r.Top / _scale,
+            (r.Right - r.Left) / _scale, (r.Bottom - r.Top) / _scale), SystemParameters.WorkArea, Width));
 
         ProbeLog.Log("snap",
-            ("edge", edge),
+            ("edge", "top"),
             ("target", Native.Hex(target)),
             ("targetRectPx", RectPx(r)),
             ("ballDip", FrameDip()),
@@ -361,6 +451,7 @@ public sealed class BallWindow : Window
         if (_destroyHook != IntPtr.Zero) { Native.UnhookWinEvent(_destroyHook); _destroyHook = IntPtr.Zero; }
         if (_contentHook != IntPtr.Zero) { Native.UnhookWinEvent(_contentHook); _contentHook = IntPtr.Zero; }
         _target = IntPtr.Zero;
+        ResetArt();
         if (_overlay.IsVisible) _overlay.HideAndReset();
         TrackingStopped?.Invoke(reason);
 
@@ -374,6 +465,7 @@ public sealed class BallWindow : Window
 
     public void Cleanup()
     {
+        ResetArt();
         if (_target != IntPtr.Zero) StopTracking("exit");
         ProbeLog.Log("exit", ("fg", Native.Hex(Native.GetForegroundWindow())), ("overlayVisible", _overlay.IsVisible));
     }
@@ -381,8 +473,8 @@ public sealed class BallWindow : Window
     (int L, int T, int W, int H) BallRectPx() => (
         (int)Math.Round(Left * _scale),
         (int)Math.Round(Top * _scale),
-        (int)Math.Round(BallSize * _scale),
-        (int)Math.Round(BallSize * _scale));
+        (int)Math.Round(Width * _scale),
+        (int)Math.Round(Height * _scale));
 
     string BallRectPxString()
     {

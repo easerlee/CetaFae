@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Whale art candidate batch (2026-10-31)
+
+Requirements7.1/7.2, FR-01/02/09 and AC-7: first run deterministic atlas/transparency/cache, native-input event, reduced-motion, simultaneous morph and top-dock geometry checks and inspect fixed-data offscreen states. No desktop capture or model call is needed for these checks. Then freeze one isolated build for a single consent-bound native batch: click whale/menu/disclosure; drag by a noncentral grab point; check short stationary deposited ripples, normal/maximized top docking, symbolic spout and simultaneous clipped wash/input morph; enter Chinese and submit once; validate one existing Edge guidance result; drag the inline grip to another target; clear during animation, revoke during recognition and close/minimize a target. Cloud-off dragging must not activate or collect. Check entry and input visibility at work-area edges. Native focus/IME, cancellation latency, small-scale visibility and90MB/3000ms remain unpassed until actually measured. Do not rerun20 manual cycles merely for this first visual trial.
+
 Updated: 2026-10-30
 
 ## Layered identity batch (FR-16 / AC-18)

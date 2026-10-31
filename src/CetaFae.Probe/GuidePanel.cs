@@ -99,7 +99,7 @@ public sealed class GuidePanel : Window
         return IntPtr.Zero;
     }
 
-    public void Place(Rect? target, Rect? avoid = null)
+    public void Place(Rect? target, Rect? avoid = null, Rect? entry = null)
     {
         var work = SystemParameters.WorkArea;
         var frame = target ?? work;
@@ -113,7 +113,8 @@ public sealed class GuidePanel : Window
         foreach (var point in positions)
         {
             var rect = new Rect(point, new Size(Width, MaxHeight));
-            if (!work.Contains(rect) || avoid is { } marker && rect.IntersectsWith(marker)) continue;
+            if (!work.Contains(rect) || avoid is { } marker && rect.IntersectsWith(marker) ||
+                entry is { } input && rect.IntersectsWith(input)) continue;
             Left = point.X;
             Top = point.Y;
             return;

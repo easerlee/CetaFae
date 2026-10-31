@@ -41,6 +41,7 @@ public sealed class GuideSession : IDisposable
         _panel.CloudToggled += ToggleCloud;
         _panel.Cancelled += () => _ball.StopTracking("cancelled");
         _panel.AnswerSubmitted += OnAnswerSubmitted;
+        _ball.AnswerSubmitted += OnAnswerSubmitted;
         _panel.RegionRequested += OnRegionRequested;
         _panel.ReferenceRequested += OnReferenceRequested;
         _ball.AllowsForeground = IsAllowedForeground;
@@ -63,7 +64,7 @@ public sealed class GuideSession : IDisposable
 
     void OnMenuRequested()
     {
-        _panel.Place(_context?.Frame);
+        _panel.Place(_context?.Frame, entry: _ball.InteractionBounds);
         _panel.ShowMenu();
     }
 
@@ -94,6 +95,7 @@ public sealed class GuideSession : IDisposable
         _gate.Cancel();
         _request?.Cancel();
         _panel.ClearQuestion();
+        _ball.ClearQuestion();
         if (_marker.IsVisible) _marker.HideAndReset();
         _panel.EndSession();
         ProbeLog.Log("guide_cancel", ("reason", reason));
@@ -193,7 +195,8 @@ public sealed class GuideSession : IDisposable
         finally { _checkingContext = false; }
     }
 
-    bool IsInputForeground(IntPtr window) => window == _panel.Handle && _panel.IsSessionInteraction &&
+    bool IsInputForeground(IntPtr window) =>
+        (window == _panel.Handle && _panel.IsSessionInteraction || window == _ball.Handle && _ball.IsSessionInteraction) &&
         _context is not null && _gate.Accepts(_contextVersion);
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
@@ -212,6 +215,7 @@ public sealed class GuideSession : IDisposable
             return;
         }
         _panel.ClearQuestion();
+        _ball.ClearQuestion();
         // Submission returns to this target through the same bounded activation path as a drop.
         await RecognizeAsync(previous.Window, intent, previous, previous.Scope?.UserSelected == true ? previous.Scope.Region : null);
     }
@@ -265,6 +269,7 @@ public sealed class GuideSession : IDisposable
         _pendingIntent = null;
         _panel.SetRegionAvailable(false);
         _panel.ClearQuestion();
+        _ball.ClearQuestion();
         var total = Stopwatch.StartNew();
         var stage = ProcessingStage.Activation;
         string? identifiedProcess = null;
@@ -287,6 +292,8 @@ public sealed class GuideSession : IDisposable
             var activated = await ActivateSelectedAsync(window, version, token);
             if (!_gate.Accepts(version)) return;
             if (!activated) throw new InvalidDataException("target_activation_failed");
+            if (previous is null) _ball.BeginDock();
+            _panel.Place(GuideObservation.WindowRect(window), entry: _ball.InteractionBounds);
             stage = ProcessingStage.SourceValidation;
             if (previous is not null)
                 previous.ValidateContext(await ReadContextAsync(previous, token), null);
@@ -348,14 +355,15 @@ public sealed class GuideSession : IDisposable
                 _marker.Height = rect.Height / _ball.Scale;
                 _marker.Show();
             }
-            _panel.Place(observation.Frame, bounds);
+            _panel.Place(observation.Frame, bounds, _ball.InteractionBounds);
             _panel.SetStatus(answer.Explanation);
+            _ball.SetResult();
             _panel.SetReferenceQuery(observation.Identity?.ReferenceQuery);
             _panel.SetRegionAvailable(true);
             if (answer.Mode == "ask")
             {
                 _gate.AwaitClarification(version);
-                _panel.ShowQuestion();
+                _ball.ShowQuestion();
             }
             token.ThrowIfCancellationRequested();
             ProbeLog.Log("guide_result", ("mode", answer.Mode), ("candidates", observation.Candidates.Count),
@@ -499,6 +507,7 @@ public sealed class GuideSession : IDisposable
         _ball.MenuRequested -= OnMenuRequested;
         _ball.AllowsForeground = null;
         _panel.AnswerSubmitted -= OnAnswerSubmitted;
+        _ball.AnswerSubmitted -= OnAnswerSubmitted;
         _panel.RegionRequested -= OnRegionRequested;
         _panel.ReferenceRequested -= OnReferenceRequested;
         _referenceRequest?.Cancel();
