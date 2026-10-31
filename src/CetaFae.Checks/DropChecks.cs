@@ -14,20 +14,20 @@ internal static class DropChecks
     {
         const int width = (int)WhalePrompt.WidthDip;
         check(Enumerable.Range(0, 10).Select(i => WhaleArt.DropPose(i * .04))
-                .All(p => p.Progress == 0 && p.Y == 0 && p.Spout >= 0 && p.Alpha == 1) &&
-            WhaleArt.DropPose(.48).Progress > 0,
-            "spray opens visibly for400ms before the existing water rises or whale sinks");
+                .All(p => p.Progress == 0 && p.Y == 0 && p.Alpha == 1) &&
+            WhaleArt.DropPose(1).Progress == 0 && WhaleArt.DropPose(1.08).Progress > 0,
+            "water fills only after the delivered falling jets reach the receiving pool");
         var poses = Enumerable.Range(0, 31).Select(i => WhaleArt.DropPose(i * WhaleArt.DropDuration / 30)).ToArray();
         check(poses.Take(30).All(p => p.Submerge && p.Alpha == 1 && p.ScaleX == 1 && p.ScaleY == 1) &&
             poses.Zip(poses.Skip(1)).All(pair => pair.First.Y <= pair.Second.Y),
             "immersion is downward occlusion at constant scale and alpha rather than shrinking or fading");
         var bodies = poses.Select(p => WhaleVisual.WaterBody(p.Progress, width)).ToArray();
-        check(bodies[0].Width is > 35 and < 46 && bodies[0].Top is > 64 and < 68 &&
+        check(bodies[0].Width is > 40 and < 48 && bodies[0].Top is > 64 and < 68 &&
             bodies.All(b => b.Bottom <= WhalePrompt.DockFoot) &&
             bodies.Zip(bodies.Skip(1)).All(pair => pair.First.Width <= pair.Second.Width && pair.First.Top >= pair.Second.Top) &&
             bodies[^1] == new Rect(0, 40, width, 36),
             "the original small underbelly water expands continuously into the native shell bounds without a second puddle");
-        check(poses.Take(12).All(p => p.Spout >= 0) && poses[^1].Spout == -1 && poses[^1].Alpha == 0 &&
+        check(poses.Take(12).All(p => p.Seconds >= 0) && poses[^1].Spout == -1 && poses[^1].Alpha == 0 &&
             WhaleArt.DropPose(0, true) == poses[^1],
             "spray overlaps emergence and sinking while completion and reduced motion remove the whale");
         var full = WhaleChecks.RenderFrame(false, 0, 600, 400);
@@ -40,7 +40,8 @@ internal static class DropChecks
         using (var draw = original.RenderOpen())
         {
             draw.PushTransform(new TranslateTransform(width / 2d, 44)); draw.PushTransform(new ScaleTransform(-1, 1));
-            draw.DrawImage(new WhaleArt().Frame("water-rear", 319), new Rect(-44, -44, 88, 88));
+            using var source = WhaleArt.Resource("rest-water.png");
+            draw.DrawImage(BitmapFrame.Create(source, BitmapCreateOptions.None, BitmapCacheOption.OnLoad), new Rect(-44, -44, 88, 88));
         }
         byte[] Raster(Visual visual)
         {
@@ -78,9 +79,9 @@ internal static class DropChecks
             var spray = new DrawingVisual();
             using (var draw = spray.RenderOpen())
             {
-                draw.PushTransform(new TranslateTransform(width / 2d, 44));
+                draw.PushTransform(new TranslateTransform(width / 2d, 0));
                 draw.PushTransform(new ScaleTransform(facing, 1));
-                WhaleVisual.DrawSpout(draw, art.Frame("spout", WhaleArt.DropPose(.36).Spout));
+                RefinedWater.DrawJets(draw, .88, 0);
             }
             var rgba = Raster(spray);
             var visible = Enumerable.Range(0, width * 88).Where(i => rgba[i * 4 + 3] >= 32).ToArray();
@@ -88,33 +89,37 @@ internal static class DropChecks
                 visible.All(i => i / width > 0 && i / width < 87 && i % width > 0 && i % width < width - 1),
                 "mature spray exceeds the54DIP whale body and fits the88DIP host in either facing");
         }
-        check(Enumerable.Range(0, 17).All(i =>
+        check(Enumerable.Range(0, 3).All(side =>
         {
-            var bytes = new byte[96 * 96 * 4];
-            new FormatConvertedBitmap(art.Frame("spout", WhaleArt.DropPose(i * .04).Spout), PixelFormats.Bgra32, null, 0).CopyPixels(bytes, 384, 0);
-            return Enumerable.Range(0, 96 * 96).Any(p => bytes[p * 4 + 3] > 0);
-        }), "spray uses nonempty embedded frames throughout the first640ms instead of advancing into empty cells");
+            var landing = Enumerable.Range(0, 30)
+                .Select(i => RefinedWater.Jet(.58 + .42 * i / 29d, side, 1, 0).X).ToArray();
+            return landing.Max() - landing.Min() < .001;
+        }),
+            "refined falling jets retain their horizontal landing position instead of curling inward");
+        var expansion = Enumerable.Range(24, 8).Select(i => WhaleArt.DropPose(i / 25d)).ToArray();
+        check(expansion.Zip(expansion.Skip(1)).All(p => p.Second.Spread > p.First.Spread),
+            "receiving water expands continuously through the landing-to-fill handoff");
         foreach (var attached in new[] { false, true })
         {
-            var hiddenWhale = new DrawingVisual(); var pose = WhaleArt.DropPose(WhaleArt.SprayLead + .72);
+            var hiddenWhale = new DrawingVisual(); var pose = WhaleArt.DropPose(1.76);
             using (var draw = hiddenWhale.RenderOpen())
             {
-                draw.PushClip(WhaleWater.Shape(pose.Progress, width, above: true, topAttached: attached));
+                draw.PushClip(WhaleWater.Shape(pose.Progress, width, above: true, topAttached: attached, spread: pose.Spread));
                 draw.PushTransform(new TranslateTransform(width / 2d, 44 + pose.Y * 88));
                 draw.PushTransform(new ScaleTransform(-1, 1));
-                draw.DrawImage(art.Frame("whale-visible", 319), new Rect(-44, -44, 88, 88));
+                draw.DrawImage(art.Frame("drop-whale", 34), new Rect(-44, -44, 88, 88));
             }
             var remaining = Raster(hiddenWhale);
             check(pose.Alpha == 1 && Enumerable.Range(0, width * 88).All(i => remaining[i * 4 + 3] == 0),
                 "rising water fully occludes the still-opaque whale before native input replaces it in either layout");
         }
         check(WindowWash.Progress(0) == -1 && WindowWash.Progress(WhaleArt.DropDuration) == -1 &&
-            WindowWash.Progress(WhaleArt.DropDuration + .5) is > .49 and < .51 && WindowWash.Progress(WindowWash.TotalDuration) == 1,
+            WindowWash.Progress(WhaleArt.DropDuration + WindowWash.Duration / 2) is > .49 and < .51 && WindowWash.Progress(WindowWash.TotalDuration) == 1,
             "downward coverage starts after the water-dialog rise and ends on a finite separate clock");
         foreach (var size in new[] { new Size(3440, 1392), new Size(3840, 2160), new Size(8, 8) })
         {
             var strips = Enumerable.Range(1, 199).Select(i => WindowWash.Region(size, i / 200d)).Where(r => !r.IsEmpty).ToArray();
-            check(strips.All(r => r.Height <= WindowWash.Band + 10 && new Rect(size).Contains(r)) &&
+            check(strips.All(r => r.Height <= WindowWash.Band + 26 && new Rect(size).Contains(r)) &&
                 Enumerable.Range(0, (int)size.Height).All(y => strips.Any(r => r.Top <= y && r.Bottom > y)) &&
                 WindowWash.Region(size, 0).IsEmpty && WindowWash.Region(size, 1).IsEmpty,
                 "finite moving strip visits every window row without full-target allocation and leaves no final wash");

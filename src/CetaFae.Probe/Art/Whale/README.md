@@ -11,3 +11,9 @@ The spout is cropped at the shared scene anchor; no mock window, baked text or r
 
 Runtime uses a bounded page cache and a static idle pose. Native controls, outlines, clipped wash, timing interruption and menu remain host mechanisms.
 Artwork was produced for this project through the user's art workflow; provider/source rights have not received a separate legal review.
+
+## Refined drop-water import
+
+`tools/Import-RefinedWater.ps1` imports the20261031 art-refinement delivery. `drop-whale-00/01.png` preserve the existing whale identity and approved action study, with35registered96px cells at25fps; these source poses face left and use the opposite normalization from the earlier scene atlas. `drop-motion.json` contains nozzle offsets only. `rest-water.png` is the384px transparent B02 rear-water source, paired with its editable `rest-water.svg`. The runtime traces its contour at source resolution and continuously expands it into the native shell. No sample window, grid or text is embedded.
+
+Spray trajectories, receiving/fill timing and the surf reference are implemented as native vector paths in RefinedWater/WhaleWater/WindowWash. The spout-fill-v4 and window-wash-v1 renderers are the local editable references; runtime code is the distributed editable implementation. This import removes the old stretched small-spout placeholder from the live drop path. Existing idle/drag/return atlases are retained. Source rights are unchanged; no external reference character was imported. Native visual acceptance remains pending.

@@ -102,6 +102,7 @@ public static class Program
                     .GetProperty("System.Globalization.Invariant").GetBoolean(),
                 "application runtime retains culture data for editable WPF controls");
         PrivacyChecks.CheckDisclosureLayout(Check);
+        ConsentChecks.Run(Check);
         await PrivacyChecks.RunAsync(Check);
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);

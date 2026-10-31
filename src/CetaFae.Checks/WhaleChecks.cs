@@ -59,12 +59,12 @@ internal static class WhaleChecks
         var drop = WhaleArt.DropPose(0);
         var early = WhaleArt.DropPose(WhaleArt.SprayLead + .04);
         var complete = WhaleArt.DropPose(WhaleArt.DropDuration);
-        check(drop.Submerge && drop.Spout >= 0 && early.Progress > 0 && early.Y > drop.Y &&
+        check(drop.Submerge && drop.Seconds == 0 && early.Progress > 0 && early.Y > drop.Y &&
             early.Alpha == 1 && early.ScaleX == 1 && early.ScaleY == 1 && early.WaterScale == 1,
             "drop starts spray and a water shell while the constant-scale opaque whale descends into occlusion");
         check(complete.Progress == 1 && complete.Alpha == 0 && complete.Spout == -1 &&
             WhaleArt.DropPose(0, true) == complete && WhaleArt.DropPose(-1) == drop,
-            "drop completes after400ms spray and800ms rise and reduced motion skips spray and intermediate surfaces");
+            "drop completes the delivered1.8s receiving/fill sequence and reduced motion skips intermediate surfaces");
         var regionTarget = new Rect(100, 100, 300, 200);
         check(OverlayWindow.ControlBounds(new Rect(130, 130, 40, 20), regionTarget, regionTarget, 1) == new Rect(122, 122, 56, 36) &&
             OverlayWindow.ControlBounds(new Rect(100, 100, 4, 4), regionTarget, regionTarget, 1) == new Rect(100, 100, 12, 12) &&

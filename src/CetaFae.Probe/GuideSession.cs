@@ -16,6 +16,9 @@ public sealed class GuideSession : IDisposable
     readonly GuideRunGate _gate = new();
     readonly GuideOptions _options;
     readonly GuideModel _model;
+    readonly CloudConsentStore _consent;
+    readonly GuideMenu _menu;
+    bool _hasConsent;
     readonly PluginCatalog _plugins;
     readonly SoftwareReference _references = new();
     CancellationTokenSource? _referenceRequest;
@@ -38,7 +41,15 @@ public sealed class GuideSession : IDisposable
         _model = new GuideModel(options);
         _panel = new GuidePanel(options);
         _preview = preview;
+        _consent = new CloudConsentStore(options);
+        var saved = preview ? default : _consent.Read();
+        _hasConsent = saved.Granted;
+        _gate.SetCloud(saved.Enabled);
+        _panel.SetCloud(saved.Enabled);
+        _menu = new GuideMenu(ball, RequestCloudToggle, ShowConsent, () => _ball.StopTracking("cancelled"));
+        _menu.SetCloud(saved.Enabled);
         _panel.CloudToggled += ToggleCloud;
+        _panel.MenuRequested += OnMenuRequested;
         _panel.Cancelled += () => _ball.StopTracking("cancelled");
         _panel.AnswerSubmitted += OnAnswerSubmitted;
         _ball.AnswerSubmitted += OnAnswerSubmitted;
@@ -64,19 +75,36 @@ public sealed class GuideSession : IDisposable
 
     void OnMenuRequested()
     {
+        _menu.Show();
+    }
+
+    void ShowConsent()
+    {
         _panel.Place(_context?.Frame, entry: _ball.InteractionBounds);
-        _panel.ShowMenu();
+        _panel.ShowConsent();
+    }
+
+    void RequestCloudToggle()
+    {
+        if (!_gate.CloudEnabled && !_hasConsent) ShowConsent(); else ToggleCloud();
     }
 
     void ToggleCloud()
     {
         if (_preview) { _panel.SetStatus("这是静态预览，不会启用采集或发送请求。"); return; }
-        _gate.SetCloud(!_gate.CloudEnabled);
+        var enabled = !_gate.CloudEnabled;
+        var saved = _consent.Save(enabled);
+        if (enabled && !saved)
+        { _panel.SetStatus("无法保存云端授权，尚未启用。请检查本机用户配置目录权限后重试。"); return; }
+        _hasConsent = true;
+        _gate.SetCloud(enabled);
         _panel.SetCloud(_gate.CloudEnabled);
+        _menu.SetCloud(_gate.CloudEnabled);
         _ball.StopTracking("cloud_changed");
         _panel.SetStatus(_gate.CloudEnabled
             ? "已启用。请拖到要了解的窗口；通用视觉插件可尝试未适配的软件。目标不明确时会短问一句。"
-            : "云端已关闭，不再读取或发送。已发送的内容无法从上游撤回。");
+            : "云端已关闭，不再读取或发送。已发送的内容无法从上游撤回。" +
+                (saved ? "" : "关闭状态未能保存；下次启动前请修复配置目录权限。"));
         ProbeLog.Log("guide_consent", ("enabled", _gate.CloudEnabled));
     }
 
@@ -200,6 +228,7 @@ public sealed class GuideSession : IDisposable
         _context is not null && _gate.Accepts(_contextVersion);
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
+        _menu.OwnsForeground(window) ||
         _picker is not null && (window == _picker.Handle || window == IntPtr.Zero) ||
         _activationVersion is { } version && _gate.Accepts(version) &&
         (window == IntPtr.Zero || window == _activationSource);
@@ -256,6 +285,7 @@ public sealed class GuideSession : IDisposable
         {
             _ball.StopTracking("consent_required");
             _panel.SetStatus("请先阅读说明并启用云端；尚未读取窗口内容或发送请求。");
+            if (!_hasConsent) ShowConsent();
             return;
         }
         _request?.Cancel();
@@ -501,6 +531,7 @@ public sealed class GuideSession : IDisposable
         _ball.TrackingStopped -= Cancel;
         _ball.TargetMoved -= OnTargetChanged;
         _ball.MenuRequested -= OnMenuRequested;
+        _panel.MenuRequested -= OnMenuRequested;
         _ball.AllowsForeground = null;
         _panel.AnswerSubmitted -= OnAnswerSubmitted;
         _ball.AnswerSubmitted -= OnAnswerSubmitted;
@@ -514,6 +545,7 @@ public sealed class GuideSession : IDisposable
         _request?.Cancel();
         _request?.Dispose();
         _gate.SetCloud(false);
+        _menu.Dispose();
         _model.Dispose();
         if (_marker.IsLoaded) _marker.Close();
         _panel.Close();

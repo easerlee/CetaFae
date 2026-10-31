@@ -2,6 +2,30 @@
 
 Updated: 2026-10-30
 
+
+## Remembered consent and unified management (2026-10-31)
+
+Goal: eliminate the whale left-click management popup and repeated startup consent, while retaining explicit first-use consent and revocation. The delivered art is now integrated in the same candidate for one consolidated native trial.
+
+Design: use one WPF context-menu instance from both the whale right button and the Windows tray icon. Keep the attached session input and existing on-demand explanation card. Left click has no management action. Use the installed Windows Desktop framework's NotifyIcon, without adding a package or a second menu implementation. Dispose the tray icon on application exit. A menu-open exception to foreground validation applies only to our own menu/owner handles.
+
+Persist only a DPAPI CurrentUser-protected versioned record containing a hash of the exact disclosure and the enabled flag, under LocalApplicationData/CetaFae/consent.dat. The hash includes recipient, model, image scope and terms; changed disclosure, missing/corrupt/oversized or inaccessible storage fails closed. Do not persist API keys, window identity, captures, user text or model results. Store on explicit consent and subsequent switch changes using atomic replacement. When storage fails, report a fixed error, do not silently promise persistence; revocation still cancels immediately in memory. Plain restart never calls collection or transport. Public-reference query consent remains per query and is never restored.
+
+Implementation plan (inline execution):
+- [x] Add checks for remembered on/off state, changed scope, malformed/tampered/oversized records and failed storage; observe failure before consent-store implementation.
+- [x] Implement the consent store and connect restoration/revocation to GuideSession without changing its request gates.
+- [x] Route right click and the tray to one menu; remove the left-click popup, preserve drag/input/close and consent-card behavior.
+- [x] Complete both non-desktop configurations and review generated disclosure/art states; native tray/restart acceptance remains separate.
+- [ ] Update both READMEs and evidence, synchronize source; request one consolidated native trial only after the candidate is ready.
+
+Acceptance: left click produces no management popup; first enabling requires the visible personal consent control; same-scope restarts restore on/off; changed scope or bad storage cannot enable; disabled drop cannot activate/read/send; tray and right click share commands; exit removes tray resources. Native menu placement, Explorer restart, real first-use/restart and revocation timing require consent-bound desktop verification. The original 3000ms/90MB gates remain open.
+
+## Refined water integration (2026-11-01)
+
+The user delivered the art and authorized import. Use spout-fill-v4 for the continuous receiving/fill path and window-wash-v1 for the advancing surf reference. Import the unchanged whale action into two96px-cell atlases (35frames), the384px resting-water source and its editable SVG, plus registered jet offsets. RefinedWater transcribes the delivered cubic trajectories: upward emission, outward expansion, fixed-horizontal descent, short0.30s ribbons. Receiving width grows over0.72–1.80s, fill begins only after first arrival1.045s, with opaque downward whale occlusion. Input replacement is complete at1.80s; the existing fast-result path can reveal native input earlier without losing user text. Keep idle/drag/return identity and their existing assets.
+
+The subsequent finite strip uses an asymmetric curved leading edge, deeper blue below and a pale transparent trail above; it exits before the existing four-edge perimeter fades in. The strip remains bounded to192+26DIP maximum height and does not allocate a persistent full-window texture. Retain existing pure-blue perimeter, corners, input geometry and cancellation/reduced-motion policy. Review runtime-generated ordinary/top playback and water-only/grid boards; art delivery and headless checks do not establish native acceptance or90MB/3000ms compliance.
+
 ## Whale art integration candidate (2026-10-31)
 
 Next art refinement is planning-only (2026-10-31): the user accepts the exercised interaction rhythm but rejects the stretched low-resolution spray and rectangular sweep aesthetics. Art-Production-Brief.md owns the scoped asset handoff: redraw spray and belly-water layers, preserve whale identity, supply rise/surf reference keyframes. After asset inspection, remove placeholder spray stretching and use a bounded procedural wave with a darker lower advancing front and a lighter transparent upper tail, then reveal the existing seamless perimeter. Use a few broad curves and gradients, not a full-target texture or new rendering framework. Preserve native input, clipping, cancellation, reduced motion and resource gates. Do not code, replace the live candidate or package another version until the art is delivered and inspected; then consolidate integration and verification into one candidate. Existing preview.10 human timing/corner/smoothness evidence remains historical, not final art approval.

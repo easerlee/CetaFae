@@ -8,6 +8,7 @@ public sealed class GuidePanel : Window
 {
     readonly GuideCard _card;
     public event Action? CloudToggled;
+    public event Action? MenuRequested;
     public event Action? Cancelled;
     public event Action<string>? AnswerSubmitted;
     public event Action? RegionRequested;
@@ -31,6 +32,7 @@ public sealed class GuidePanel : Window
         _card = new GuideCard(options);
         Content = _card;
         _card.CloudToggled += () => CloudToggled?.Invoke();
+        _card.MenuRequested += () => MenuRequested?.Invoke();
         _card.Cancelled += () => Cancelled?.Invoke();
         _card.AnswerSubmitted += text => AnswerSubmitted?.Invoke(text);
         _card.RegionRequested += () => RegionRequested?.Invoke();
@@ -71,6 +73,7 @@ public sealed class GuidePanel : Window
     public void SetCloud(bool enabled) => _card.SetCloud(enabled);
     public void SetStatus(string message) { _card.SetStatus(message); if (!IsVisible) Show(); }
     public void ShowMenu() { _card.ShowMenu(); if (!IsVisible) Show(); }
+    public void ShowConsent() { _card.ShowConsent(); if (!IsVisible) Show(); }
     public void ShowQuestion() => _card.ShowQuestion();
     public void SetRegionAvailable(bool available) => _card.SetRegionAvailable(available);
     public void ClearQuestion() => _card.ClearQuestion();
@@ -79,6 +82,7 @@ public sealed class GuidePanel : Window
     public void EndSession() { _card.Reset(); Hide(); }
 
     internal static string Disclosure(GuideOptions options) =>
+        "授权在本机按当前Windows用户保存；后续启动恢复开关，不自动读取窗口。接收方、模型、范围或条款改变须重新同意；可从托盘或鲸鱼右键菜单关闭。\n" +
         "开发验证版。启用后，拖放及提交回答会读取所选窗口；展示期间按窗口变化在本机复核控件。\n" +
         "初次拖入先识别软件和界面用途，不要求已有操作目标；所属进程仅在本机显示，不发送进程名或窗口标题元数据。画面本身可能包含软件名或标题。\n" +
         "身份插件可在本机读取所选程序的产品名、描述、版本、公司、离线签名及包身份；路径仅用于读取，不记录或外发。这些字段不发给模型。可选联网核对会另行展示产品名查询词和公共百科接收方，须再次亲自确认；不默认联网。\n" +

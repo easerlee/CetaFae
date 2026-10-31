@@ -8,6 +8,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 ## Features
 
+- **Lightweight management**: left-clicking the whale opens no management window. The tray and whale right-click share one menu. Explicit first-use consent and on/off state are remembered for the current configuration; changed terms or configuration require confirmation again. Startup alone never collects or sends content.
 - **Drag to select**: an attached input bar, on-demand explanations, and control highlights keep interaction close to the target. Ending a session restores the whale.
 - **Understand the current window**: visible content and local software identity distinguish the owning application, interface purpose, and uncertainty. Generic vision can attempt unfamiliar software without promising recognition of every window.
 - **Explain and guide**: interpret visible state and ask one clarification if needed. Highlight controls only when their location is reliable; otherwise explain the limitation.
@@ -32,7 +33,7 @@ Download a Windows x64 preview from [GitHub Releases](https://github.com/easerle
 
 The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-flash`. Supply a compatible model service yourself; CetaFae bundles neither a model nor a proxy. Image understanding requires multimodal input support.
 
-On first use, read and personally confirm cloud consent, then drag the whale onto a target. Describe your goal when asked, and draw a region if requested. Read the explanation or guidance and operate the target yourself, or end the session.
+On first use, a drop without consent opens the disclosure; it is also available from the tray or whale right-click menu. Read and personally confirm it, then drag onto the target again. Describe your goal when asked, and draw a region if requested. Read the explanation or guidance and operate the target yourself, or end the session.
 
 ### Run from source
 
@@ -64,10 +65,10 @@ The first two commands build and run non-desktop checks; the last opens CetaFae.
 
 ## Roadmap
 
-- Improve first-use consent, tray management, and consistent lightweight interaction.
+- Complete native compatibility acceptance for remembered consent, tray menus, and lightweight interaction.
 - Strengthen generic understanding, scope selection, and failure recovery.
 - Complete consolidated privacy, platform, performance, and real-task acceptance. The 3000ms processing target and 90MB idle-memory gate have not passed full formal acceptance.
-- Integrate polished whale and water artwork into a consistent visual system.
+- Complete native visual acceptance of the refined whale, water, and transitions.
 - Stabilize the contract and validate independent contributions before publishing third-party interfaces and installation support.
 - Develop constrained document editing only after explicit task intent, confirmation, snapshot, and rollback gates are met; it is not currently provided.
 

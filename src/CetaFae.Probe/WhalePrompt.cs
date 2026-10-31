@@ -38,7 +38,7 @@ internal sealed class WhalePrompt : Border
         TextElement.SetForeground(this, GuideTheme.Ink);
         var root = new Grid();
         var body = _body = new Grid { Height = BodyHeight, VerticalAlignment = VerticalAlignment.Bottom };
-        DragSurface = new PromptShell { Cursor = Cursors.SizeAll, ToolTip = "拖动蓝色背景换窗口；单击打开鲸汐菜单" };
+        DragSurface = new PromptShell { Cursor = Cursors.SizeAll, ToolTip = "拖动蓝色背景换窗口；右键打开鲸汐菜单" };
         AutomationProperties.SetName(DragSurface, "拖动蓝色背景换窗口或打开鲸汐菜单");
         body.Children.Add(DragSurface);
         var row = new DockPanel();

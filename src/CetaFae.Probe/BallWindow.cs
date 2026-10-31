@@ -128,6 +128,7 @@ public sealed class BallWindow : Window
         _prompt.DragSurface.MouseLeftButtonDown += OnDown;
         MouseMove += OnMove;
         MouseLeftButtonUp += OnUp;
+        MouseRightButtonUp += (_, e) => { if (!_pressed) { MenuRequested?.Invoke(); e.Handled = true; } };
         LostMouseCapture += (_, _) =>
         {
             if (!_pressed) return;
@@ -328,7 +329,7 @@ public sealed class BallWindow : Window
         _pressed = false;
         _dragging = false;
         ReleaseMouseCapture();
-        if (!wasDragging) { MenuRequested?.Invoke(); return; }
+        if (!wasDragging) return;
         StopAnimation();
         var target = HitTestUnderCursor(p);
         ProbeLog.Log("guide_drop", ("found", target != IntPtr.Zero));

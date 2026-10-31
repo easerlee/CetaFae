@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CetaFae.Probe</AssemblyName>
-    <Version>0.2.0-preview.10</Version>
+    <Version>0.2.0-preview.11</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>CetaFae</Product>
     <Description>Whale interaction and selected-window guidance preview</Description>
@@ -17,9 +17,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
     <ProjectReference Include="../CetaFae.Plugins/CetaFae.Plugins.csproj" />
     <Resource Include="Art/Whale/*.png" />
     <Resource Include="Art/Whale/motion.json" />
+    <Resource Include="Art/Whale/drop-motion.json" />
     <Content Include="../../plugins/**/*.json" Link="plugins/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

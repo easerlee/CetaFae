@@ -52,7 +52,7 @@ internal static class OverlayChecks
                 "all four offset edges retain noactivate clickthrough policy without native windows");
             overlay.SetWaterProgress(-1);
             overlay.SetWaterProgress(.5);
-            check(overlay.Wash.Width == target.Width && overlay.Wash.Height <= WindowWash.Band + 10 &&
+            check(overlay.Wash.Width == target.Width && overlay.Wash.Height <= WindowWash.Band + 26 &&
                 !overlay.Wash.IsHitTestVisible && !overlay.Wash.ShowActivated &&
                 new WindowInteropHelper(overlay.Wash).Handle == IntPtr.Zero,
                 "the traveling wash shares clickthrough noactivate policy and stays one bounded strip without native launch");

@@ -12,17 +12,18 @@ internal static class WhaleWater
 
     static (Point[], Point[]) ReadSource()
     {
-        var art = new WhaleArt();
-        var bitmap = new FormatConvertedBitmap(art.Frame("water-rear", 319), PixelFormats.Bgra32, null, 0);
-        var pixels = new byte[WhaleArt.Cell * WhaleArt.Cell * 4]; bitmap.CopyPixels(pixels, WhaleArt.Cell * 4, 0);
+        using var source = WhaleArt.Resource("rest-water.png");
+        var bitmap = new FormatConvertedBitmap(BitmapFrame.Create(source, BitmapCreateOptions.None, BitmapCacheOption.OnLoad), PixelFormats.Bgra32, null, 0);
+        var size = bitmap.PixelWidth;
+        var pixels = new byte[size * size * 4]; bitmap.CopyPixels(pixels, size * 4, 0);
         var top = new List<Point>(); var bottom = new List<Point>();
-        for (var x = 0; x < WhaleArt.Cell; x++)
+        for (var x = 0; x < size; x++)
         {
-            var rows = Enumerable.Range(0, WhaleArt.Cell).Where(y => pixels[(y * WhaleArt.Cell + x) * 4 + 3] >= 128).ToArray();
+            var rows = Enumerable.Range(0, size).Where(y => pixels[(y * size + x) * 4 + 3] >= 128).ToArray();
             if (rows.Length == 0) continue;
-            top.Add(new Point(x + .5, rows[0])); bottom.Add(new Point(x + .5, rows[^1] + 1));
+            top.Add(new Point((x + .5) * 96 / size, rows[0] * 96d / size));
+            bottom.Add(new Point((x + .5) * 96 / size, (rows[^1] + 1) * 96d / size));
         }
-        art.Clear();
         if (top.Count < 2) throw new InvalidDataException("whale_water_outline_invalid");
         return (top.ToArray(), bottom.ToArray());
     }
@@ -37,7 +38,7 @@ internal static class WhaleWater
             point.Y * WhaleVisual.CanvasSize / WhaleArt.Cell);
     }
 
-    internal static StreamGeometry Shape(double progress, double width, int facing = -1, bool above = false, bool topAttached = false)
+    internal static StreamGeometry Shape(double progress, double width, int facing = -1, bool above = false, bool topAttached = false, double spread = -1)
     {
         progress = Math.Clamp(progress, 0, 1);
         var height = WhalePrompt.BodyHeight;
@@ -64,7 +65,7 @@ internal static class WhaleWater
         {
             var source = At(point.X / width, bottom, facing, width);
             // Gain depth before spanning the width: this is rising water, not a horizontal wipe.
-            return new Point(source.X + (point.X - source.X) * progress * progress,
+            return new Point(source.X + (point.X - source.X) * (spread >= 0 ? spread : progress * progress),
                 source.Y + (point.Y - source.Y) * progress);
         }
         var upper = (topAttached ? straight : rim.Select(p => new Point(p.X, p.Y + WhalePrompt.DockFoot - height)))

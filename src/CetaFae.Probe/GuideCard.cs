@@ -44,6 +44,7 @@ internal sealed class GuideCard : Border
     internal WrapPanel Actions { get; } = new() { Margin = new Thickness(0, 14, 0, 0) };
     internal TextBox Answer => _answer;
     internal event Action? CloudToggled;
+    internal event Action? MenuRequested;
     internal event Action? Cancelled;
     internal event Action? RegionRequested;
     internal event Action? ExitRequested;
@@ -88,7 +89,7 @@ internal sealed class GuideCard : Border
         body.Children.Add(_question);
         BodyScroll = new ScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        _menu = Button("菜单", ShowMenu);
+        _menu = Button("菜单", () => MenuRequested?.Invoke());
         _cloud = Button("查看云端授权", () => { if (_cloudEnabled) CloudToggled?.Invoke(); else ShowConsent(); });
         _consent = Button("同意并启用云端", () =>
         {

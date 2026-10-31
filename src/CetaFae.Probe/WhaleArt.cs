@@ -7,7 +7,8 @@ using System.Windows.Media.Imaging;
 namespace CetaFae.Probe;
 
 internal readonly record struct WhalePose(int Frame, double Y = 0, double ScaleX = 1, double ScaleY = 1,
-    double WaterScale = 1, double Angle = 0, double Alpha = 1, double Progress = 0, int Spout = -1, bool Submerge = false);
+    double WaterScale = 1, double Angle = 0, double Alpha = 1, double Progress = 0, int Spout = -1, bool Submerge = false,
+    double Seconds = -1, double Spread = -1);
 
 /// <summary>Project-owned atlas reader; decoded surfaces are bounded independently of session length.</summary>
 internal sealed class WhaleArt
@@ -27,7 +28,7 @@ internal sealed class WhaleArt
     });
     internal int CachedPages => _pages.Count;
 
-    static Stream Resource(string file) => Application.GetResourceStream(
+    internal static Stream Resource(string file) => Application.GetResourceStream(
         new Uri($"/CetaFae.Probe;component/Art/Whale/{file}", UriKind.Relative))?.Stream
         ?? throw new InvalidDataException("whale_art_missing");
 
@@ -52,23 +53,22 @@ internal sealed class WhaleArt
 
     internal static WhalePose DockPose(double seconds, bool reduced = false) =>
         Dock.Value[reduced ? 79 : Math.Clamp((int)(Math.Max(0, seconds) * 25), 0, 79)];
-    internal const double SprayLead = .4;
-    internal const double RiseDuration = .8;
-    internal const double DropDuration = SprayLead + RiseDuration;
+    internal const double SprayLead = 1.045;
+    internal const double RiseDuration = .755;
+    internal const double DropDuration = 1.8;
     internal static WhalePose DropPose(double seconds, bool reduced = false)
     {
-        var t = reduced ? 1 : Math.Clamp((seconds - SprayLead) / RiseDuration, 0, 1);
-        var progress = t * t * (3 - 2 * t);
-        // The water hides a descending whale; shrinking/fading would read as a replacement rather than immersion.
-        return new WhalePose(319, Y: .34 * progress, Alpha: t >= 1 ? 0 : 1, Progress: progress,
-            Spout: t >= 1 ? -1 : 44 + Math.Clamp((int)(Math.Max(0, seconds) / DropDuration * 10), 0, 9), Submerge: true);
+        seconds = reduced ? DropDuration : Math.Clamp(seconds, 0, DropDuration);
+        var progress = seconds >= DropDuration ? 1 : RefinedWater.Fill(seconds);
+        return new WhalePose(319, Y: .34 * progress, Alpha: seconds >= DropDuration ? 0 : 1, Progress: progress,
+            Submerge: true, Seconds: seconds, Spread: RefinedWater.Spread(seconds));
     }
     internal static bool IsImmersed(int frame) => frame is >= 0 and < 320 && Contact.Value[frame];
 
     internal BitmapSource Frame(string layer, int frame)
     {
-        if (layer is not ("water-rear" or "whale-visible" or "water-front" or "spout") ||
-            frame < 0 || frame >= (layer == "spout" ? 80 : 320)) throw new ArgumentOutOfRangeException(nameof(frame));
+        if (layer is not ("water-rear" or "whale-visible" or "water-front" or "spout" or "drop-whale") ||
+            frame < 0 || frame >= (layer == "spout" ? 80 : layer == "drop-whale" ? 35 : 320)) throw new ArgumentOutOfRangeException(nameof(frame));
         var key = $"{layer}-{frame / FramesPerPage:00}.png";
         if (!_pages.TryGetValue(key, out var page))
         {
@@ -140,7 +140,7 @@ internal sealed class WhaleVisual : FrameworkElement
 
     void DrawSubmerging(DrawingContext draw, Point center)
     {
-        var water = WhaleWater.Shape(Pose.Progress, ActualWidth, Facing, topAttached: TopAttached);
+        var water = WhaleWater.Shape(Pose.Progress, ActualWidth, -Facing, topAttached: TopAttached, spread: Pose.Spread);
         draw.DrawGeometry(GuideTheme.WhaleBlue, null, water);
         var body = water.Bounds;
         if (Pose.Progress > .92)
@@ -152,20 +152,13 @@ internal sealed class WhaleVisual : FrameworkElement
             draw.Pop(); draw.Pop();
         }
         if (Pose.Alpha <= 0) return;
-        draw.PushClip(WhaleWater.Shape(Pose.Progress, ActualWidth, Facing, above: true, topAttached: TopAttached));
-        draw.PushTransform(new TranslateTransform(center.X, center.Y + Pose.Y * CanvasSize));
-        draw.PushTransform(new ScaleTransform(Facing, 1));
-        var cell = new Rect(-CanvasSize / 2, -CanvasSize / 2, CanvasSize, CanvasSize);
-        draw.DrawImage(_art.Frame("whale-visible", Pose.Frame), cell);
-        if (Pose.Spout >= 0) DrawSpout(draw, _art.Frame("spout", Pose.Spout));
+        draw.PushClip(WhaleWater.Shape(Pose.Progress, ActualWidth, -Facing, above: true, topAttached: TopAttached, spread: Pose.Spread));
+        draw.PushTransform(new TranslateTransform(center.X, 0));
+        draw.PushTransform(new ScaleTransform(-Facing, 1));
+        RefinedWater.DrawJets(draw, Pose.Seconds, Pose.Y * CanvasSize);
+        var frame = Math.Clamp((int)(Pose.Seconds * 25), 0, 34);
+        draw.DrawImage(_art.Frame("drop-whale", frame), new Rect(-44, Pose.Y * CanvasSize, 88, 88));
         draw.Pop(); draw.Pop(); draw.Pop();
     }
 
-    internal static void DrawSpout(DrawingContext draw, BitmapSource image)
-    {
-        // Keep the jet rooted at the atlas blowhole while opening wider than the body.
-        draw.PushTransform(new ScaleTransform(4.8, 1.65, 5 * CanvasSize / WhaleArt.Cell, -19 * CanvasSize / WhaleArt.Cell));
-        draw.DrawImage(image, new Rect(-CanvasSize / 2, -CanvasSize / 2, CanvasSize, CanvasSize));
-        draw.Pop();
-    }
 }
