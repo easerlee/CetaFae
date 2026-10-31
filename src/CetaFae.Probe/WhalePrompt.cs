@@ -22,7 +22,7 @@ internal sealed class WhalePrompt : Border
         FontSize = 12, Foreground = GuideTheme.Muted, IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
     internal readonly Button Send;
     internal readonly Button Dismiss;
-    internal readonly Border Grip;
+    internal readonly PromptShell DragSurface;
     internal bool CanAnswer { get; private set; }
     internal event Action? FocusRequested;
     internal event Action? DismissRequested;
@@ -33,25 +33,23 @@ internal sealed class WhalePrompt : Border
         Background = Brushes.Transparent;
         TextElement.SetForeground(this, GuideTheme.Ink);
         var root = new Grid();
-        var body = new Grid { Margin = new Thickness(0, 14, 24, 0) };
-        body.Children.Add(new PromptShell());
-        var row = new DockPanel { Margin = new Thickness(18, 6, 18, 8) };
-        Grip = new Border { Width = 20, Background = Brushes.Transparent, Cursor = Cursors.SizeAll,
-            ToolTip = "拖动换窗口；单击打开鲸汐菜单", Child = new TextBlock { Text = "≈", Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 19 } };
-        DockPanel.SetDock(Grip, Dock.Left); row.Children.Add(Grip);
-        AutomationProperties.SetName(Grip, "拖动换窗口或打开鲸汐菜单");
+        var body = new Grid { Margin = new Thickness(0, 14, 0, 0) };
+        DragSurface = new PromptShell { Cursor = Cursors.SizeAll, ToolTip = "拖动蓝色背景换窗口；单击打开鲸汐菜单" };
+        AutomationProperties.SetName(DragSurface, "拖动蓝色背景换窗口或打开鲸汐菜单");
+        body.Children.Add(DragSurface);
+        var row = new DockPanel { Margin = new Thickness(18, 6, 48, 8) };
         Send = Action("→", "发送回答 · Enter", 32, GuideTheme.WhaleBlue, Brushes.White, 21);
         Send.VerticalAlignment = VerticalAlignment.Bottom;
         Send.Margin = new Thickness(6, 0, 0, 0);
         Send.Click += (_, _) => Submit(); DockPanel.SetDock(Send, Dock.Right); row.Children.Add(Send);
         var input = new Grid(); input.Children.Add(Answer); input.Children.Add(_hint);
         row.Children.Add(new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12),
-            Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(10, 0, 10, 0), Child = input });
+            Padding = new Thickness(10, 0, 10, 0), Child = input });
         body.Children.Add(row); root.Children.Add(body);
-        Dismiss = Action("×", "结束本次指路，恢复鲸鱼", 24, GuideTheme.Muted, GuideTheme.Surface, 14);
+        Dismiss = Action("×", "结束本次指路，恢复鲸鱼", 20, Brushes.White, Brushes.Transparent, 14);
+        Dismiss.Opacity = .7; Dismiss.Margin = new Thickness(0, 10, 16, 0);
         Dismiss.HorizontalAlignment = HorizontalAlignment.Right; Dismiss.VerticalAlignment = VerticalAlignment.Top;
-        Dismiss.Click += (_, _) => DismissRequested?.Invoke(); root.Children.Add(Dismiss); Child = root;
+        Dismiss.Click += (_, _) => DismissRequested?.Invoke(); body.Children.Add(Dismiss); Child = root;
         AutomationProperties.SetName(Answer, "本次指路的回答");
         Answer.PreviewMouseLeftButtonDown += (_, _) => { if (CanAnswer) FocusRequested?.Invoke(); };
         Answer.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && CanAnswer) { Submit(); e.Handled = true; } };

@@ -105,11 +105,6 @@ internal static class WhaleChecks
             check(!glow.HasAnimatedProperties, "reduced-motion target glow stays static");
         }
         finally { targetGlow.Close(); }
-        foreach (var size in new[] { new Size(600, 320), new Size(1920, 1040), new Size(2, 2) })
-        {
-            var contour = GuideFrameVisual.WaveContour(size, 56, 1.7);
-            check(contour.IsFrozen && new Rect(size).Contains(contour.Bounds), "wavy inner contour stays within normal fullscreen and tiny surfaces");
-        }
         var steady = RenderFrame(false, 0);
         var wash = RenderFrame(false, .5);
         var cleared = RenderFrame(false, 0);
@@ -120,6 +115,9 @@ internal static class WhaleChecks
             !rgba.SequenceEqual(washPixels) && rgba.SequenceEqual(clearPixels),
             "wide steady target band leaves content clear and wash reset restores the same surface without a window");
         byte Alpha(int y) => rgba[(y * 320 + 160) * 4 + 3];
+        var blue = ((SolidColorBrush)GuideTheme.WhaleBlue).Color;
+        check(Alpha(0) == 255 && rgba[160 * 4] == blue.B && rgba[160 * 4 + 1] == blue.G && rgba[160 * 4 + 2] == blue.R,
+            "outer water edge uses the exact opaque prompt blue before fading inward");
         var movedPixels = new byte[rgba.Length]; RenderFrame(false, 0, phase: 1.7).CopyPixels(movedPixels, 320 * 4, 0);
         check(Alpha(1) > Alpha(12) && Alpha(12) > Alpha(24) && Alpha(24) > 0 && Alpha(60) == 0 &&
             !rgba.SequenceEqual(movedPixels), "soft wide glow fades inward without an inner stroke and ripple phase changes the water shape");

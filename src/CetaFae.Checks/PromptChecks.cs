@@ -21,14 +21,20 @@ internal static class PromptChecks
             if (state == "answer") prompt.Answer.Text = "请指出位置，不修改。";
             if (state == "result") prompt.SetResult();
             prompt.Measure(new Size(width, 88)); prompt.Arrange(new Rect(0, 0, width, 88)); prompt.UpdateLayout();
+            new RenderTargetBitmap((int)width, 88, 96, 96, PixelFormats.Pbgra32).Render(prompt);
             Rect Bounds(FrameworkElement element) => element.TransformToAncestor(prompt).TransformBounds(new Rect(element.RenderSize));
             var area = new Rect(prompt.RenderSize);
-            check(area.Contains(Bounds(prompt.Dismiss)) && area.Contains(Bounds(prompt.Answer)) && area.Contains(Bounds(prompt.Grip)) &&
+            check(area.Contains(Bounds(prompt.Dismiss)) && area.Contains(Bounds(prompt.Answer)) && area.Contains(Bounds(prompt.DragSurface)) &&
                 (!prompt.CanAnswer || area.Contains(Bounds(prompt.Send))) && prompt.Answer.ActualWidth >= 120,
-                $"attached prompt {state}/{width}: input, grip and actions fit without clipping");
+                $"attached prompt {state}/{width}: input, blue drag surface and actions fit without clipping");
             if (prompt.CanAnswer)
-                check(Bounds(prompt.Dismiss).Bottom <= Bounds(prompt.Send).Top && prompt.Dismiss.Width < prompt.Send.Width,
-                    $"attached prompt {state}/{width}: close stays secondary and above send, not an equal adjacent action");
+                check(Bounds(prompt.DragSurface).Contains(Bounds(prompt.Dismiss)) &&
+                    Bounds(prompt.Dismiss).Left > Bounds(prompt.Send).Right && prompt.Dismiss.Width < prompt.Send.Width &&
+                    prompt.Dismiss.Background == Brushes.Transparent && prompt.Dismiss.Opacity < 1,
+                    $"attached prompt {state}/{width}: close stays inside the blue shell, separate and visually secondary to send");
+            check(ReferenceEquals(VisualTreeHelper.HitTest(prompt, new Point(width / 2, prompt.Height - 2))?.VisualHit, prompt.DragSurface) &&
+                    !ReferenceEquals(VisualTreeHelper.HitTest(prompt, Bounds(prompt.Answer).TopLeft + new Vector(12, 12))?.VisualHit, prompt.DragSurface),
+                $"attached prompt {state}/{width}: blue background accepts dragging while input remains a separate hit target");
             check(prompt.Send.Visibility == (prompt.CanAnswer ? Visibility.Visible : Visibility.Collapsed) &&
                 prompt.Answer.IsReadOnly == !prompt.CanAnswer && AutomationProperties.GetName(prompt.Dismiss).Contains("本次指路"),
                 $"attached prompt {state}/{width}: state and accessible close meaning remain explicit");
@@ -45,8 +51,8 @@ internal static class PromptChecks
                 "inline close uses existing cancellation, restores whale and prevents stale submission without launching a window");
         }
         finally { ball.Close(); }
-        var shell = PromptShell.Shape(WhalePrompt.WidthDip - 24, 50);
-        check(shell.IsFrozen && shell.Bounds == new Rect(0, 0, 336, 50), "native prompt and morph share one bounded shoulder/foot geometry");
+        var shell = PromptShell.Shape(WhalePrompt.WidthDip, 50);
+        check(shell.IsFrozen && shell.Bounds == new Rect(0, 0, 360, 50), "native prompt and morph share one bounded shoulder/foot geometry");
     }
 
     internal static void Render()

@@ -120,10 +120,10 @@ internal sealed class WhaleVisual : FrameworkElement
         }
         if (Pose.Progress > 0)
         {
-            var width = 24 + (ActualWidth - 48) * Pose.Progress;
+            var width = 24 + (ActualWidth - 24) * Pose.Progress;
             var height = 24 + 26 * Pose.Progress;
             draw.PushOpacity(Pose.Progress);
-            draw.PushTransform(new TranslateTransform(center.X - 12 * Pose.Progress - width / 2,
+            draw.PushTransform(new TranslateTransform(center.X - width / 2,
                 center.Y + 7 * Pose.Progress - height / 2));
             if (width >= 60 && height >= 32) draw.DrawGeometry(GuideTheme.WhaleBlue, null, PromptShell.Shape(width, height));
             else draw.DrawRoundedRectangle(GuideTheme.WhaleBlue, null, new Rect(0, 0, width, height), 12, 12);

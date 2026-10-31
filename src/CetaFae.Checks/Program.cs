@@ -110,6 +110,7 @@ public static class Program
         TaskChecks.Run(Check);
         CardChecks.Run(Check);
         WhaleChecks.Run(Check);
+        OverlayChecks.Run(Check);
         PromptChecks.Run(Check);
         Check(GuideSession.FailureMessage(new InvalidDataException("target_not_foreground"))
                   .Contains("请先点击目标窗口", StringComparison.Ordinal),

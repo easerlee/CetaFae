@@ -66,6 +66,7 @@ public sealed class OverlayWindow : Window
     }
 
     internal void SetWaterProgress(double progress) => _frame.SetProgress(progress);
+    internal void SetViewport(Size target, Rect region) => _frame.SetViewport(target, region);
 
     internal static DoubleAnimationUsingKeyFrames CreateBlink() => new()
     {
@@ -97,6 +98,13 @@ public sealed class OverlayWindow : Window
 /// <summary>Target-local vector feedback; the center remains transparent and no pixels are collected.</summary>
 internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
 {
+    Size? _targetSize;
+    Rect _region;
+    internal void SetViewport(Size target, Rect region)
+    {
+        if (_targetSize == target && _region == region) return;
+        _targetSize = target; _region = region; InvalidateVisual();
+    }
     internal static readonly DependencyProperty PhaseProperty = DependencyProperty.Register(nameof(Phase), typeof(double),
         typeof(GuideFrameVisual), new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
     internal double Phase { get => (double)GetValue(PhaseProperty); set => SetValue(PhaseProperty, value); }
@@ -109,32 +117,11 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
         BeginAnimation(PhaseProperty, wave);
     }
     double _progress;
-    internal void SetProgress(double progress) { _progress = Math.Clamp(progress, 0, 1); InvalidateVisual(); }
-    internal static StreamGeometry WaveContour(Size size, double depth, double phase = 0)
+    internal void SetProgress(double progress)
     {
-        var inset = Math.Min(depth, Math.Min(size.Width, size.Height) / 4);
-        var left = inset; var top = inset; var right = size.Width - inset; var bottom = size.Height - inset;
-        var wave = new StreamGeometry();
-        using (var path = wave.Open())
-        {
-            path.BeginFigure(new Point(left, top), true, true);
-            void Side(Point start, Point end, Vector normal)
-            {
-                var length = (end - start).Length;
-                var steps = Math.Max(1, (int)Math.Ceiling(length / 12));
-                for (var i = 1; i <= steps; i++)
-                {
-                    var t = (double)i / steps;
-                    var offset = Math.Min(7, inset / 3) * Math.Sin(t * Math.PI) * Math.Sin(t * length / 160 * Math.PI * 2 + phase);
-                    path.LineTo(start + (end - start) * t + normal * offset, true, false);
-                }
-            }
-            Side(new(left, top), new(right, top), new(0, 1));
-            Side(new(right, top), new(right, bottom), new(-1, 0));
-            Side(new(right, bottom), new(left, bottom), new(0, -1));
-            Side(new(left, bottom), new(left, top), new(1, 0));
-        }
-        wave.Freeze(); return wave;
+        var value = Math.Clamp(progress, 0, 1);
+        if (_progress == value) return;
+        _progress = value; InvalidateVisual();
     }
 
     protected override void OnRender(DrawingContext draw)
@@ -150,32 +137,55 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
         }
         else
         {
-            // Soft nested fills fade to zero; no pen can turn the inner ripple into a contour line.
-            var depth = Math.Min(56, Math.Min(ActualWidth, ActualHeight) / 4);
-            for (var i = 1; i <= 24; i++)
-            {
-                var t = i / 24d;
-                var inner = WaveContour(RenderSize, depth * t, Phase);
-                var ring = new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(area), inner);
-                draw.PushOpacity(.045 * (1 - t)); draw.DrawGeometry(GuideTheme.Outline, null, ring); draw.Pop();
-            }
+            if (_targetSize is not null) draw.PushTransform(new TranslateTransform(-_region.X, -_region.Y));
+            DrawWater(draw, _targetSize ?? RenderSize, Phase, _progress);
+            if (_targetSize is not null) draw.Pop();
         }
-        if (!control && _progress > 0 && _progress < 1)
+        draw.Pop();
+    }
+
+    static readonly Brush[] WaterBrushes = Enumerable.Range(0, 4).Select(side =>
+    {
+        var blue = ((SolidColorBrush)GuideTheme.WhaleBlue).Color;
+        var brush = new LinearGradientBrush
         {
-            draw.PushOpacity(.13 * Math.Sin(_progress * Math.PI));
-            draw.DrawRectangle(GuideTheme.Outline, null, new Rect(0, 0, ActualWidth, ActualHeight * _progress));
-            draw.Pop();
-            draw.PushOpacity(.35 * Math.Sin(_progress * Math.PI));
-            var wave = new StreamGeometry();
-            using (var path = wave.Open())
+            StartPoint = side switch { 1 => new(1, 0), 2 => new(0, 1), _ => new(0, 0) },
+            EndPoint = side switch { 0 => new(0, 1), 1 => new(0, 0), 2 => new(0, 0), _ => new(1, 0) },
+            GradientStops = { new(blue, 0), new(blue, .035),
+                new(Color.FromArgb(90, blue.R, blue.G, blue.B), .25), new(Color.FromArgb(15, blue.R, blue.G, blue.B), .65),
+                new(Color.FromArgb(0, blue.R, blue.G, blue.B), 1) }
+        };
+        brush.Freeze(); return (Brush)brush;
+    }).ToArray();
+
+    internal static void DrawWater(DrawingContext draw, Size size, double phase, double progress)
+    {
+        var depth = Math.Min(56, Math.Min(size.Width, size.Height) / 4);
+        if (depth <= 0) return;
+        draw.PushOpacity(progress > 0 && progress < 1 ? .8 + .15 * Math.Sin(progress * Math.PI) : 1);
+        for (var side = 0; side < 4; side++)
+        {
+            var origin = side switch { 1 => new Point(size.Width, 0), 2 => new Point(size.Width, size.Height),
+                3 => new Point(0, size.Height), _ => new Point() };
+            var tangent = side switch { 0 => new Vector(1, 0), 1 => new Vector(0, 1),
+                2 => new Vector(-1, 0), _ => new Vector(0, -1) };
+            var normal = new Vector(-tangent.Y, tangent.X);
+            var length = side % 2 == 0 ? size.Width : size.Height;
+            var mesh = new StreamGeometry();
+            using (var path = mesh.Open())
             {
-                var y = ActualHeight * _progress;
-                path.BeginFigure(new Point(0, y), false, false);
-                path.BezierTo(new Point(ActualWidth * .33, y - 7), new Point(ActualWidth * .67, y + 7),
-                    new Point(ActualWidth, y), true, false);
+                path.BeginFigure(origin, true, true);
+                path.LineTo(origin + tangent * length, true, false);
+                var steps = Math.Max(1, (int)Math.Ceiling((length - 2 * depth) / 32));
+                for (var i = steps; i >= 0; i--)
+                {
+                    var t = (double)i / steps; var x = depth + (length - depth * 2) * t;
+                    var ripple = Math.Min(7, depth / 3) * Math.Pow(Math.Sin(t * Math.PI), 2) *
+                        (.5 + .5 * Math.Sin(x / 160 * Math.PI * 2 + phase));
+                    path.LineTo(origin + tangent * x + normal * (depth - ripple), true, false);
+                }
             }
-            draw.DrawGeometry(null, new Pen(GuideTheme.Outline, 2), wave);
-            draw.Pop();
+            mesh.Freeze(); draw.DrawGeometry(WaterBrushes[side], null, mesh);
         }
         draw.Pop();
     }

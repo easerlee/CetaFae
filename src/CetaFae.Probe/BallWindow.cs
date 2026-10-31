@@ -12,7 +12,7 @@ public sealed class BallWindow : Window
 {
     public const int BallSize = 44;
 
-    readonly OverlayWindow _overlay = new();
+    readonly TargetOverlay _overlay = new();
     readonly Stopwatch _settle = new();
     Native.WinEventDelegate? _hookCallback;
     IntPtr _hook;
@@ -112,7 +112,7 @@ public sealed class BallWindow : Window
             ("nativePx", RectPx(Native.Frame(_hwnd))));
         _handle.MouseLeftButtonDown += OnDown;
         _whale.MouseLeftButtonDown += OnDown;
-        _prompt.Grip.MouseLeftButtonDown += OnDown;
+        _prompt.DragSurface.MouseLeftButtonDown += OnDown;
         MouseMove += OnMove;
         MouseLeftButtonUp += OnUp;
         LostMouseCapture += (_, _) =>
@@ -121,7 +121,7 @@ public sealed class BallWindow : Window
             _pressed = false; _dragging = false;
             StopAnimation();
         };
-        Closed += (_, _) => { _animation.Stop(); _whale.Release(); _wake.Close(); };
+        Closed += (_, _) => { _animation.Stop(); _whale.Release(); _wake.Close(); _overlay.Close(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { StopTracking("esc"); e.Handled = true; }
@@ -418,10 +418,8 @@ public sealed class BallWindow : Window
         }
 
         var r = Native.Frame(_target);
-        _overlay.Left = r.Left / _scale;
-        _overlay.Top = r.Top / _scale;
-        _overlay.Width = Math.Max(1, (r.Right - r.Left) / _scale);
-        _overlay.Height = Math.Max(1, (r.Bottom - r.Top) / _scale);
+        _overlay.Place(new Rect(r.Left / _scale, r.Top / _scale,
+            Math.Max(1, (r.Right - r.Left) / _scale), Math.Max(1, (r.Bottom - r.Top) / _scale)));
         _overlayUpdates++;
 
         long sinceEventMs = -1;
@@ -433,7 +431,7 @@ public sealed class BallWindow : Window
         ProbeLog.Log("overlay",
             ("target", Native.Hex(_target)),
             ("targetRectPx", RectPx(r)),
-            ("overlayDip", FrameDipOf(_overlay)),
+            ("overlayDip", $"{_overlay.Bounds.Left:F0},{_overlay.Bounds.Top:F0},{_overlay.Bounds.Width:F0},{_overlay.Bounds.Height:F0}"),
             ("overlayPx", OverlayPx()),
             ("sinceEventMs", sinceEventMs),
             ("n", _overlayUpdates));
@@ -484,12 +482,11 @@ public sealed class BallWindow : Window
 
     string OverlayPx()
     {
-        return $"{Math.Round(_overlay.Left * _scale)},{Math.Round(_overlay.Top * _scale)},{Math.Round(_overlay.Width * _scale)},{Math.Round(_overlay.Height * _scale)}";
+        var bounds = _overlay.Bounds;
+        return $"{Math.Round(bounds.Left * _scale)},{Math.Round(bounds.Top * _scale)},{Math.Round(bounds.Width * _scale)},{Math.Round(bounds.Height * _scale)}";
     }
 
     string FrameDip() => $"{Left:F0},{Top:F0},{Width:F0},{Height:F0}";
-
-    static string FrameDipOf(Window w) => $"{w.Left:F0},{w.Top:F0},{w.Width:F0},{w.Height:F0}";
 
     static string RectPx(Native.RECT r) => $"{r.Left},{r.Top},{r.Right - r.Left},{r.Bottom - r.Top}";
 }
