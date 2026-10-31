@@ -107,7 +107,7 @@ internal static class WhaleChecks
         }
         finally { targetGlow.Close(); }
         var steady = RenderFrame(false, 0);
-        var wash = RenderFrame(false, .5);
+        var wash = RenderFrame(false, .25);
         var cleared = RenderFrame(false, 0);
         var rgba = new byte[320 * 180 * 4]; steady.CopyPixels(rgba, 320 * 4, 0);
         var washPixels = new byte[rgba.Length]; wash.CopyPixels(washPixels, 320 * 4, 0);

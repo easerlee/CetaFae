@@ -4,6 +4,10 @@ Updated: 2026-10-30
 
 ## Whale art integration candidate (2026-10-31)
 
+Preview.9 supersedes the prior side-expansion timing: spray, rise the existing water outline to occlude the constant-alpha whale, then sweep downward and retain the perimeter. Keep the800ms water/dialog morph; follow with a finite800ms traveling wash. Reuse the old downward wavefront but bound its transparent native surface to one192DIP moving strip; never allocate a full-target surface. Reveal the four existing edge strips behind its leading front. Show ready native input immediately even if a fast model result finishes the whale early; the independent finite wash cannot delay input. Reset cancels and shrinks all five surfaces. Generated playback and software timings are preliminary, not native acceptance.
+
+Ending a bound session clears overlays first, then moves only the product whale along a600ms eased path to the current work-area bottom-right with an8DIP margin, faces left and plays the existing one-shot click/jump sequence. Drag-start and process exit skip this return. Reduced motion snaps home without the travel/jump; a new press interrupts travel. No focus/input/capture authority changes.
+
 The user subsequently reduced the overall prompt width to80 percent:360→288DIP. Keep36DIP body height, text size and26DIP controls unchanged. Recheck256/288/320DIP layouts and render the actual288DIP host; do not uniformly scale text/actions.
 
 Preview.8 compact dock geometry:36DIP visible blue body,26DIP left inset (previously18),26DIP persistent inline triangle and26DIP centered secondary close. Keep the existing88DIP transition host and76DIP exterior dock foot; ordinary body is y40..76. When exterior room is unavailable, the native body starts at y0 and only its shell is vertically mirrored; text/actions remain upright. A work-area-covering target uses horizontal work-area center, not the former40-percent target anchor. Refresh layout on target geometry events and preserve reset/cancel behavior. No app-name adaptation or desktop reads are added.

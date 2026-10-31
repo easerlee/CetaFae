@@ -35,8 +35,9 @@ public sealed class BallWindow : Window
     readonly Border _handle = new() { Width = BallSize, Height = BallSize, Background = Brushes.Transparent };
     readonly DispatcherTimer _animation = new(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(40) };
     readonly Stopwatch _motion = new();
-    enum Motion { Idle, Jump, Drag, Dock }
+    enum Motion { Idle, Jump, Drag, Dock, Return }
     Motion _state;
+    Point _returnFrom;
     int _facing = -1;
     double _lastPointerX;
     bool _inline;
@@ -68,6 +69,15 @@ public sealed class BallWindow : Window
     public static Point ConstrainPosition(Point position, Rect work, Size? surface = null) => new(
         Math.Clamp(position.X, work.Left, Math.Max(work.Left, work.Right - (surface?.Width ?? BallSize))),
         Math.Clamp(position.Y, work.Top, Math.Max(work.Top, work.Bottom - (surface?.Height ?? BallSize))));
+
+    internal static Point HomePosition(Rect work) => ConstrainPosition(
+        new Point(work.Right - WhaleVisual.CanvasSize - 8, work.Bottom - WhaleVisual.CanvasSize - 8),
+        work, new Size(WhaleVisual.CanvasSize, WhaleVisual.CanvasSize));
+    internal static Point ReturnPosition(Point from, Rect work, double seconds)
+    {
+        var t = Math.Clamp(seconds / .6, 0, 1); var eased = t * t * (3 - 2 * t);
+        return from + (HomePosition(work) - from) * eased;
+    }
 
     void PlaceBall(Point position)
     {
@@ -140,8 +150,7 @@ public sealed class BallWindow : Window
 
         _scale = Math.Max(1.0, Native.GetDpiForSystem() / 96.0);
         var work = SystemParameters.WorkArea;
-        Left = work.Right - Width - 8;
-        Top = work.Top + (work.Height - Height) / 2;
+        var home = HomePosition(work); Left = home.X; Top = home.Y;
 
         ProbeLog.Log("start",
             ("hwnd", Native.Hex(_hwnd)),
@@ -163,9 +172,10 @@ public sealed class BallWindow : Window
         AdvanceMotion();
     }
 
-    void AdvanceMotion()
+    void AdvanceMotion() => AdvanceMotion(_motion.Elapsed.TotalSeconds);
+
+    internal void AdvanceMotion(double seconds)
     {
-        var seconds = _motion.Elapsed.TotalSeconds;
         if (_state == Motion.Drag)
         {
             _whale.SetPose(new WhalePose(ReducedMotion ? 109 : 140 + (int)(seconds * 25) % 100), _facing);
@@ -180,9 +190,25 @@ public sealed class BallWindow : Window
         else if (_state == Motion.Dock)
         {
             var pose = WhaleArt.DropPose(seconds, ReducedMotion);
-            _whale.SetPose(pose);
-            _overlay.SetWaterProgress(pose.Progress);
-            if (ReducedMotion || seconds >= WhaleArt.DropDuration) FinishMorph();
+            if (!_inline) _whale.SetPose(pose);
+            _overlay.SetWaterProgress(ReducedMotion ? 0 : WindowWash.Progress(seconds), _hwnd);
+            if (ReducedMotion || seconds >= WhaleArt.DropDuration)
+                FinishMorph(ReducedMotion || seconds >= WindowWash.TotalDuration);
+        }
+        else if (_state == Motion.Return)
+        {
+            var work = SystemParameters.WorkArea;
+            PlaceBall(ReturnPosition(_returnFrom, work, ReducedMotion ? .6 : seconds));
+            if (ReducedMotion || seconds >= .6)
+            {
+                _facing = -1;
+                if (ReducedMotion) StopAnimation(); else Animate(Motion.Jump);
+            }
+            else
+            {
+                _facing = HomePosition(work).X >= Left ? 1 : -1;
+                _whale.SetPose(new WhalePose(140 + (int)(seconds * 25)), _facing);
+            }
         }
     }
 
@@ -203,8 +229,10 @@ public sealed class BallWindow : Window
             (frame.Right - frame.Left) / _scale, (frame.Bottom - frame.Top) / _scale), SystemParameters.WorkArea, Width);
         PlaceBall(position);
         SetDockLayout(position.Y >= frame.Top / _scale);
-        Animate(Motion.Dock);
+        BeginDockMotion();
     }
+
+    internal void BeginDockMotion() => Animate(Motion.Dock);
 
     void SetDockLayout(bool topAttached)
     {
@@ -212,10 +240,14 @@ public sealed class BallWindow : Window
         _whale.RenderTransform = _prompt.RenderTransform = Transform.Identity;
     }
 
-    void FinishMorph()
+    void FinishMorph(bool complete = false)
     {
-        _animation.Stop(); _state = Motion.Idle;
-        _overlay.SetWaterProgress(0);
+        if (complete || _state != Motion.Dock || ReducedMotion)
+        {
+            _animation.Stop(); _state = Motion.Idle;
+            _overlay.SetWaterProgress(0);
+        }
+        if (_inline) return;
         _inline = true; _whale.Visibility = _handle.Visibility = Visibility.Collapsed;
         _prompt.Visibility = Visibility.Visible;
         _prompt.SetQuestion(_question);
@@ -225,7 +257,7 @@ public sealed class BallWindow : Window
     {
         _question = true;
         // A fast model result must not wait for the decorative transition.
-        FinishMorph();
+        if (_inline) _prompt.SetQuestion(true); else FinishMorph();
     }
 
     public void ClearQuestion() { _question = false; _prompt.SetQuestion(false); }
@@ -252,6 +284,7 @@ public sealed class BallWindow : Window
         var pointer = Native.Cursor();
         _pressPoint = new Point(pointer.X, pointer.Y);
         _pressed = true;
+        if (_state == Motion.Return) StopAnimation();
         CaptureMouse();
         e.Handled = true;
     }
@@ -463,9 +496,11 @@ public sealed class BallWindow : Window
         if (_destroyHook != IntPtr.Zero) { Native.UnhookWinEvent(_destroyHook); _destroyHook = IntPtr.Zero; }
         if (_contentHook != IntPtr.Zero) { Native.UnhookWinEvent(_contentHook); _contentHook = IntPtr.Zero; }
         _target = IntPtr.Zero;
-        ResetArt();
+        if (had != IntPtr.Zero || _state != Motion.Return || reason is "drag_start" or "exit") ResetArt();
         if (_overlay.IsVisible) _overlay.HideAndReset();
         TrackingStopped?.Invoke(reason);
+        if (ShouldReturn(had, reason))
+            ReturnHome();
 
         ProbeLog.Log("cleanup",
             ("reason", reason),
@@ -473,6 +508,15 @@ public sealed class BallWindow : Window
             ("overlayVisible", _overlay.IsVisible),
             ("overlayUpdates", _overlayUpdates),
             ("fg", Native.Hex(Native.GetForegroundWindow())));
+    }
+
+    internal static bool ShouldReturn(IntPtr target, string reason) =>
+        target != IntPtr.Zero && reason is not ("drag_start" or "exit");
+
+    internal void ReturnHome()
+    {
+        _returnFrom = new Point(Left, Top);
+        Animate(Motion.Return);
     }
 
     public void Cleanup()

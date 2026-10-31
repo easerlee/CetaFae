@@ -61,6 +61,10 @@ internal static class Native
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
+    // Reorder only our existing prompt; never steal foreground while a new wash surface is shown.
+    internal static void RaiseWithoutActivation(IntPtr hwnd)
+    { if (hwnd != IntPtr.Zero) SetWindowPos(hwnd, new IntPtr(-1), 0, 0, 0, 0, 0x0013); }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct BITMAPINFOHEADER

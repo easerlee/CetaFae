@@ -63,7 +63,9 @@ internal static class WhaleWater
         Point Morph(Point point, bool bottom)
         {
             var source = At(point.X / width, bottom, facing, width);
-            return source + (point - source) * progress;
+            // Gain depth before spanning the width: this is rising water, not a horizontal wipe.
+            return new Point(source.X + (point.X - source.X) * progress * progress,
+                source.Y + (point.Y - source.Y) * progress);
         }
         var upper = (topAttached ? straight : rim.Select(p => new Point(p.X, p.Y + WhalePrompt.DockFoot - height)))
             .Select(p => Morph(p, false)).ToArray();

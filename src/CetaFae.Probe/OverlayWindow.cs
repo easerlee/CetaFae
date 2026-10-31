@@ -10,9 +10,9 @@ public sealed class OverlayWindow : Window
 {
     readonly GuideFrameVisual _frame;
     readonly Border _border;
-    public OverlayWindow(bool control = false)
+    public OverlayWindow(bool control = false, bool wash = false)
     {
-        _frame = new GuideFrameVisual(control);
+        _frame = new GuideFrameVisual(control, wash);
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -38,7 +38,7 @@ public sealed class OverlayWindow : Window
         IsVisibleChanged += (_, _) =>
         {
             _border.BeginAnimation(OpacityProperty, null);
-            _frame.SetMotion(!control && IsVisible && SystemParameters.ClientAreaAnimation);
+            _frame.SetMotion(!control && !wash && IsVisible && SystemParameters.ClientAreaAnimation);
             if (control && IsVisible && SystemParameters.ClientAreaAnimation)
                 _border.BeginAnimation(OpacityProperty, CreateBlink());
         };
@@ -96,7 +96,7 @@ public sealed class OverlayWindow : Window
 }
 
 /// <summary>Target-local vector feedback; the center remains transparent and no pixels are collected.</summary>
-internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
+internal sealed class GuideFrameVisual(bool control = false, bool wash = false) : FrameworkElement
 {
     internal const double WaterDepth = 96;
     internal const double SolidDepth = 16;
@@ -122,7 +122,7 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
     double _progress;
     internal void SetProgress(double progress)
     {
-        var value = Math.Clamp(progress, 0, 1);
+        var value = Math.Clamp(progress, -1, 1);
         if (_progress == value) return;
         _progress = value; InvalidateVisual();
     }
@@ -141,7 +141,8 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
         else
         {
             if (_targetSize is not null) draw.PushTransform(new TranslateTransform(-_region.X, -_region.Y));
-            DrawWater(draw, _targetSize ?? RenderSize, Phase, _progress);
+            if (wash) WindowWash.Draw(draw, _targetSize ?? RenderSize, _progress);
+            else DrawWater(draw, _targetSize ?? RenderSize, Phase, _progress);
             if (_targetSize is not null) draw.Pop();
         }
         draw.Pop();
@@ -164,8 +165,11 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
     internal static void DrawWater(DrawingContext draw, Size size, double phase, double progress)
     {
         var depth = Depth(size);
-        if (depth <= 0) return;
-        draw.PushOpacity(progress > 0 && progress < 1 ? .8 + .15 * Math.Sin(progress * Math.PI) : 1);
+        if (depth <= 0 || progress < 0) return;
+        // The selected perimeter is deposited behind the descending front, not popped on at drop.
+        var revealing = progress > 0 && progress < 1;
+        if (revealing) draw.PushClip(new RectangleGeometry(new Rect(0, 0, size.Width,
+            Math.Clamp(WindowWash.Front(size, progress) - 6, 0, size.Height))));
         for (var side = 0; side < 4; side++)
         {
             var origin = side switch { 1 => new Point(size.Width, 0), 2 => new Point(size.Width, size.Height),
@@ -190,6 +194,6 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
             }
             mesh.Freeze(); draw.DrawGeometry(WaterBrushes[side], null, mesh);
         }
-        draw.Pop();
+        if (revealing) draw.Pop();
     }
 }

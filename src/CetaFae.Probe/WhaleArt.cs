@@ -58,7 +58,7 @@ internal sealed class WhaleArt
         var t = reduced ? 1 : Math.Clamp(seconds / DropDuration, 0, 1);
         var progress = t * t * (3 - 2 * t);
         // The water hides a descending whale; shrinking/fading would read as a replacement rather than immersion.
-        return new WhalePose(319, Y: .12 * progress, Alpha: t >= 1 ? 0 : 1, Progress: progress,
+        return new WhalePose(319, Y: .34 * progress, Alpha: t >= 1 ? 0 : 1, Progress: progress,
             Spout: t >= 1 ? -1 : 44 + (int)(t * 10), Submerge: true);
     }
     internal static bool IsImmersed(int frame) => frame is >= 0 and < 320 && Contact.Value[frame];
@@ -141,9 +141,9 @@ internal sealed class WhaleVisual : FrameworkElement
         var water = WhaleWater.Shape(Pose.Progress, ActualWidth, Facing, topAttached: TopAttached);
         draw.DrawGeometry(GuideTheme.WhaleBlue, null, water);
         var body = water.Bounds;
-        if (Pose.Progress > .35)
+        if (Pose.Progress > .92)
         {
-            draw.PushOpacity(Math.Clamp((Pose.Progress - .35) / .45, 0, 1));
+            draw.PushOpacity(Math.Clamp((Pose.Progress - .92) / .08, 0, 1));
             draw.PushTransform(new TranslateTransform(body.X, body.Y));
             var inner = new Rect(WhalePrompt.InputLeft, 4, Math.Max(0, body.Width - WhalePrompt.InputLeft - 48), Math.Max(0, body.Height - 8));
             draw.DrawRoundedRectangle(Brushes.White, null, inner, 12, 12);

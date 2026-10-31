@@ -35,10 +35,16 @@ internal static class OverlayChecks
             check(overlay.Bounds == target && overlay.Edges.All(edge => edge.ShowActivated == false &&
                     !edge.IsHitTestVisible && new WindowInteropHelper(edge).Handle == IntPtr.Zero),
                 "all four offset edges retain noactivate clickthrough policy without native windows");
+            overlay.SetWaterProgress(-1);
+            overlay.SetWaterProgress(.5);
+            check(overlay.Wash.Width == target.Width && overlay.Wash.Height <= WindowWash.Band + 10 &&
+                !overlay.Wash.IsHitTestVisible && !overlay.Wash.ShowActivated &&
+                new WindowInteropHelper(overlay.Wash).Handle == IntPtr.Zero,
+                "the traveling wash shares clickthrough noactivate policy and stays one bounded strip without native launch");
             foreach (var edge in overlay.Edges)
                 ((GuideFrameVisual)((Border)edge.Content).Child).SetMotion(true);
             overlay.SetWaterProgress(.5); overlay.HideAndReset();
-            check(overlay.Edges.All(edge => edge.Width == 2 && edge.Height == 2 &&
+            check(overlay.Wash.Width == 2 && overlay.Wash.Height == 2 && overlay.Edges.All(edge => edge.Width == 2 && edge.Height == 2 &&
                     !((GuideFrameVisual)((Border)edge.Content).Child).HasAnimatedProperties) && !overlay.IsVisible,
                 "clearing a tiled overlay stops every edge clock and shrinks every surface");
             overlay.Place(target);

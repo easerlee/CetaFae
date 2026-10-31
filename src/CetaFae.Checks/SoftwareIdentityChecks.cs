@@ -56,7 +56,7 @@ static class SoftwareIdentityChecks
             "platform metadata/package/offline-trust path runs on this owned headless process without UI or external targets");
         var assembly = typeof(GuideOptions).Assembly.Location;
         check(FileVersionInfo.GetVersionInfo(assembly).ProductName == "CetaFae" &&
-            FileVersionInfo.GetVersionInfo(assembly).ProductVersion == "0.2.0-preview.8" && SoftwareIdentity.IsLocalRegularFile(assembly),
+            FileVersionInfo.GetVersionInfo(assembly).ProductVersion == "0.2.0-preview.9" && SoftwareIdentity.IsLocalRegularFile(assembly),
             "generated preview assembly carries readable product resources on a regular local file");
         check(SoftwareIdentity.VerifyOffline(assembly) is "unsigned" or "unverified", "unsigned generated assembly never obtains a trusted-signature verdict");
         check(!SoftwareIdentity.IsLocalRegularFile(@"\\example.test\share\generated.exe") &&
