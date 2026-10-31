@@ -85,6 +85,22 @@ internal static class DropChecks
             }
             var rgba = Raster(spray);
             var visible = Enumerable.Range(0, width * 88).Where(i => rgba[i * 4 + 3] >= 32).ToArray();
+            var unseen = Enumerable.Range(0, width * 88).Where(i => rgba[i * 4 + 3] >= 128).ToHashSet();
+            var components = 0;
+            while (unseen.Count > 0)
+            {
+                components++;
+                var pending = new Queue<int>(); var first = unseen.First(); unseen.Remove(first); pending.Enqueue(first);
+                while (pending.TryDequeue(out var pixel))
+                    for (var dy = -1; dy <= 1; dy++)
+                        for (var dx = -1; dx <= 1; dx++)
+                        {
+                            var x = pixel % width + dx; var y = pixel / width + dy;
+                            if (x >= 0 && x < width && y >= 0 && y < 88 && unseen.Remove(y * width + x))
+                                pending.Enqueue(y * width + x);
+                        }
+            }
+            check(components == 8, "the delivered mature spout renders eight separate solid droplets rather than connected ribbons");
             check(visible.Length > 0 && visible.Max(i => i % width) - visible.Min(i => i % width) > 60 &&
                 visible.All(i => i / width > 0 && i / width < 87 && i % width > 0 && i % width < width - 1),
                 "mature spray exceeds the54DIP whale body and fits the88DIP host in either facing");
@@ -189,6 +205,20 @@ internal static class DropChecks
     {
         const int width = (int)WhalePrompt.WidthDip;
         var directory = Path.GetFullPath(".artifacts/checks/spray-sweep-frames"); Directory.CreateDirectory(directory);
+        var spoutDirectory = Path.GetFullPath(".artifacts/checks/droplet-spout-frames"); Directory.CreateDirectory(spoutDirectory);
+        for (var frame = 0; frame < 80; frame++)
+        {
+            var visual = new DrawingVisual();
+            using (var draw = visual.RenderOpen())
+            {
+                draw.PushTransform(new ScaleTransform(384d / 88, 384d / 88));
+                draw.PushTransform(new TranslateTransform(44, 0));
+                RefinedWater.DrawJets(draw, frame / 25d, 0);
+            }
+            var bitmap = new RenderTargetBitmap(384, 384, 96, 96, PixelFormats.Pbgra32); bitmap.Render(visual);
+            var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bitmap));
+            using var output = File.Create(Path.Combine(spoutDirectory, $"{frame:000}.png")); png.Save(output);
+        }
         for (var frame = 0; frame < 240; frame++)
         {
             var seconds = (frame - 10) / 25d;

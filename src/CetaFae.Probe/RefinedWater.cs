@@ -1,14 +1,24 @@
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
+using System.Xml.Linq;
 
 namespace CetaFae.Probe;
 
-/// <summary>Runtime paths transcribed from the delivered spout-fill-v4 editable source.</summary>
+/// <summary>Delivered droplet-spout-v1 shape and motion on the existing spout-fill-v4 paths.</summary>
 internal static class RefinedWater
 {
     static readonly double[] Flights = [.70, .58, .64];
     static readonly double[] Amounts = [.45, .35, .20];
+    static readonly Lazy<Geometry> Droplet = new(() =>
+    {
+        using var source = WhaleArt.Resource("droplet.svg");
+        var path = XDocument.Load(source).Root!.Elements().Single(e => e.Name.LocalName == "path");
+        var shape = Geometry.Parse(path.Attribute("d")!.Value).Clone();
+        // Keep the supplied EPS curves, normalized with the rounded belly pointing along local +Y.
+        shape.Transform = new MatrixTransform(1 / 514.228, 0, 0, 1 / 514.228, -1777.55 / 514.228, -1060.886 / 514.228);
+        shape.Freeze(); return shape;
+    });
     static readonly Point[][] Paths =
     [
         [new(43,28),new(44,13),new(52,2),new(66,4),new(80,6),new(86,16),new(86,25),new(86,34),new(86,53),new(86,77)],
@@ -44,28 +54,19 @@ internal static class RefinedWater
     internal static void DrawJets(DrawingContext draw, double t, double sink)
     {
         for (var side = 0; side < 3; side++)
+        for (var k = 0; k < (side == 2 ? 2 : 3); k++)
         {
-            var start = .44 + side * .025; var stop = 1.10 + side * .025;
-            var head = Math.Min(1, (t - start) / Flights[side]);
-            var tail = Math.Max(0, Math.Max((t - stop) / Flights[side], (t - start - .30) / Flights[side]));
-            if (head <= tail || head <= 0 || tail >= 1) continue;
-            const int samples = 100; var points = new Point[samples * 2];
-            for (var k = 0; k < samples; k++)
-            {
-                var v = k / (samples - 1d); var u = tail + (head - tail) * v;
-                var p = Jet(u, side, t, sink);
-                var tangent = Jet(Math.Min(1, u + .001), side, t, sink) - Jet(Math.Max(0, u - .001), side, t, sink);
-                var length = Math.Max(.001, tangent.Length);
-                var width = (1.20 - .48 * Ease(u / .55)) * (side == 2 ? .72 : 1) * (1 + .08 * Math.Sin(24*u-18*t+side));
-                width *= Math.Min(1, (head-tail)*20);
-                if (v > .96) width *= Math.Sqrt(Math.Max(0, 1 - Math.Pow((v-.96)/.04, 2)));
-                if (tail > 0 && v < .32) width *= Ease(v / .32);
-                var normal = new Vector(-tangent.Y / length * width, tangent.X / length * width);
-                points[k] = p + normal; points[^ (k + 1)] = p - normal;
-            }
-            var geometry = new StreamGeometry();
-            using (var path = geometry.Open()) { path.BeginFigure(points[0], true, true); path.PolyLineTo(points.Skip(1).ToArray(), true, false); }
-            geometry.Freeze(); draw.DrawGeometry(GuideTheme.WhaleBlue, null, geometry);
+            var start = .44 + side * .025 + k * .15; var u = (t - start) / Flights[side];
+            if (u < 0 || u > 1) continue;
+            var p = Jet(u, side, t, sink);
+            var tangent = Jet(Math.Min(1, u + .001), side, t, sink) - Jet(Math.Max(0, u - .001), side, t, sink);
+            var angle = Math.Atan2(tangent.Y, tangent.X) * 180 / Math.PI - 90;
+            var size = (side == 2 ? 5.5 : 7) * (1 - .12 * k) * Ease((t - start) / .045);
+            draw.PushTransform(new TranslateTransform(p.X, p.Y));
+            draw.PushTransform(new RotateTransform(angle));
+            draw.PushTransform(new ScaleTransform(size, size));
+            draw.DrawGeometry(GuideTheme.WhaleBlue, null, Droplet.Value);
+            draw.Pop(); draw.Pop(); draw.Pop();
         }
     }
 }

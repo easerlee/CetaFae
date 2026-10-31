@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CetaFae.Probe</AssemblyName>
-    <Version>0.2.0-preview.12</Version>
+    <Version>0.2.0-preview.13</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>CetaFae</Product>
     <Description>Whale interaction and selected-window guidance preview</Description>
@@ -24,6 +24,7 @@
     <Resource Include="Art/Whale/*.png" />
     <Resource Include="Art/Whale/motion.json" />
     <Resource Include="Art/Whale/drop-motion.json" />
+    <Resource Include="Art/Whale/droplet.svg" />
     <Content Include="../../plugins/**/*.json" Link="plugins/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

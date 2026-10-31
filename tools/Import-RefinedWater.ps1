@@ -1,7 +1,9 @@
-param([string]$Source = '.artifacts/art-motion/20261031-art-refinement')
+param([string]$Source = '.artifacts/art-motion/20261031-art-refinement',
+      [string]$DropletSource = '.artifacts/art-motion/20261101-droplet-spout-v1')
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $outputRoot = Join-Path $PSScriptRoot '../src/CetaFae.Probe/Art/Whale'
+Copy-Item -LiteralPath (Join-Path $DropletSource 'reference/droplet-selected.svg') -Destination (Join-Path $outputRoot 'droplet.svg')
 Copy-Item -LiteralPath (Join-Path $Source 'samples-v2/layers/B02-water-rear-rest.png') -Destination (Join-Path $outputRoot 'rest-water.png')
 Copy-Item -LiteralPath (Join-Path $Source 'samples-v2/masters/B02-water-rear-rest.svg') -Destination (Join-Path $outputRoot 'rest-water.svg')
 $rows = @(Import-Csv (Join-Path $Source 'spout-action-v1/motion.csv'))
