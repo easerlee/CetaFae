@@ -12,7 +12,7 @@ internal sealed class TargetOverlay
 
     internal static Rect[] Regions(Size size)
     {
-        var depth = Math.Min(56, Math.Min(size.Width, size.Height) / 4);
+        var depth = GuideFrameVisual.Depth(size);
         return [new(0, 0, size.Width, depth), new(0, size.Height - depth, size.Width, depth),
             new(0, depth, depth, size.Height - depth * 2),
             new(size.Width - depth, depth, depth, size.Height - depth * 2)];

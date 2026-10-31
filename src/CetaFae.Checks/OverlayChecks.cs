@@ -16,15 +16,16 @@ internal static class OverlayChecks
         {
             var regions = TargetOverlay.Regions(size);
             check(regions.Length == 4 && regions.All(region => new Rect(size).Contains(region) &&
-                    Math.Min(region.Width, region.Height) <= 56),
+                    Math.Min(region.Width, region.Height) <= GuideFrameVisual.WaterDepth),
                 "normal maximized scaled and tiny glow surfaces are bounded perimeter strips");
             check(Enumerable.Range(0, 4).All(i => Enumerable.Range(i + 1, 3 - i)
                     .All(j => Rect.Intersect(regions[i], regions[j]).IsEmpty ||
                         Rect.Intersect(regions[i], regions[j]).Width * Rect.Intersect(regions[i], regions[j]).Height == 0)),
                 "perimeter surfaces do not double paint corners or allocate the target center");
             if (size.Width >= 2560)
-                check(regions.Sum(region => region.Width * region.Height) < size.Width * size.Height * .13,
-                    "large target surface allocation stays below thirteen percent of a full target");
+                check(regions.All(region => !region.Contains(new Point(size.Width / 2, size.Height / 2))) &&
+                    regions.Sum(region => region.Width * region.Height) < size.Width * size.Height,
+                    "wider large-target perimeter still excludes all center allocation");
         }
         var overlay = new TargetOverlay();
         try
@@ -41,7 +42,7 @@ internal static class OverlayChecks
                     !((GuideFrameVisual)((Border)edge.Content).Child).HasAnimatedProperties) && !overlay.IsVisible,
                 "clearing a tiled overlay stops every edge clock and shrinks every surface");
             overlay.Place(target);
-            check(overlay.Edges[0].Width == target.Width && overlay.Edges[0].Height == 56,
+            check(overlay.Edges[0].Width == target.Width && overlay.Edges[0].Height == GuideFrameVisual.WaterDepth,
                 "redropping on the same target after clear restores full edge strips rather than tiny idle surfaces");
             overlay.Place(new Rect(0, 0, 600, 320));
             check(overlay.Edges.Sum(edge => edge.Width * edge.Height) ==

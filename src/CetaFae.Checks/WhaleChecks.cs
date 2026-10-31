@@ -59,8 +59,9 @@ internal static class WhaleChecks
         var drop = WhaleArt.DropPose(0);
         var early = WhaleArt.DropPose(.04);
         var complete = WhaleArt.DropPose(WhaleArt.DropDuration);
-        check(drop.Spout >= 0 && early.Progress > 0 && early.Alpha < 1 && early.WaterScale < 1,
-            "drop starts spray immediately and shares the first animated step with wash and input morph");
+        check(drop.Submerge && drop.Spout >= 0 && early.Progress > 0 && early.Y > drop.Y &&
+            early.Alpha == 1 && early.ScaleX == 1 && early.ScaleY == 1 && early.WaterScale == 1,
+            "drop starts spray and a water shell while the constant-scale opaque whale descends into occlusion");
         check(complete.Progress == 1 && complete.Alpha == 0 && complete.Spout == -1 &&
             WhaleArt.DropPose(0, true) == complete && WhaleArt.DropPose(-1) == drop,
             "drop completes in800ms and reduced motion skips spray and intermediate surfaces");
@@ -119,7 +120,7 @@ internal static class WhaleChecks
         check(Alpha(0) == 255 && rgba[160 * 4] == blue.B && rgba[160 * 4 + 1] == blue.G && rgba[160 * 4 + 2] == blue.R,
             "outer water edge uses the exact opaque prompt blue before fading inward");
         var movedPixels = new byte[rgba.Length]; RenderFrame(false, 0, phase: 1.7).CopyPixels(movedPixels, 320 * 4, 0);
-        check(Alpha(1) > Alpha(12) && Alpha(12) > Alpha(24) && Alpha(24) > 0 && Alpha(60) == 0 &&
+        check(Alpha(1) == Alpha(6) && Alpha(6) > Alpha(12) && Alpha(12) > Alpha(24) && Alpha(24) > 0 && Alpha(60) == 0 &&
             !rgba.SequenceEqual(movedPixels), "soft wide glow fades inward without an inner stroke and ripple phase changes the water shape");
         var work = new Rect(0, 0, 1920, 1040);
         check(BallWindow.ConstrainPosition(new Point(1910, 1030), work, new Size(88, 88)) == new Point(1832, 952) &&

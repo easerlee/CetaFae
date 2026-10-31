@@ -7,7 +7,7 @@ using System.Windows.Media.Imaging;
 namespace CetaFae.Probe;
 
 internal readonly record struct WhalePose(int Frame, double Y = 0, double ScaleX = 1, double ScaleY = 1,
-    double WaterScale = 1, double Angle = 0, double Alpha = 1, double Progress = 0, int Spout = -1);
+    double WaterScale = 1, double Angle = 0, double Alpha = 1, double Progress = 0, int Spout = -1, bool Submerge = false);
 
 /// <summary>Project-owned atlas reader; decoded surfaces are bounded independently of session length.</summary>
 internal sealed class WhaleArt
@@ -57,10 +57,9 @@ internal sealed class WhaleArt
     {
         var t = reduced ? 1 : Math.Clamp(seconds / DropDuration, 0, 1);
         var progress = t * t * (3 - 2 * t);
-        // Reuse the settled whale and early spray; the source preparation is not an interaction delay.
-        return new WhalePose(319, ScaleX: 1 - .35 * progress, ScaleY: 1 - .35 * progress,
-            WaterScale: 1 - .35 * progress, Alpha: 1 - progress, Progress: progress,
-            Spout: t >= 1 ? -1 : 44 + (int)(t * 19));
+        // The water hides a descending whale; shrinking/fading would read as a replacement rather than immersion.
+        return new WhalePose(319, Y: .12 * progress, Alpha: t >= 1 ? 0 : 1, Progress: progress,
+            Spout: t >= 1 ? -1 : 44 + (int)(t * 19), Submerge: true);
     }
     internal static bool IsImmersed(int frame) => frame is >= 0 and < 320 && Contact.Value[frame];
 
@@ -102,6 +101,7 @@ internal sealed class WhaleVisual : FrameworkElement
     {
         base.OnRender(draw);
         var center = new Point(ActualWidth / 2, ActualHeight / 2);
+        if (Pose.Submerge) { DrawSubmerging(draw, center); return; }
         void Layer(string layer, double scaleX, double scaleY, double y, double angle, int frame)
         {
             draw.PushOpacity(Pose.Alpha);
@@ -130,5 +130,48 @@ internal sealed class WhaleVisual : FrameworkElement
             draw.Pop();
             draw.Pop();
         }
+    }
+
+    internal static Rect WaterBody(double progress, double width)
+    {
+        var reveal = .12 + .88 * progress;
+        var w = 88 + (width - 88) * reveal; var h = 8 + 42 * reveal;
+        return new Rect((width - w) / 2, WhalePrompt.DockFoot - h, w, h);
+    }
+
+    void DrawSubmerging(DrawingContext draw, Point center)
+    {
+        var body = WaterBody(Pose.Progress, ActualWidth);
+        var amplitude = 2.4 * (1 - Pose.Progress); var phase = Pose.Progress * Math.PI * 3;
+        draw.PushTransform(new TranslateTransform(body.X, body.Y));
+        if (body.Height >= 32) draw.DrawGeometry(GuideTheme.WhaleBlue, null,
+            PromptShell.Shape(body.Width, body.Height, amplitude, phase));
+        else draw.DrawRoundedRectangle(GuideTheme.WhaleBlue, null, new Rect(body.Size), body.Height / 2, body.Height / 2);
+        if (body.Height > 26)
+        {
+            var inner = new Rect(18, 6, Math.Max(0, body.Width - 66), body.Height - 14);
+            draw.DrawRoundedRectangle(Brushes.White, null, inner, 12, 12);
+        }
+        draw.Pop();
+        if (Pose.Alpha <= 0) return;
+        var above = new StreamGeometry();
+        using (var path = above.Open())
+        {
+            path.BeginFigure(new Point(0, 0), true, true); path.LineTo(new Point(ActualWidth, 0), true, false);
+            var steps = Math.Max(1, (int)Math.Ceiling(ActualWidth / 8));
+            for (var i = steps; i >= 0; i--)
+            {
+                var x = ActualWidth * i / steps;
+                var surface = body.Y + PromptShell.SurfaceY(x - body.X, body.Width, amplitude, phase);
+                path.LineTo(new Point(x, surface), true, false);
+            }
+        }
+        above.Freeze(); draw.PushClip(above);
+        draw.PushTransform(new TranslateTransform(center.X, center.Y + Pose.Y * CanvasSize));
+        draw.PushTransform(new ScaleTransform(Facing, 1));
+        var cell = new Rect(-CanvasSize / 2, -CanvasSize / 2, CanvasSize, CanvasSize);
+        draw.DrawImage(_art.Frame("whale-visible", Pose.Frame), cell);
+        if (Pose.Spout >= 0) draw.DrawImage(_art.Frame("spout", Pose.Spout), cell);
+        draw.Pop(); draw.Pop(); draw.Pop();
     }
 }

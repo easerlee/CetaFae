@@ -99,7 +99,12 @@ internal sealed class WhalePrompt : Border
 
 internal sealed class PromptShell : FrameworkElement
 {
-    internal static StreamGeometry Shape(double width, double height)
+    internal static double SurfaceY(double x, double width, double amplitude, double phase)
+    {
+        var t = Math.Clamp((x - 30) / Math.Max(1, width - 60), 0, 1);
+        return amplitude * Math.Sin(t * Math.PI) * Math.Sin(t * Math.PI * 2 + phase);
+    }
+    internal static StreamGeometry Shape(double width, double height, double amplitude = 0, double phase = 0)
     {
         var shape = new StreamGeometry();
         using (var p = shape.Open())
@@ -107,7 +112,12 @@ internal sealed class PromptShell : FrameworkElement
             p.BeginFigure(new Point(0, height), true, true);
             p.BezierTo(new Point(10, height), new Point(12, height - 6), new Point(12, height - 15), true, false);
             p.LineTo(new Point(12, 18), true, false); p.QuadraticBezierTo(new Point(12, 0), new Point(30, 0), true, false);
-            p.LineTo(new Point(width - 30, 0), true, false);
+            var steps = Math.Max(1, (int)Math.Ceiling((width - 60) / 8));
+            for (var i = 1; i <= steps; i++)
+            {
+                var x = 30 + (width - 60) * i / steps;
+                p.LineTo(new Point(x, SurfaceY(x, width, amplitude, phase)), true, false);
+            }
             p.QuadraticBezierTo(new Point(width - 12, 0), new Point(width - 12, 18), true, false);
             p.LineTo(new Point(width - 12, height - 15), true, false);
             p.BezierTo(new Point(width - 12, height - 6), new Point(width - 10, height), new Point(width, height), true, false);

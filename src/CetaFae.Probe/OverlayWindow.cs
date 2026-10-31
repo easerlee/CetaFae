@@ -98,6 +98,9 @@ public sealed class OverlayWindow : Window
 /// <summary>Target-local vector feedback; the center remains transparent and no pixels are collected.</summary>
 internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
 {
+    internal const double WaterDepth = 96;
+    internal const double SolidDepth = 16;
+    internal static double Depth(Size size) => Math.Min(WaterDepth, Math.Min(size.Width, size.Height) / 4);
     Size? _targetSize;
     Rect _region;
     internal void SetViewport(Size target, Rect region)
@@ -151,8 +154,8 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
         {
             StartPoint = side switch { 1 => new(1, 0), 2 => new(0, 1), _ => new(0, 0) },
             EndPoint = side switch { 0 => new(0, 1), 1 => new(0, 0), 2 => new(0, 0), _ => new(1, 0) },
-            GradientStops = { new(blue, 0), new(blue, .035),
-                new(Color.FromArgb(90, blue.R, blue.G, blue.B), .25), new(Color.FromArgb(15, blue.R, blue.G, blue.B), .65),
+            GradientStops = { new(blue, 0), new(blue, SolidDepth / WaterDepth),
+                new(Color.FromArgb(90, blue.R, blue.G, blue.B), .4), new(Color.FromArgb(15, blue.R, blue.G, blue.B), .75),
                 new(Color.FromArgb(0, blue.R, blue.G, blue.B), 1) }
         };
         brush.Freeze(); return (Brush)brush;
@@ -160,7 +163,7 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
 
     internal static void DrawWater(DrawingContext draw, Size size, double phase, double progress)
     {
-        var depth = Math.Min(56, Math.Min(size.Width, size.Height) / 4);
+        var depth = Depth(size);
         if (depth <= 0) return;
         draw.PushOpacity(progress > 0 && progress < 1 ? .8 + .15 * Math.Sin(progress * Math.PI) : 1);
         for (var side = 0; side < 4; side++)

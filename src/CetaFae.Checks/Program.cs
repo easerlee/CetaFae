@@ -30,6 +30,11 @@ public static class Program
         if (args.Contains("--scroll-desktop")) return ScrollChecks.Run();
         if (args.Contains("--privacy-desktop")) return PrivacyDesktopChecks.Run();
         Console.WriteLine($"BUILD: {typeof(GuideSession).Module.ModuleVersionId:N}");
+        if (args.Contains("--render-drop"))
+        {
+            _ = Dispatcher.CurrentDispatcher;
+            DropChecks.Run(Check); DropChecks.Render(); return 0;
+        }
         if (args.Contains("--render-prompt"))
         {
             _ = Dispatcher.CurrentDispatcher;
@@ -111,6 +116,7 @@ public static class Program
         CardChecks.Run(Check);
         WhaleChecks.Run(Check);
         OverlayChecks.Run(Check);
+        DropChecks.Run(Check);
         PromptChecks.Run(Check);
         Check(GuideSession.FailureMessage(new InvalidDataException("target_not_foreground"))
                   .Contains("请先点击目标窗口", StringComparison.Ordinal),
