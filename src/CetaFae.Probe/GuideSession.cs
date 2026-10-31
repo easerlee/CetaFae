@@ -287,12 +287,12 @@ public sealed class GuideSession : IDisposable
             if (previous is not null && previous.PluginId != plugin.Id)
                 throw new InvalidDataException("target_changed");
             if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
+            if (previous is null) _ball.BeginDock();
             _panel.Place(GuideObservation.WindowRect(window));
             _panel.SetStatus("正在读取所选窗口…");
             var activated = await ActivateSelectedAsync(window, version, token);
             if (!_gate.Accepts(version)) return;
             if (!activated) throw new InvalidDataException("target_activation_failed");
-            if (previous is null) _ball.BeginDock();
             _panel.Place(GuideObservation.WindowRect(window), entry: _ball.InteractionBounds);
             stage = ProcessingStage.SourceValidation;
             if (previous is not null)
@@ -349,11 +349,7 @@ public sealed class GuideSession : IDisposable
             _marker.HideAndReset();
             if (bounds is { } rect)
             {
-                _marker.Left = rect.Left / _ball.Scale;
-                _marker.Top = rect.Top / _ball.Scale;
-                _marker.Width = rect.Width / _ball.Scale;
-                _marker.Height = rect.Height / _ball.Scale;
-                _marker.Show();
+                if (_marker.PlaceControl(rect, observation.Frame, _ball.Scale)) _marker.Show();
             }
             _panel.Place(observation.Frame, bounds, _ball.InteractionBounds);
             _panel.SetStatus(answer.Explanation);

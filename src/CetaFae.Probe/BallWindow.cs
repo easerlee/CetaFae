@@ -176,10 +176,10 @@ public sealed class BallWindow : Window
         }
         else if (_state == Motion.Dock)
         {
-            var pose = WhaleArt.DockPose(seconds, ReducedMotion);
+            var pose = WhaleArt.DropPose(seconds, ReducedMotion);
             _whale.SetPose(pose);
             _overlay.SetWaterProgress(pose.Progress);
-            if (ReducedMotion || seconds >= 3.16) FinishMorph();
+            if (ReducedMotion || seconds >= WhaleArt.DropDuration) FinishMorph();
         }
     }
 

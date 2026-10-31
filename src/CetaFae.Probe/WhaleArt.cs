@@ -52,6 +52,16 @@ internal sealed class WhaleArt
 
     internal static WhalePose DockPose(double seconds, bool reduced = false) =>
         Dock.Value[reduced ? 79 : Math.Clamp((int)(Math.Max(0, seconds) * 25), 0, 79)];
+    internal const double DropDuration = .8;
+    internal static WhalePose DropPose(double seconds, bool reduced = false)
+    {
+        var t = reduced ? 1 : Math.Clamp(seconds / DropDuration, 0, 1);
+        var progress = t * t * (3 - 2 * t);
+        // Reuse the settled whale and early spray; the source preparation is not an interaction delay.
+        return new WhalePose(319, ScaleX: 1 - .35 * progress, ScaleY: 1 - .35 * progress,
+            WaterScale: 1 - .35 * progress, Alpha: 1 - progress, Progress: progress,
+            Spout: t >= 1 ? -1 : 44 + (int)(t * 19));
+    }
     internal static bool IsImmersed(int frame) => frame is >= 0 and < 320 && Contact.Value[frame];
 
     internal BitmapSource Frame(string layer, int frame)
