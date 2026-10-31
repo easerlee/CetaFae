@@ -11,9 +11,12 @@ namespace CetaFae.Probe;
 /// <summary>Native controls replace the illustrated input; no raster text or second clarification.</summary>
 internal sealed class WhalePrompt : Border
 {
-    internal const double WidthDip = 360;
+    internal const double WidthDip = 288;
     internal const double HeightDip = 64;
     internal const double DockFoot = 76;
+    internal const double BodyHeight = 36;
+    internal const double InputLeft = 26;
+    readonly Grid _body;
     internal readonly TextBox Answer = new() { MaxLength = 300, AcceptsReturn = false, BorderThickness = new Thickness(0),
         Background = Brushes.Transparent, Padding = new Thickness(0), VerticalContentAlignment = VerticalAlignment.Center,
         Foreground = GuideTheme.Ink, CaretBrush = GuideTheme.WhaleBlue,
@@ -23,6 +26,7 @@ internal sealed class WhalePrompt : Border
     internal readonly Button Send;
     internal readonly Button Dismiss;
     internal readonly PromptShell DragSurface;
+    internal readonly Border InputSurface;
     internal bool CanAnswer { get; private set; }
     internal event Action? FocusRequested;
     internal event Action? DismissRequested;
@@ -33,22 +37,23 @@ internal sealed class WhalePrompt : Border
         Background = Brushes.Transparent;
         TextElement.SetForeground(this, GuideTheme.Ink);
         var root = new Grid();
-        var body = new Grid { Margin = new Thickness(0, 14, 0, 0) };
+        var body = _body = new Grid { Height = BodyHeight, VerticalAlignment = VerticalAlignment.Bottom };
         DragSurface = new PromptShell { Cursor = Cursors.SizeAll, ToolTip = "拖动蓝色背景换窗口；单击打开鲸汐菜单" };
         AutomationProperties.SetName(DragSurface, "拖动蓝色背景换窗口或打开鲸汐菜单");
         body.Children.Add(DragSurface);
-        var row = new DockPanel { Margin = new Thickness(18, 6, 48, 8) };
-        Send = Action("→", "发送回答 · Enter", 32, GuideTheme.WhaleBlue, Brushes.White, 21);
-        Send.VerticalAlignment = VerticalAlignment.Bottom;
-        Send.Margin = new Thickness(6, 0, 0, 0);
+        var row = new DockPanel();
+        Send = Action("▶", "发送回答 · Enter", 26, GuideTheme.WhaleBlue, Brushes.Transparent, 15);
+        Send.VerticalAlignment = VerticalAlignment.Center;
+        Send.Margin = new Thickness(4, 0, 0, 0);
         Send.Click += (_, _) => Submit(); DockPanel.SetDock(Send, Dock.Right); row.Children.Add(Send);
         var input = new Grid(); input.Children.Add(Answer); input.Children.Add(_hint);
-        row.Children.Add(new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(10, 0, 10, 0), Child = input });
-        body.Children.Add(row); root.Children.Add(body);
-        Dismiss = Action("×", "结束本次指路，恢复鲸鱼", 20, Brushes.White, Brushes.Transparent, 14);
-        Dismiss.Opacity = .7; Dismiss.Margin = new Thickness(0, 10, 16, 0);
-        Dismiss.HorizontalAlignment = HorizontalAlignment.Right; Dismiss.VerticalAlignment = VerticalAlignment.Top;
+        row.Children.Add(input);
+        InputSurface = new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12),
+            Margin = new Thickness(InputLeft, 4, 48, 4), Padding = new Thickness(10, 0, 6, 0), Child = row };
+        body.Children.Add(InputSurface); root.Children.Add(body);
+        Dismiss = Action("×", "结束本次指路，恢复鲸鱼", 26, Brushes.White, Brushes.Transparent, 20);
+        Dismiss.Opacity = .75; Dismiss.Margin = new Thickness(0, 0, 12, 0);
+        Dismiss.HorizontalAlignment = HorizontalAlignment.Right; Dismiss.VerticalAlignment = VerticalAlignment.Center;
         Dismiss.Click += (_, _) => DismissRequested?.Invoke(); body.Children.Add(Dismiss); Child = root;
         AutomationProperties.SetName(Answer, "本次指路的回答");
         Answer.PreviewMouseLeftButtonDown += (_, _) => { if (CanAnswer) FocusRequested?.Invoke(); };
@@ -90,15 +95,23 @@ internal sealed class WhalePrompt : Border
     internal void SetQuestion(bool available)
     {
         CanAnswer = available; Answer.Clear(); Answer.IsReadOnly = !available;
-        Answer.Focusable = available; Send.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+        Answer.Focusable = available;
         _hint.Text = available ? "告诉我你想做什么" : "正在识别当前窗口…";
         UpdateHint();
     }
     internal void SetResult() { if (!CanAnswer) _hint.Text = "说明已就绪 · 可拖动继续求助"; }
+    internal void SetTopAttached(bool attached)
+    {
+        VerticalAlignment = attached ? VerticalAlignment.Top : VerticalAlignment.Center;
+        _body.VerticalAlignment = attached ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+        DragSurface.TopAttached = attached;
+    }
 }
 
 internal sealed class PromptShell : FrameworkElement
 {
+    bool _topAttached;
+    internal bool TopAttached { get => _topAttached; set { _topAttached = value; InvalidateVisual(); } }
     internal static double SurfaceY(double x, double width, double amplitude, double phase)
     {
         var t = Math.Clamp((x - 30) / Math.Max(1, width - 60), 0, 1);
@@ -126,6 +139,9 @@ internal sealed class PromptShell : FrameworkElement
     }
     protected override void OnRender(DrawingContext draw)
     {
-        if (ActualWidth >= 60 && ActualHeight >= 32) draw.DrawGeometry(GuideTheme.WhaleBlue, null, Shape(ActualWidth, ActualHeight));
+        if (ActualWidth < 60 || ActualHeight < 32) return;
+        if (TopAttached) draw.PushTransform(new MatrixTransform(1, 0, 0, -1, 0, ActualHeight));
+        draw.DrawGeometry(GuideTheme.WhaleBlue, null, Shape(ActualWidth, ActualHeight));
+        if (TopAttached) draw.Pop();
     }
 }

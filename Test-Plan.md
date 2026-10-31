@@ -2,6 +2,12 @@
 
 ## Wider water and sinking transition (2026-10-31)
 
+Latest width decision:288DIP (80 percent of360), no text/control scaling. Use256/288/320DIP in both orientations and regenerate the final-width playback/grid; previous360DIP candidate results are development history, not this width's acceptance.
+
+For the compact dock revision, check both orientations in every prompt state/width. Verify visible body36DIP, left inset26DIP, larger close centered, triangle/text non-overlap, max body y0 with upright controls, and work-area center. Source-water morph must resolve to the corresponding36DIP normal/inverted native shell without a gap. Inspect generated playback and static states; do not call public source-value comparison local software measurement.
+
+For preview.8, compare the initial morph outline with the actual embedded underbelly water, confirm continuous growth with no second puddle/crossfade, and compare the final boundary with the native shell. Inspect spray throughout the early/middle transition and constant-size body occlusion. Across320/360/420DIP waiting/question/Chinese answer/result states, the blue triangle stays inside the white input, is enabled only for a nonblank available answer, does not overlap text or drag hit zones, and submits at most once. Close is larger than the former20DIP target, vertically centered inside blue, separate and weaker than send. Inspect a decoded normal/maximized animation and matching-grid comparison before consent-bound native verification.
+
 Reuse preview.6's human evidence for its own smooth3440x1392 trial and blue-shell drag/close; visual width was rejected. For the changed candidate, verify96DIP perimeter depth,16DIP solid theme-blue plateau before a monotonic fade, transparent center, corner stitching, scaled/tiny geometry and clear/re-drop/clock cleanup. Preserve historical56DIP surface measurements. Verify constant-scale downward whale motion, emerging shell from the first frame, spray and coverage overlap, body occlusion rather than global fade, bounded800ms finish, reduced motion and immediate cancellation. Render generated normal/maximized frames with the production visual and inspect decoded playback plus a matching-scale grid comparison. Run affected/full Debug+Release checks and the same3440x1392 offscreen software diagnostic; native smoothness of wider surfaces is not inherited. No visible launch or full20-cycle resource test without new scoped permission.
 
 ## Maximized-render regression (2026-10-31)

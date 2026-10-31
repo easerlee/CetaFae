@@ -77,7 +77,10 @@ public sealed class BallWindow : Window
 
     public static Point TopDockPosition(Rect target, Rect work, double width = WhalePrompt.WidthDip)
     {
-        var centerX = Math.Clamp(target.Left + target.Width * .4, work.Left + width / 2, Math.Max(work.Left + width / 2, work.Right - width / 2));
+        var maximized = target.Top <= work.Top + 1 && target.Left <= work.Left + 1 &&
+            target.Right >= work.Right - 1 && target.Bottom >= work.Bottom - 1;
+        var centerX = Math.Clamp(maximized ? work.Left + work.Width / 2 : target.Left + target.Width * .4,
+            work.Left + width / 2, Math.Max(work.Left + width / 2, work.Right - width / 2));
         var top = target.Top - WhalePrompt.DockFoot;
         if (top < work.Top) top = target.Top;
         return new Point(centerX - width / 2, Math.Clamp(top, work.Top, Math.Max(work.Top, work.Bottom - WhaleVisual.CanvasSize)));
@@ -199,9 +202,14 @@ public sealed class BallWindow : Window
         var position = TopDockPosition(new Rect(frame.Left / _scale, frame.Top / _scale,
             (frame.Right - frame.Left) / _scale, (frame.Bottom - frame.Top) / _scale), SystemParameters.WorkArea, Width);
         PlaceBall(position);
-        var offset = position.Y < frame.Top / _scale ? 0 : -(WhaleVisual.CanvasSize - WhalePrompt.HeightDip) / 2;
-        _whale.RenderTransform = _prompt.RenderTransform = new TranslateTransform(0, offset);
+        SetDockLayout(position.Y >= frame.Top / _scale);
         Animate(Motion.Dock);
+    }
+
+    void SetDockLayout(bool topAttached)
+    {
+        _whale.TopAttached = topAttached; _prompt.SetTopAttached(topAttached);
+        _whale.RenderTransform = _prompt.RenderTransform = Transform.Identity;
     }
 
     void FinishMorph()
@@ -231,6 +239,7 @@ public sealed class BallWindow : Window
         _whale.Visibility = _handle.Visibility = Visibility.Visible;
         Width = WhaleVisual.CanvasSize;
         _whale.RenderTransform = _prompt.RenderTransform = Transform.Identity;
+        SetDockLayout(false);
         PlaceBall(new Point(center - Width / 2, Top));
         _whale.Release();
     }
@@ -420,6 +429,11 @@ public sealed class BallWindow : Window
         var r = Native.Frame(_target);
         _overlay.Place(new Rect(r.Left / _scale, r.Top / _scale,
             Math.Max(1, (r.Right - r.Left) / _scale), Math.Max(1, (r.Bottom - r.Top) / _scale)));
+        if (_inline || _state == Motion.Dock)
+        {
+            SnapToEdge(_target);
+            SetDockLayout(Top >= r.Top / _scale);
+        }
         _overlayUpdates++;
 
         long sinceEventMs = -1;

@@ -59,7 +59,7 @@ internal sealed class WhaleArt
         var progress = t * t * (3 - 2 * t);
         // The water hides a descending whale; shrinking/fading would read as a replacement rather than immersion.
         return new WhalePose(319, Y: .12 * progress, Alpha: t >= 1 ? 0 : 1, Progress: progress,
-            Spout: t >= 1 ? -1 : 44 + (int)(t * 19), Submerge: true);
+            Spout: t >= 1 ? -1 : 44 + (int)(t * 10), Submerge: true);
     }
     internal static bool IsImmersed(int frame) => frame is >= 0 and < 320 && Contact.Value[frame];
 
@@ -93,6 +93,7 @@ internal sealed class WhaleVisual : FrameworkElement
     readonly WhaleArt _art = new();
     internal WhalePose Pose { get; private set; } = new(109);
     internal int Facing { get; private set; } = -1;
+    internal bool TopAttached { get; set; }
     internal void SetPose(WhalePose pose, int facing = -1)
     { Pose = pose; Facing = facing; InvalidateVisual(); }
     internal void Release() { _art.Clear(); SetPose(new WhalePose(109)); }
@@ -133,40 +134,23 @@ internal sealed class WhaleVisual : FrameworkElement
     }
 
     internal static Rect WaterBody(double progress, double width)
-    {
-        var reveal = .12 + .88 * progress;
-        var w = 88 + (width - 88) * reveal; var h = 8 + 42 * reveal;
-        return new Rect((width - w) / 2, WhalePrompt.DockFoot - h, w, h);
-    }
+        => WhaleWater.Shape(progress, width).Bounds;
 
     void DrawSubmerging(DrawingContext draw, Point center)
     {
-        var body = WaterBody(Pose.Progress, ActualWidth);
-        var amplitude = 2.4 * (1 - Pose.Progress); var phase = Pose.Progress * Math.PI * 3;
-        draw.PushTransform(new TranslateTransform(body.X, body.Y));
-        if (body.Height >= 32) draw.DrawGeometry(GuideTheme.WhaleBlue, null,
-            PromptShell.Shape(body.Width, body.Height, amplitude, phase));
-        else draw.DrawRoundedRectangle(GuideTheme.WhaleBlue, null, new Rect(body.Size), body.Height / 2, body.Height / 2);
-        if (body.Height > 26)
+        var water = WhaleWater.Shape(Pose.Progress, ActualWidth, Facing, topAttached: TopAttached);
+        draw.DrawGeometry(GuideTheme.WhaleBlue, null, water);
+        var body = water.Bounds;
+        if (Pose.Progress > .35)
         {
-            var inner = new Rect(18, 6, Math.Max(0, body.Width - 66), body.Height - 14);
+            draw.PushOpacity(Math.Clamp((Pose.Progress - .35) / .45, 0, 1));
+            draw.PushTransform(new TranslateTransform(body.X, body.Y));
+            var inner = new Rect(WhalePrompt.InputLeft, 4, Math.Max(0, body.Width - WhalePrompt.InputLeft - 48), Math.Max(0, body.Height - 8));
             draw.DrawRoundedRectangle(Brushes.White, null, inner, 12, 12);
+            draw.Pop(); draw.Pop();
         }
-        draw.Pop();
         if (Pose.Alpha <= 0) return;
-        var above = new StreamGeometry();
-        using (var path = above.Open())
-        {
-            path.BeginFigure(new Point(0, 0), true, true); path.LineTo(new Point(ActualWidth, 0), true, false);
-            var steps = Math.Max(1, (int)Math.Ceiling(ActualWidth / 8));
-            for (var i = steps; i >= 0; i--)
-            {
-                var x = ActualWidth * i / steps;
-                var surface = body.Y + PromptShell.SurfaceY(x - body.X, body.Width, amplitude, phase);
-                path.LineTo(new Point(x, surface), true, false);
-            }
-        }
-        above.Freeze(); draw.PushClip(above);
+        draw.PushClip(WhaleWater.Shape(Pose.Progress, ActualWidth, Facing, above: true, topAttached: TopAttached));
         draw.PushTransform(new TranslateTransform(center.X, center.Y + Pose.Y * CanvasSize));
         draw.PushTransform(new ScaleTransform(Facing, 1));
         var cell = new Rect(-CanvasSize / 2, -CanvasSize / 2, CanvasSize, CanvasSize);
