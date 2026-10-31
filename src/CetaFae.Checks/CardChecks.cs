@@ -120,9 +120,10 @@ static class CardChecks
         {
             var targetBorder = (Border)targetFrame.Content;
             var controlBorder = (Border)controlFrame.Content;
-            check(targetBorder.BorderBrush == GuideTheme.Outline && controlBorder.BorderBrush == GuideTheme.Accent &&
+            check(targetBorder.BorderBrush == Brushes.Transparent && targetBorder.BorderThickness == new Thickness(0) &&
+                  controlBorder.BorderBrush == GuideTheme.Accent &&
                   targetBorder.BorderThickness != controlBorder.BorderThickness && targetBorder.CornerRadius != controlBorder.CornerRadius,
-                "target and validated-control frames use distinct blue line weights and shapes");
+                "target glow has no outline while validated-control frames retain a contrasting border");
             check(new System.Windows.Interop.WindowInteropHelper(targetFrame).Handle == IntPtr.Zero &&
                   new System.Windows.Interop.WindowInteropHelper(controlFrame).Handle == IntPtr.Zero,
                 "frame style verification does not create native windows");

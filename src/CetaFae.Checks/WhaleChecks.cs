@@ -69,24 +69,45 @@ internal static class WhaleChecks
             OverlayWindow.ControlBounds(new Rect(100, 100, 4, 4), regionTarget, regionTarget, 1) == new Rect(100, 100, 12, 12) &&
             OverlayWindow.ControlBounds(new Rect(130, 130, 40, 20), regionTarget, regionTarget, 1.5) == new Rect(118, 118, 64, 44),
             "control padding grows inDIP and clips to target and work bounds including tiny edge controls");
-        var pulse = OverlayWindow.CreatePulse();
-        check(pulse.From == 1 && pulse.To == .6 && pulse.AutoReverse && pulse.RepeatBehavior.Count == 2 &&
-            pulse.Duration.TimeSpan == TimeSpan.FromSeconds(.45) && pulse.FillBehavior == System.Windows.Media.Animation.FillBehavior.Stop,
-            "control emphasis pulses gently twice then returns to full visibility instead of looping");
+        var pulse = OverlayWindow.CreateBlink();
+        check(pulse.RepeatBehavior == System.Windows.Media.Animation.RepeatBehavior.Forever &&
+            pulse.Duration.TimeSpan == TimeSpan.FromSeconds(1.2) && pulse.KeyFrames[1].Value == 0 &&
+            pulse.KeyFrames[1].KeyTime.TimeSpan == TimeSpan.FromSeconds(.6),
+            "control frame keeps a low-frequency visible-hidden blink for the instruction lifetime");
+        var clock = pulse.CreateClock(); clock.Controller!.Begin();
+        foreach (var (seconds, expected) in new[] { (.3, 1d), (.9, 0d), (9.9, 1d), (10.5, 0d) })
+        {
+            clock.Controller.SeekAlignedToLastTick(TimeSpan.FromSeconds(seconds), System.Windows.Media.Animation.TimeSeekOrigin.BeginTime);
+            check(pulse.GetCurrentValue(1, 1, clock) == expected, "native blink clock remains on-off after repeated cycles");
+        }
+        clock.Controller.Remove();
         var marker = new OverlayWindow(control: true);
         try
         {
             var border = (Border)marker.Content;
-            border.BeginAnimation(UIElement.OpacityProperty, OverlayWindow.CreatePulse());
+            border.BeginAnimation(UIElement.OpacityProperty, OverlayWindow.CreateBlink());
             marker.HideAndReset();
             check(!border.HasAnimatedProperties && border.Opacity == 1 && marker.Width == 2 && marker.Height == 2 &&
                 new WindowInteropHelper(marker).Handle == IntPtr.Zero,
                 "marker clear removes the pulse clock and restores a tiny idle surface without opening a native window");
         }
         finally { marker.Close(); }
+        var targetGlow = new OverlayWindow();
+        try
+        {
+            var glow = (GuideFrameVisual)((Border)targetGlow.Content).Child;
+            glow.SetMotion(true);
+            check(glow.HasAnimatedProperties, "visible target ripple can animate without a desktop window");
+            targetGlow.HideAndReset();
+            check(!glow.HasAnimatedProperties && glow.Phase == 0 && new WindowInteropHelper(targetGlow).Handle == IntPtr.Zero,
+                "clearing target glow removes its animation clock and resets the ripple phase");
+            glow.SetMotion(false);
+            check(!glow.HasAnimatedProperties, "reduced-motion target glow stays static");
+        }
+        finally { targetGlow.Close(); }
         foreach (var size in new[] { new Size(600, 320), new Size(1920, 1040), new Size(2, 2) })
         {
-            var contour = GuideFrameVisual.WaveContour(size);
+            var contour = GuideFrameVisual.WaveContour(size, 56, 1.7);
             check(contour.IsFrozen && new Rect(size).Contains(contour.Bounds), "wavy inner contour stays within normal fullscreen and tiny surfaces");
         }
         var steady = RenderFrame(false, 0);
@@ -98,6 +119,10 @@ internal static class WhaleChecks
         check(rgba[(90 * 320 + 160) * 4 + 3] == 0 && rgba[(6 * 320 + 160) * 4 + 3] > 0 &&
             !rgba.SequenceEqual(washPixels) && rgba.SequenceEqual(clearPixels),
             "wide steady target band leaves content clear and wash reset restores the same surface without a window");
+        byte Alpha(int y) => rgba[(y * 320 + 160) * 4 + 3];
+        var movedPixels = new byte[rgba.Length]; RenderFrame(false, 0, phase: 1.7).CopyPixels(movedPixels, 320 * 4, 0);
+        check(Alpha(1) > Alpha(12) && Alpha(12) > Alpha(24) && Alpha(24) > 0 && Alpha(60) == 0 &&
+            !rgba.SequenceEqual(movedPixels), "soft wide glow fades inward without an inner stroke and ripple phase changes the water shape");
         var work = new Rect(0, 0, 1920, 1040);
         check(BallWindow.ConstrainPosition(new Point(1910, 1030), work, new Size(88, 88)) == new Point(1832, 952) &&
             BallWindow.ConstrainPosition(new Point(1910, 1030), work, new Size(280, 88)) == new Point(1640, 952),
@@ -182,13 +207,14 @@ internal static class WhaleChecks
         RenderFeedback();
     }
 
-    static RenderTargetBitmap RenderFrame(bool control, double progress, int width = 320, int height = 180)
+    static RenderTargetBitmap RenderFrame(bool control, double progress, int width = 320, int height = 180, double phase = 0)
     {
         var overlay = new OverlayWindow(control);
         try
         {
             overlay.SetWaterProgress(progress);
             var frame = (Border)overlay.Content; overlay.Content = null;
+            ((GuideFrameVisual)frame.Child).Phase = phase;
             frame.Measure(new Size(width, height)); frame.Arrange(new Rect(0, 0, width, height));
             var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(frame);
             return bitmap;
@@ -197,6 +223,26 @@ internal static class WhaleChecks
     }
 
     static void RenderFeedback()
+    {
+        var bitmap = FeedbackFrame(0, 1, true);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        var file = Path.GetFullPath(".artifacts/checks/whale-feedback-states.png");
+        using (var output = File.Create(file)) encoder.Save(output);
+        var frames = Path.GetFullPath(".artifacts/checks/soft-glow-frames"); Directory.CreateDirectory(frames);
+        var blink = OverlayWindow.CreateBlink(); var clock = blink.CreateClock(); clock.Controller!.Begin();
+        for (var i = 0; i < 120; i++)
+        {
+            var seconds = i / 10d;
+            clock.Controller.SeekAlignedToLastTick(TimeSpan.FromSeconds(seconds), System.Windows.Media.Animation.TimeSeekOrigin.BeginTime);
+            var png = new PngBitmapEncoder();
+            png.Frames.Add(BitmapFrame.Create(FeedbackFrame(seconds * Math.PI / 2, blink.GetCurrentValue(1, 1, clock))));
+            using var output = File.Create(Path.Combine(frames, $"{i:000}.png")); png.Save(output);
+        }
+        clock.Controller.Remove();
+        Console.WriteLine("Offscreen vector feedback: " + file + "; 120 playback frames at10fps: " + frames);
+    }
+
+    static RenderTargetBitmap FeedbackFrame(double phase, double opacity, bool comparison = false)
     {
         var sheet = new DrawingVisual();
         using (var draw = sheet.RenderOpen())
@@ -207,27 +253,24 @@ internal static class WhaleChecks
                 var x = 24 + i % 2 * 490; var y = 44 + i / 2 * 286;
                 var rect = new Rect(x, y, 456, 236);
                 draw.DrawRectangle(i == 3 ? GuideTheme.Ink : Brushes.White, null, rect);
-                draw.DrawText(new FormattedText(new[] { "Drop / wash midpoint", "Steady wavy band", "Control / bright", "Control / dim pulse" }[i],
+                draw.DrawText(new FormattedText(new[] { "Drop / wash midpoint", "Soft inward water glow", "Control / blinking on light", "Control / blinking on dark" }[i],
                     CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 16, GuideTheme.Ink, 1), new Point(x, y - 26));
                 draw.DrawText(new FormattedText("Selected window content stays readable", CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight, new Typeface("Segoe UI"), 16, i == 3 ? Brushes.White : GuideTheme.Ink, 1), new Point(x + 32, y + 65));
-                draw.DrawImage(RenderFrame(false, i == 0 ? .5 : 0, 456, 236), rect);
+                draw.DrawImage(RenderFrame(false, i == 0 ? .5 : 0, 456, 236, phase), rect);
                 if (i >= 2)
                 {
                     var control = new Rect(x + 300, y + 142, 52, 26);
                     draw.DrawRoundedRectangle(GuideTheme.Accent, null, control, 13, 13);
                     draw.DrawEllipse(Brushes.White, null, new Point(control.Right - 13, control.Top + 13), 9, 9);
                     var expanded = OverlayWindow.ControlBounds(control, rect, rect, 1);
-                    draw.PushOpacity(i == 3 ? .6 : 1);
+                    draw.PushOpacity(comparison && i == 3 ? 0 : opacity);
                     draw.DrawImage(RenderFrame(true, 0, (int)expanded.Width, (int)expanded.Height), expanded);
                     draw.Pop();
                 }
             }
         }
         var bitmap = new RenderTargetBitmap(1000, 620, 96, 96, PixelFormats.Pbgra32); bitmap.Render(sheet);
-        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var file = Path.GetFullPath(".artifacts/checks/whale-feedback-states.png");
-        using var output = File.Create(file); encoder.Save(output);
-        Console.WriteLine("Offscreen vector feedback: " + file);
+        return bitmap;
     }
 }

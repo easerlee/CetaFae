@@ -1,6 +1,10 @@
 # CetaFae Concentrated Verification Plan
 
-## Immediate drop and stronger frames (2026-10-31)
+## Soft water glow and persistent blink (2026-10-31)
+
+This supersedes preview.3's outlined wave/two-cycle visual target, not its historical results. Requirements7.2: verify no target border stroke, inward alpha falloff over a wider glow, transparent content center, changing ripple phase within target bounds, and actual WPF discrete blink values after several cycles. Both animation clocks must clear on hide/reset and stay absent in reduced-motion mode. Decode generated playback to verify frame count/delay/loop and inspect light/dark states. Full Debug/Release checks precede an isolated candidate. After separate desktop consent, one short visual batch checks the requested soft moving water edge and repeated control blink plus clear; do not repeat unrelated workflows. Active-animation CPU/memory and full performance acceptance remain open.
+
+## Previous immediate-drop batch: preview.3 (2026-10-31)
 
 Requirements7.2, FR-01/02/09 and AC-7: local checks cover immediate spray and shared wash/morph clock, 800ms completion, reduced motion, 8DIP control padding/target/work-area clipping, a finite two-cycle pulse, pulse removal and tiny idle surface on clear, bounded wavy contours and transparent steady content. Inspect offscreen native borders on light/dark backgrounds and the shortened whale transition. No real target reading or model call is needed. After separate replacement consent, one short human batch checks normal/maximized drop timing and wave visibility, one Chinese answer/accurate padded control marker with two gentle pulses then a steady outline, and clear restoring the whale with all frames/input removed. Interruption/revocation can be covered in the same batch; do not restart20-cycle resource acceptance for a visual trial. Native timing, focus, visual acceptance and resources remain unpassed for this binary until measured.
 

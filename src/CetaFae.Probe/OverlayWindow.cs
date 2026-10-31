@@ -29,8 +29,8 @@ public sealed class OverlayWindow : Window
 
         Content = _border = new Border
         {
-            BorderBrush = control ? GuideTheme.Accent : GuideTheme.Outline,
-            BorderThickness = new Thickness(control ? 4 : 2),
+            BorderBrush = control ? GuideTheme.Accent : Brushes.Transparent,
+            BorderThickness = new Thickness(control ? 4 : 0),
             CornerRadius = new CornerRadius(control ? 8 : 0),
             Background = Brushes.Transparent,
             Child = _frame
@@ -38,10 +38,11 @@ public sealed class OverlayWindow : Window
         IsVisibleChanged += (_, _) =>
         {
             _border.BeginAnimation(OpacityProperty, null);
+            _frame.SetMotion(!control && IsVisible && SystemParameters.ClientAreaAnimation);
             if (control && IsVisible && SystemParameters.ClientAreaAnimation)
-                _border.BeginAnimation(OpacityProperty, CreatePulse());
+                _border.BeginAnimation(OpacityProperty, CreateBlink());
         };
-        Closed += (_, _) => _border.BeginAnimation(OpacityProperty, null);
+        Closed += (_, _) => { _border.BeginAnimation(OpacityProperty, null); _frame.SetMotion(false); };
 
         SourceInitialized += (_, _) =>
         {
@@ -55,6 +56,7 @@ public sealed class OverlayWindow : Window
     public void HideAndReset()
     {
         _border.BeginAnimation(OpacityProperty, null);
+        _frame.SetMotion(false);
         SetWaterProgress(0);
         Hide();
         // Keep a tiny idle surface; native sizing can round one unit up to two.
@@ -65,10 +67,12 @@ public sealed class OverlayWindow : Window
 
     internal void SetWaterProgress(double progress) => _frame.SetProgress(progress);
 
-    internal static DoubleAnimation CreatePulse() => new(1, .6, TimeSpan.FromSeconds(.45))
+    internal static DoubleAnimationUsingKeyFrames CreateBlink() => new()
     {
-        AutoReverse = true, RepeatBehavior = new RepeatBehavior(2), FillBehavior = FillBehavior.Stop,
-        EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+        Duration = TimeSpan.FromSeconds(1.2), RepeatBehavior = RepeatBehavior.Forever,
+        KeyFrames = { new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.Zero)),
+            new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(.6))),
+            new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.2))) }
     };
 
     internal static Rect ControlBounds(Rect control, Rect target, Rect work, double scale)
@@ -93,11 +97,22 @@ public sealed class OverlayWindow : Window
 /// <summary>Target-local vector feedback; the center remains transparent and no pixels are collected.</summary>
 internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
 {
+    internal static readonly DependencyProperty PhaseProperty = DependencyProperty.Register(nameof(Phase), typeof(double),
+        typeof(GuideFrameVisual), new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
+    internal double Phase { get => (double)GetValue(PhaseProperty); set => SetValue(PhaseProperty, value); }
+    internal void SetMotion(bool enabled)
+    {
+        BeginAnimation(PhaseProperty, null); Phase = 0;
+        if (!enabled || control) return;
+        var wave = new DoubleAnimation(0, Math.PI * 2, TimeSpan.FromSeconds(4)) { RepeatBehavior = RepeatBehavior.Forever };
+        Timeline.SetDesiredFrameRate(wave, 15);
+        BeginAnimation(PhaseProperty, wave);
+    }
     double _progress;
     internal void SetProgress(double progress) { _progress = Math.Clamp(progress, 0, 1); InvalidateVisual(); }
-    internal static StreamGeometry WaveContour(Size size)
+    internal static StreamGeometry WaveContour(Size size, double depth, double phase = 0)
     {
-        var inset = Math.Min(10, Math.Min(size.Width, size.Height) / 4);
+        var inset = Math.Min(depth, Math.Min(size.Width, size.Height) / 4);
         var left = inset; var top = inset; var right = size.Width - inset; var bottom = size.Height - inset;
         var wave = new StreamGeometry();
         using (var path = wave.Open())
@@ -110,7 +125,7 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
                 for (var i = 1; i <= steps; i++)
                 {
                     var t = (double)i / steps;
-                    var offset = Math.Min(2.4, inset / 3) * Math.Sin(t * Math.PI) * Math.Sin(t * length / 90 * Math.PI * 2);
+                    var offset = Math.Min(7, inset / 3) * Math.Sin(t * Math.PI) * Math.Sin(t * length / 160 * Math.PI * 2 + phase);
                     path.LineTo(start + (end - start) * t + normal * offset, true, false);
                 }
             }
@@ -135,10 +150,15 @@ internal sealed class GuideFrameVisual(bool control = false) : FrameworkElement
         }
         else
         {
-            var inner = WaveContour(RenderSize);
-            var ring = new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(area), inner);
-            draw.PushOpacity(.38); draw.DrawGeometry(GuideTheme.Outline, null, ring); draw.Pop();
-            draw.PushOpacity(.8); draw.DrawGeometry(null, new Pen(GuideTheme.Outline, 1.5), inner); draw.Pop();
+            // Soft nested fills fade to zero; no pen can turn the inner ripple into a contour line.
+            var depth = Math.Min(56, Math.Min(ActualWidth, ActualHeight) / 4);
+            for (var i = 1; i <= 24; i++)
+            {
+                var t = i / 24d;
+                var inner = WaveContour(RenderSize, depth * t, Phase);
+                var ring = new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(area), inner);
+                draw.PushOpacity(.045 * (1 - t)); draw.DrawGeometry(GuideTheme.Outline, null, ring); draw.Pop();
+            }
         }
         if (!control && _progress > 0 && _progress < 1)
         {
