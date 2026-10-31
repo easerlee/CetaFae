@@ -165,11 +165,10 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
     internal static void DrawWater(DrawingContext draw, Size size, double phase, double progress)
     {
         var depth = Depth(size);
-        if (depth <= 0 || progress < 0) return;
-        // The selected perimeter is deposited behind the descending front, not popped on at drop.
+        if (depth <= 0 || progress < 0 || progress > 0 && progress <= WindowWash.SweepEnd) return;
+        // The sweep must finish before the perimeter appears.
         var revealing = progress > 0 && progress < 1;
-        if (revealing) draw.PushClip(new RectangleGeometry(new Rect(0, 0, size.Width,
-            Math.Clamp(WindowWash.Front(size, progress) - 6, 0, size.Height))));
+        if (revealing) draw.PushOpacity((progress - WindowWash.SweepEnd) / (1 - WindowWash.SweepEnd));
         for (var side = 0; side < 4; side++)
         {
             var origin = side switch { 1 => new Point(size.Width, 0), 2 => new Point(size.Width, size.Height),
@@ -183,10 +182,11 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
             {
                 path.BeginFigure(origin, true, true);
                 path.LineTo(origin + tangent * length, true, false);
-                var steps = Math.Max(1, (int)Math.Ceiling((length - 2 * depth) / 32));
+                var steps = Math.Max(1, (int)Math.Ceiling(length / 32));
                 for (var i = steps; i >= 0; i--)
                 {
-                    var t = (double)i / steps; var x = depth + (length - depth * 2) * t;
+                    // Overlap the vector fills at corners; diagonal joins leave antialias cracks.
+                    var t = (double)i / steps; var x = length * t;
                     var ripple = Math.Min(7, depth / 3) * Math.Pow(Math.Sin(t * Math.PI), 2) *
                         (.5 + .5 * Math.Sin(x / 160 * Math.PI * 2 + phase));
                     path.LineTo(origin + tangent * x + normal * (depth - ripple), true, false);

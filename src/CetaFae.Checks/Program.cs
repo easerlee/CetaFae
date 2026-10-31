@@ -33,7 +33,7 @@ public static class Program
         if (args.Contains("--render-drop"))
         {
             _ = Dispatcher.CurrentDispatcher;
-            DropChecks.Run(Check); DropChecks.Render(); return 0;
+            OverlayChecks.Run(Check); DropChecks.Run(Check); DropChecks.Render(); return 0;
         }
         if (args.Contains("--render-prompt"))
         {

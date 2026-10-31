@@ -57,14 +57,14 @@ internal static class WhaleChecks
         check(end.Progress == 1 && end.Alpha == 0 && WhaleArt.DockPose(0, true) == end,
             "completed and reduced-motion docking leave no whale behind the native input");
         var drop = WhaleArt.DropPose(0);
-        var early = WhaleArt.DropPose(.04);
+        var early = WhaleArt.DropPose(WhaleArt.SprayLead + .04);
         var complete = WhaleArt.DropPose(WhaleArt.DropDuration);
         check(drop.Submerge && drop.Spout >= 0 && early.Progress > 0 && early.Y > drop.Y &&
             early.Alpha == 1 && early.ScaleX == 1 && early.ScaleY == 1 && early.WaterScale == 1,
             "drop starts spray and a water shell while the constant-scale opaque whale descends into occlusion");
         check(complete.Progress == 1 && complete.Alpha == 0 && complete.Spout == -1 &&
             WhaleArt.DropPose(0, true) == complete && WhaleArt.DropPose(-1) == drop,
-            "drop completes in800ms and reduced motion skips spray and intermediate surfaces");
+            "drop completes after400ms spray and800ms rise and reduced motion skips spray and intermediate surfaces");
         var regionTarget = new Rect(100, 100, 300, 200);
         check(OverlayWindow.ControlBounds(new Rect(130, 130, 40, 20), regionTarget, regionTarget, 1) == new Rect(122, 122, 56, 36) &&
             OverlayWindow.ControlBounds(new Rect(100, 100, 4, 4), regionTarget, regionTarget, 1) == new Rect(100, 100, 12, 12) &&
@@ -167,8 +167,8 @@ internal static class WhaleChecks
         {
             draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(230, 240, 247)), null, new Rect(0, 0, 1260, 660));
             var poses = new[] { new WhalePose(109), new WhalePose(170), WhaleArt.DropPose(0),
-                WhaleArt.DropPose(.16), WhaleArt.DropPose(.4), WhaleArt.DropPose(.8) };
-            var labels = new[] { "Idle (static)", "Drag / mirrored", "Drop / immediate spray", "Spray + morph (160ms)", "Wash + morph (400ms)", "Native input (800ms)" };
+                WhaleArt.DropPose(.16), WhaleArt.DropPose(.4), WhaleArt.DropPose(WhaleArt.DropDuration) };
+            var labels = new[] { "Idle (static)", "Drag / mirrored", "Drop / immediate spray", "Enlarged spray (160ms)", "Rise begins (400ms)", "Native input (1200ms)" };
             for (var i = 0; i < poses.Length; i++)
             {
                 var x = i % 3 * 420d + 20; var y = i / 3 * 210d + 44;

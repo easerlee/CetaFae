@@ -52,14 +52,16 @@ internal sealed class WhaleArt
 
     internal static WhalePose DockPose(double seconds, bool reduced = false) =>
         Dock.Value[reduced ? 79 : Math.Clamp((int)(Math.Max(0, seconds) * 25), 0, 79)];
-    internal const double DropDuration = .8;
+    internal const double SprayLead = .4;
+    internal const double RiseDuration = .8;
+    internal const double DropDuration = SprayLead + RiseDuration;
     internal static WhalePose DropPose(double seconds, bool reduced = false)
     {
-        var t = reduced ? 1 : Math.Clamp(seconds / DropDuration, 0, 1);
+        var t = reduced ? 1 : Math.Clamp((seconds - SprayLead) / RiseDuration, 0, 1);
         var progress = t * t * (3 - 2 * t);
         // The water hides a descending whale; shrinking/fading would read as a replacement rather than immersion.
         return new WhalePose(319, Y: .34 * progress, Alpha: t >= 1 ? 0 : 1, Progress: progress,
-            Spout: t >= 1 ? -1 : 44 + (int)(t * 10), Submerge: true);
+            Spout: t >= 1 ? -1 : 44 + Math.Clamp((int)(Math.Max(0, seconds) / DropDuration * 10), 0, 9), Submerge: true);
     }
     internal static bool IsImmersed(int frame) => frame is >= 0 and < 320 && Contact.Value[frame];
 
@@ -155,7 +157,15 @@ internal sealed class WhaleVisual : FrameworkElement
         draw.PushTransform(new ScaleTransform(Facing, 1));
         var cell = new Rect(-CanvasSize / 2, -CanvasSize / 2, CanvasSize, CanvasSize);
         draw.DrawImage(_art.Frame("whale-visible", Pose.Frame), cell);
-        if (Pose.Spout >= 0) draw.DrawImage(_art.Frame("spout", Pose.Spout), cell);
+        if (Pose.Spout >= 0) DrawSpout(draw, _art.Frame("spout", Pose.Spout));
         draw.Pop(); draw.Pop(); draw.Pop();
+    }
+
+    internal static void DrawSpout(DrawingContext draw, BitmapSource image)
+    {
+        // Keep the jet rooted at the atlas blowhole while opening wider than the body.
+        draw.PushTransform(new ScaleTransform(4.8, 1.65, 5 * CanvasSize / WhaleArt.Cell, -19 * CanvasSize / WhaleArt.Cell));
+        draw.DrawImage(image, new Rect(-CanvasSize / 2, -CanvasSize / 2, CanvasSize, CanvasSize));
+        draw.Pop();
     }
 }

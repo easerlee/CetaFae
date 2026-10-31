@@ -11,6 +11,21 @@ internal static class OverlayChecks
 {
     internal static void Run(Action<bool, string> check)
     {
+        var cornerSize = new Size(600, 400);
+        var cornerPixels = Render(cornerSize, new Rect(cornerSize), 0);
+        int Alpha(int x, int y) => cornerPixels[(y * 600 + x) * 4 + 3];
+        int NeighborAlpha(Point p)
+        {
+            var slope = (p.X < 300) == (p.Y < 200) ? -1 : 1;
+            return Math.Min(Alpha((int)p.X - 1, (int)p.Y - slope), Alpha((int)p.X + 1, (int)p.Y + slope));
+        }
+        var crackedCorners = Enumerable.Range(2, 78).SelectMany(i =>
+            new[] { new Point(i, i), new Point(599 - i, i), new Point(i, 399 - i), new Point(599 - i, 399 - i) }
+                .Where(p => Alpha((int)p.X, (int)p.Y) < NeighborAlpha(p) - 3)).ToArray();
+        if (crackedCorners.Length > 0) Console.WriteLine(string.Join("; ", crackedCorners.Take(8).Select(p =>
+            $"corner {p}: {Alpha((int)p.X, (int)p.Y)}/{NeighborAlpha(p)}")));
+        check(crackedCorners.Length == 0,
+            "all four water corners have no diagonal antialias crack below neighboring alpha");
         foreach (var size in new[] { new Size(3440, 1392), new Size(3840, 2160), new Size(2560, 1440),
                      new Size(600, 320), new Size(8, 8), new Size(2, 2) })
         {

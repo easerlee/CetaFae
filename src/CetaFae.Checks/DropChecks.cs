@@ -13,8 +13,12 @@ internal static class DropChecks
     internal static void Run(Action<bool, string> check)
     {
         const int width = (int)WhalePrompt.WidthDip;
-        var poses = Enumerable.Range(0, 21).Select(i => WhaleArt.DropPose(i * .04)).ToArray();
-        check(poses.Take(20).All(p => p.Submerge && p.Alpha == 1 && p.ScaleX == 1 && p.ScaleY == 1) &&
+        check(Enumerable.Range(0, 10).Select(i => WhaleArt.DropPose(i * .04))
+                .All(p => p.Progress == 0 && p.Y == 0 && p.Spout >= 0 && p.Alpha == 1) &&
+            WhaleArt.DropPose(.48).Progress > 0,
+            "spray opens visibly for400ms before the existing water rises or whale sinks");
+        var poses = Enumerable.Range(0, 31).Select(i => WhaleArt.DropPose(i * WhaleArt.DropDuration / 30)).ToArray();
+        check(poses.Take(30).All(p => p.Submerge && p.Alpha == 1 && p.ScaleX == 1 && p.ScaleY == 1) &&
             poses.Zip(poses.Skip(1)).All(pair => pair.First.Y <= pair.Second.Y),
             "immersion is downward occlusion at constant scale and alpha rather than shrinking or fading");
         var bodies = poses.Select(p => WhaleVisual.WaterBody(p.Progress, width)).ToArray();
@@ -69,6 +73,21 @@ internal static class DropChecks
             Enumerable.Range(0, width * 88).Count(i => Math.Abs(topPixels[i * 4 + 3] - topNativePixels[i * 4 + 3]) > 32) < 60,
             "top attachment flips only the water shell into a compact36DIP hanging tab with no top gap");
         var art = new WhaleArt();
+        foreach (var facing in new[] { -1, 1 })
+        {
+            var spray = new DrawingVisual();
+            using (var draw = spray.RenderOpen())
+            {
+                draw.PushTransform(new TranslateTransform(width / 2d, 44));
+                draw.PushTransform(new ScaleTransform(facing, 1));
+                WhaleVisual.DrawSpout(draw, art.Frame("spout", WhaleArt.DropPose(.36).Spout));
+            }
+            var rgba = Raster(spray);
+            var visible = Enumerable.Range(0, width * 88).Where(i => rgba[i * 4 + 3] >= 32).ToArray();
+            check(visible.Length > 0 && visible.Max(i => i % width) - visible.Min(i => i % width) > 60 &&
+                visible.All(i => i / width > 0 && i / width < 87 && i % width > 0 && i % width < width - 1),
+                "mature spray exceeds the54DIP whale body and fits the88DIP host in either facing");
+        }
         check(Enumerable.Range(0, 17).All(i =>
         {
             var bytes = new byte[96 * 96 * 4];
@@ -77,7 +96,7 @@ internal static class DropChecks
         }), "spray uses nonempty embedded frames throughout the first640ms instead of advancing into empty cells");
         foreach (var attached in new[] { false, true })
         {
-            var hiddenWhale = new DrawingVisual(); var pose = WhaleArt.DropPose(.72);
+            var hiddenWhale = new DrawingVisual(); var pose = WhaleArt.DropPose(WhaleArt.SprayLead + .72);
             using (var draw = hiddenWhale.RenderOpen())
             {
                 draw.PushClip(WhaleWater.Shape(pose.Progress, width, above: true, topAttached: attached));
@@ -89,8 +108,8 @@ internal static class DropChecks
             check(pose.Alpha == 1 && Enumerable.Range(0, width * 88).All(i => remaining[i * 4 + 3] == 0),
                 "rising water fully occludes the still-opaque whale before native input replaces it in either layout");
         }
-        check(WindowWash.Progress(0) == -1 && WindowWash.Progress(.8) == -1 &&
-            WindowWash.Progress(1.2) is > .49 and < .51 && WindowWash.Progress(1.6) == 1,
+        check(WindowWash.Progress(0) == -1 && WindowWash.Progress(WhaleArt.DropDuration) == -1 &&
+            WindowWash.Progress(WhaleArt.DropDuration + .5) is > .49 and < .51 && WindowWash.Progress(WindowWash.TotalDuration) == 1,
             "downward coverage starts after the water-dialog rise and ends on a finite separate clock");
         foreach (var size in new[] { new Size(3440, 1392), new Size(3840, 2160), new Size(8, 8) })
         {
@@ -100,13 +119,18 @@ internal static class DropChecks
                 WindowWash.Region(size, 0).IsEmpty && WindowWash.Region(size, 1).IsEmpty,
                 "finite moving strip visits every window row without full-target allocation and leaves no final wash");
         }
-        foreach (var progress in new[] { .12, .5, .88 })
+        foreach (var progress in new[] { .12, .4, .72 })
         {
             var size = new Size(600, 320); var region = WindowWash.Region(size, progress);
             var fullWash = new DrawingVisual();
             using (var draw = fullWash.RenderOpen()) WindowWash.Draw(draw, size, progress);
             var fullImage = new RenderTargetBitmap(600, 320, 96, 96, PixelFormats.Pbgra32); fullImage.Render(fullWash);
             var all = new byte[600 * 320 * 4]; fullImage.CopyPixels(all, 2400, 0);
+            var alpha = Enumerable.Range(0, 600 * 320).Select(i => all[i * 4 + 3]).ToArray();
+            var edge = WhaleChecks.RenderFrame(false, progress, 600, 320);
+            var edgePixels = new byte[all.Length]; edge.CopyPixels(edgePixels, 2400, 0);
+            check(alpha.Max() is > 0 and <= 64 && edgePixels.All(b => b == 0),
+                "the blue sweep stays translucent and no perimeter appears before it finishes");
             var strip = new GuideFrameVisual(wash: true); strip.SetViewport(size, region); strip.SetProgress(progress);
             strip.Measure(region.Size); strip.Arrange(new Rect(region.Size)); strip.UpdateLayout();
             var image = new RenderTargetBitmap(600, (int)region.Height, 96, 96, PixelFormats.Pbgra32); image.Render(strip);
@@ -116,6 +140,10 @@ internal static class DropChecks
                     .All(y => Enumerable.Range(0, 600).All(x => all[(y * 600 + x) * 4 + 3] == 0)),
                 "bounded wash surface matches full vector composition exactly and allocates no invisible rows");
         }
+        var fading = WhaleChecks.RenderFrame(false, .92, 600, 320);
+        var fadingPixels = new byte[600 * 320 * 4]; fading.CopyPixels(fadingPixels, 2400, 0);
+        check(WindowWash.Region(new Size(600, 320), .92).IsEmpty && fadingPixels[3] is > 0 and < 255,
+            "only after the sweep exits does the perimeter fade in without a second wash surface");
         var work = new Rect(-1920, -100, 1920, 1040); var start = new Point(-1700, 70);
         var travel = Enumerable.Range(0, 16).Select(i => BallWindow.ReturnPosition(start, work, i * .04)).ToArray();
         check(travel[0] == start && travel[^1] == new Point(-96, 844) &&
@@ -153,8 +181,8 @@ internal static class DropChecks
     internal static void Render()
     {
         const int width = (int)WhalePrompt.WidthDip;
-        var directory = Path.GetFullPath(".artifacts/checks/rising-water-frames"); Directory.CreateDirectory(directory);
-        for (var frame = 0; frame < 210; frame++)
+        var directory = Path.GetFullPath(".artifacts/checks/spray-sweep-frames"); Directory.CreateDirectory(directory);
+        for (var frame = 0; frame < 240; frame++)
         {
             var seconds = (frame - 10) / 25d;
             var sheet = new DrawingVisual();
@@ -169,7 +197,7 @@ internal static class DropChecks
                     draw.DrawRectangle(Brushes.White, null, target);
                     draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(231, 235, 239)), null, new Rect(target.Left, target.Top, target.Width, 30));
                     draw.DrawText(Text("Generated target content remains readable."), new Point(target.Left + 32, target.Bottom - 80));
-                    if (seconds >= 0 && seconds < 2.4)
+                    if (seconds >= 0 && seconds < 3.2)
                     {
                         draw.PushClip(new RectangleGeometry(target));
                         draw.PushTransform(new TranslateTransform(target.X, target.Y));
@@ -178,13 +206,13 @@ internal static class DropChecks
                         WindowWash.Draw(draw, target.Size, progress);
                         draw.Pop(); draw.Pop();
                     }
-                    var returning = seconds >= 2.4;
+                    var returning = seconds >= 3.2;
                     var surfaceWidth = returning ? 88 : width;
                     var host = new Grid { Width = surfaceWidth, Height = 88, ClipToBounds = true };
                     FrameworkElement content;
                     if (returning)
                     {
-                        var age = seconds - 2.4;
+                        var age = seconds - 3.2;
                         var whale = new WhaleVisual();
                         whale.SetPose(age < .6 ? new WhalePose(140 + (int)(age * 25)) :
                             new WhalePose(Math.Min(109, (int)((age - .6) * 25))), age < .6 ? 1 : -1);
@@ -198,7 +226,7 @@ internal static class DropChecks
                     var bitmap = new RenderTargetBitmap(surfaceWidth, 88, 96, 96, PixelFormats.Pbgra32); bitmap.Render(host);
                     var dock = new Point(target.Left + (target.Width - width) / 2, pane == 0 ? target.Top - WhalePrompt.DockFoot : target.Top);
                     var point = returning ? BallWindow.ReturnPosition(new Point(dock.X + (width - 88) / 2d, dock.Y),
-                        new Rect(target.Left, 40, target.Width, 355), seconds - 2.4) : dock;
+                        new Rect(target.Left, 40, target.Width, 355), seconds - 3.2) : dock;
                     draw.DrawImage(bitmap, new Rect(point, new Size(surfaceWidth, 88)));
                 }
             }
@@ -206,7 +234,7 @@ internal static class DropChecks
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
             using var file = File.Create(Path.Combine(directory, $"{frame:000}.png")); encoder.Save(file);
         }
-        Console.WriteLine("Offscreen rising-water / sweep / return frames: " + directory + ";210 frames at25fps; no desktop or network");
+        Console.WriteLine("Offscreen enlarged-spray / transparent-sweep / return frames: " + directory + ";240 frames at25fps; no desktop or network");
     }
     static FormattedText Text(string text) => new(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
         new Typeface("Segoe UI"), 13, GuideTheme.Ink, 1);
