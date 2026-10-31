@@ -3,7 +3,7 @@ using System.Windows.Media;
 
 namespace CetaFae.Probe;
 
-/// <summary>A transparent blue sweep precedes the perimeter without a full-window layered surface.</summary>
+/// <summary>A transparent blue sweep accompanies the perimeter fade without a full-window layered surface.</summary>
 internal static class WindowWash
 {
     internal const double Band = 192;

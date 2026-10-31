@@ -134,8 +134,10 @@ internal static class DropChecks
             var alpha = Enumerable.Range(0, 600 * 320).Select(i => all[i * 4 + 3]).ToArray();
             var edge = WhaleChecks.RenderFrame(false, progress, 600, 320);
             var edgePixels = new byte[all.Length]; edge.CopyPixels(edgePixels, 2400, 0);
-            check(alpha.Max() is > 0 and <= 64 && edgePixels.All(b => b == 0),
-                "the blue sweep stays translucent and no perimeter appears before it finishes");
+            check(alpha.Max() is > 0 and <= 64 &&
+                Math.Abs(edgePixels[3] - 255 * progress / WindowWash.SweepEnd) <= 2 &&
+                edgePixels[(160 * 600 + 300) * 4 + 3] == 0,
+                "the translucent sweep and perimeter fade run together while the target center stays clear");
             var strip = new GuideFrameVisual(wash: true); strip.SetViewport(size, region); strip.SetProgress(progress);
             strip.Measure(region.Size); strip.Arrange(new Rect(region.Size)); strip.UpdateLayout();
             var image = new RenderTargetBitmap(600, (int)region.Height, 96, 96, PixelFormats.Pbgra32); image.Render(strip);
@@ -147,8 +149,8 @@ internal static class DropChecks
         }
         var fading = WhaleChecks.RenderFrame(false, .92, 600, 320);
         var fadingPixels = new byte[600 * 320 * 4]; fading.CopyPixels(fadingPixels, 2400, 0);
-        check(WindowWash.Region(new Size(600, 320), .92).IsEmpty && fadingPixels[3] is > 0 and < 255,
-            "only after the sweep exits does the perimeter fade in without a second wash surface");
+        check(WindowWash.Region(new Size(600, 320), .92).IsEmpty && fadingPixels[3] == 255,
+            "the perimeter is fully revealed when the sweep exits without a second wash surface");
         var work = new Rect(-1920, -100, 1920, 1040); var start = new Point(-1700, 70);
         var travel = Enumerable.Range(0, 16).Select(i => BallWindow.ReturnPosition(start, work, i * .04)).ToArray();
         check(travel[0] == start && travel[^1] == new Point(-96, 844) &&

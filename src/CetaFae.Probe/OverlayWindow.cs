@@ -165,10 +165,9 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
     internal static void DrawWater(DrawingContext draw, Size size, double phase, double progress)
     {
         var depth = Depth(size);
-        if (depth <= 0 || progress < 0 || progress > 0 && progress <= WindowWash.SweepEnd) return;
-        // The sweep must finish before the perimeter appears.
-        var revealing = progress > 0 && progress < 1;
-        if (revealing) draw.PushOpacity((progress - WindowWash.SweepEnd) / (1 - WindowWash.SweepEnd));
+        if (depth <= 0 || progress < 0) return;
+        var revealing = progress > 0 && progress < WindowWash.SweepEnd;
+        if (revealing) draw.PushOpacity(progress / WindowWash.SweepEnd);
         for (var side = 0; side < 4; side++)
         {
             var origin = side switch { 1 => new Point(size.Width, 0), 2 => new Point(size.Width, size.Height),
