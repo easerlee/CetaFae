@@ -10,6 +10,7 @@ internal static class GuideTheme
     internal const double CardMaxHeight = 460;
     internal static readonly Brush Accent = Frozen("#087FA6");
     internal static readonly Brush Outline = Frozen("#279FC4");
+    internal static readonly Brush WhaleBlue = Frozen("#258FEC");
     internal static readonly Brush Ink = Frozen("#143747");
     internal static readonly Brush Muted = Frozen("#536F7C");
     internal static readonly Brush Surface = Frozen("#F8FCFF");

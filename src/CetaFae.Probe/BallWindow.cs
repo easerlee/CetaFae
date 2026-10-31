@@ -75,10 +75,10 @@ public sealed class BallWindow : Window
         Left = visible.X; Top = visible.Y;
     }
 
-    public static Point TopDockPosition(Rect target, Rect work, double width = 280)
+    public static Point TopDockPosition(Rect target, Rect work, double width = WhalePrompt.WidthDip)
     {
         var centerX = Math.Clamp(target.Left + target.Width * .4, work.Left + width / 2, Math.Max(work.Left + width / 2, work.Right - width / 2));
-        var top = target.Top - 68;
+        var top = target.Top - WhalePrompt.DockFoot;
         if (top < work.Top) top = target.Top;
         return new Point(centerX - width / 2, Math.Clamp(top, work.Top, Math.Max(work.Top, work.Bottom - WhaleVisual.CanvasSize)));
     }
@@ -105,7 +105,7 @@ public sealed class BallWindow : Window
         _animation.Tick += (_, _) => AdvanceMotion();
         _prompt.FocusRequested += () => { Activate(); _prompt.Answer.Focus(); };
         _prompt.Submitted += text => AnswerSubmitted?.Invoke(text);
-        _prompt.MenuRequested += () => MenuRequested?.Invoke();
+        _prompt.DismissRequested += () => StopTracking("inline_closed");
 
         SourceInitialized += OnSourceInitialized;
         Loaded += (_, _) => ProbeLog.Log("ball_loaded", ("ballDip", FrameDip()),
@@ -194,12 +194,12 @@ public sealed class BallWindow : Window
     public void BeginDock()
     {
         if (_target == IntPtr.Zero || _state == Motion.Dock || _inline) return;
-        Width = Math.Min(280, SystemParameters.WorkArea.Width);
+        Width = Math.Min(WhalePrompt.WidthDip, SystemParameters.WorkArea.Width);
         var frame = Native.Frame(_target);
         var position = TopDockPosition(new Rect(frame.Left / _scale, frame.Top / _scale,
             (frame.Right - frame.Left) / _scale, (frame.Bottom - frame.Top) / _scale), SystemParameters.WorkArea, Width);
         PlaceBall(position);
-        var offset = position.Y < frame.Top / _scale ? 0 : -14;
+        var offset = position.Y < frame.Top / _scale ? 0 : -(WhaleVisual.CanvasSize - WhalePrompt.HeightDip) / 2;
         _whale.RenderTransform = _prompt.RenderTransform = new TranslateTransform(0, offset);
         Animate(Motion.Dock);
     }

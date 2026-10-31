@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
+using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -9,42 +11,77 @@ namespace CetaFae.Probe;
 /// <summary>Native controls replace the illustrated input; no raster text or second clarification.</summary>
 internal sealed class WhalePrompt : Border
 {
+    internal const double WidthDip = 360;
+    internal const double HeightDip = 64;
+    internal const double DockFoot = 76;
     internal readonly TextBox Answer = new() { MaxLength = 300, AcceptsReturn = false, BorderThickness = new Thickness(0),
-        Background = Brushes.Transparent, Padding = new Thickness(3, 7, 3, 7), VerticalContentAlignment = VerticalAlignment.Center,
+        Background = Brushes.Transparent, Padding = new Thickness(0), VerticalContentAlignment = VerticalAlignment.Center,
+        Foreground = GuideTheme.Ink, CaretBrush = GuideTheme.WhaleBlue,
         FontSize = 13, MinWidth = 60, ToolTip = "点击输入，按 Enter 回答；最多300字" };
     readonly TextBlock _hint = new() { Text = "正在识别当前窗口…", VerticalAlignment = VerticalAlignment.Center,
-        FontSize = 12, Foreground = GuideTheme.Muted, IsHitTestVisible = false };
-    readonly Button _submit;
+        FontSize = 12, Foreground = GuideTheme.Muted, IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
+    internal readonly Button Send;
+    internal readonly Button Dismiss;
     internal readonly Border Grip;
     internal bool CanAnswer { get; private set; }
     internal event Action? FocusRequested;
-    internal event Action? MenuRequested;
+    internal event Action? DismissRequested;
     internal event Action<string>? Submitted;
     internal WhalePrompt()
     {
-        Height = 40; VerticalAlignment = VerticalAlignment.Center;
-        Margin = new Thickness(2, 0, 2, 0); CornerRadius = new CornerRadius(12);
-        BorderBrush = GuideTheme.Outline; BorderThickness = new Thickness(1.5); Background = GuideTheme.Surface;
+        Height = HeightDip; VerticalAlignment = VerticalAlignment.Center;
+        Background = Brushes.Transparent;
         TextElement.SetForeground(this, GuideTheme.Ink);
-        var row = new DockPanel();
-        Grip = new Border { Width = 24, Background = Brushes.Transparent, Cursor = Cursors.SizeAll,
-            ToolTip = "拖动到另一个窗口", Child = new TextBlock { Text = "≈", Foreground = GuideTheme.Accent,
+        var root = new Grid();
+        var body = new Grid { Margin = new Thickness(0, 14, 24, 0) };
+        body.Children.Add(new PromptShell());
+        var row = new DockPanel { Margin = new Thickness(18, 6, 18, 8) };
+        Grip = new Border { Width = 20, Background = Brushes.Transparent, Cursor = Cursors.SizeAll,
+            ToolTip = "拖动换窗口；单击打开鲸汐菜单", Child = new TextBlock { Text = "≈", Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 19 } };
         DockPanel.SetDock(Grip, Dock.Left); row.Children.Add(Grip);
-        var menu = Action("⋯", "鲸汐菜单、云端与清除");
-        menu.Click += (_, _) => MenuRequested?.Invoke(); DockPanel.SetDock(menu, Dock.Right); row.Children.Add(menu);
-        _submit = Action("→", "提交回答");
-        _submit.Click += (_, _) => Submit(); DockPanel.SetDock(_submit, Dock.Right); row.Children.Add(_submit);
-        var input = new Grid(); input.Children.Add(Answer); input.Children.Add(_hint); row.Children.Add(input); Child = row;
+        AutomationProperties.SetName(Grip, "拖动换窗口或打开鲸汐菜单");
+        Send = Action("→", "发送回答 · Enter", 32, GuideTheme.WhaleBlue, Brushes.White, 21);
+        Send.VerticalAlignment = VerticalAlignment.Bottom;
+        Send.Margin = new Thickness(6, 0, 0, 0);
+        Send.Click += (_, _) => Submit(); DockPanel.SetDock(Send, Dock.Right); row.Children.Add(Send);
+        var input = new Grid(); input.Children.Add(Answer); input.Children.Add(_hint);
+        row.Children.Add(new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12),
+            Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(10, 0, 10, 0), Child = input });
+        body.Children.Add(row); root.Children.Add(body);
+        Dismiss = Action("×", "结束本次指路，恢复鲸鱼", 24, GuideTheme.Muted, GuideTheme.Surface, 14);
+        Dismiss.HorizontalAlignment = HorizontalAlignment.Right; Dismiss.VerticalAlignment = VerticalAlignment.Top;
+        Dismiss.Click += (_, _) => DismissRequested?.Invoke(); root.Children.Add(Dismiss); Child = root;
+        AutomationProperties.SetName(Answer, "本次指路的回答");
         Answer.PreviewMouseLeftButtonDown += (_, _) => { if (CanAnswer) FocusRequested?.Invoke(); };
         Answer.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && CanAnswer) { Submit(); e.Handled = true; } };
         Answer.TextChanged += (_, _) => UpdateHint();
         SetQuestion(false);
     }
-    static Button Action(string text, string hint) => new() { Content = text, Width = 28, ToolTip = hint,
-        Focusable = false, Background = Brushes.Transparent, BorderThickness = new Thickness(0),
-        Foreground = GuideTheme.Accent, FontSize = 16, Padding = new Thickness(0) };
-    void UpdateHint() => _hint.Visibility = Answer.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+    static Button Action(string text, string hint, double size, Brush foreground, Brush background, double fontSize)
+    {
+        var button = new Button { Content = text, Width = size, Height = size, ToolTip = hint, Focusable = false,
+            Background = background, Foreground = foreground, FontSize = fontSize, Padding = new Thickness(0), Cursor = Cursors.Hand };
+        var border = new FrameworkElementFactory(typeof(Border));
+        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(size / 2));
+        border.SetBinding(Border.BackgroundProperty, new Binding(nameof(Background)) { RelativeSource = RelativeSource.TemplatedParent });
+        var content = new FrameworkElementFactory(typeof(ContentPresenter));
+        content.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        content.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center); border.AppendChild(content);
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
+        foreach (var (property, value, opacity) in new[] { (IsMouseOverProperty, true, .85), (Button.IsPressedProperty, true, .65), (IsEnabledProperty, false, .3) })
+        {
+            var trigger = new Trigger { Property = property, Value = value }; trigger.Setters.Add(new Setter(OpacityProperty, opacity));
+            template.Triggers.Add(trigger);
+        }
+        button.Template = template;
+        AutomationProperties.SetName(button, hint); return button;
+    }
+    void UpdateHint()
+    {
+        _hint.Visibility = Answer.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        Send.IsEnabled = CanAnswer && !string.IsNullOrWhiteSpace(Answer.Text);
+    }
     void Submit()
     {
         if (!CanAnswer || string.IsNullOrWhiteSpace(Answer.Text)) return;
@@ -55,9 +92,32 @@ internal sealed class WhalePrompt : Border
     internal void SetQuestion(bool available)
     {
         CanAnswer = available; Answer.Clear(); Answer.IsReadOnly = !available;
-        Answer.Focusable = available; _submit.IsEnabled = available;
-        _hint.Text = available ? "你想在这个窗口处理什么？" : "正在识别当前窗口…";
+        Answer.Focusable = available; Send.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+        _hint.Text = available ? "告诉我你想做什么" : "正在识别当前窗口…";
         UpdateHint();
     }
     internal void SetResult() { if (!CanAnswer) _hint.Text = "说明已就绪 · 可拖动继续求助"; }
+}
+
+internal sealed class PromptShell : FrameworkElement
+{
+    internal static StreamGeometry Shape(double width, double height)
+    {
+        var shape = new StreamGeometry();
+        using (var p = shape.Open())
+        {
+            p.BeginFigure(new Point(0, height), true, true);
+            p.BezierTo(new Point(10, height), new Point(12, height - 6), new Point(12, height - 15), true, false);
+            p.LineTo(new Point(12, 18), true, false); p.QuadraticBezierTo(new Point(12, 0), new Point(30, 0), true, false);
+            p.LineTo(new Point(width - 30, 0), true, false);
+            p.QuadraticBezierTo(new Point(width - 12, 0), new Point(width - 12, 18), true, false);
+            p.LineTo(new Point(width - 12, height - 15), true, false);
+            p.BezierTo(new Point(width - 12, height - 6), new Point(width - 10, height), new Point(width, height), true, false);
+        }
+        shape.Freeze(); return shape;
+    }
+    protected override void OnRender(DrawingContext draw)
+    {
+        if (ActualWidth >= 60 && ActualHeight >= 32) draw.DrawGeometry(GuideTheme.WhaleBlue, null, Shape(ActualWidth, ActualHeight));
+    }
 }

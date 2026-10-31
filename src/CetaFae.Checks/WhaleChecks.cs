@@ -125,19 +125,18 @@ internal static class WhaleChecks
             !rgba.SequenceEqual(movedPixels), "soft wide glow fades inward without an inner stroke and ripple phase changes the water shape");
         var work = new Rect(0, 0, 1920, 1040);
         check(BallWindow.ConstrainPosition(new Point(1910, 1030), work, new Size(88, 88)) == new Point(1832, 952) &&
-            BallWindow.ConstrainPosition(new Point(1910, 1030), work, new Size(280, 88)) == new Point(1640, 952),
+            BallWindow.ConstrainPosition(new Point(1910, 1030), work, new Size(WhalePrompt.WidthDip, 88)) == new Point(1560, 952),
             "actual whale and inline surface sizes share the same visible work-area constraint");
         var normal = BallWindow.TopDockPosition(new Rect(100, 180, 900, 700), work);
         var full = BallWindow.TopDockPosition(new Rect(0, 0, 1920, 1040), work);
-        check(normal.Y + 68 == 180 && full.Y == 0,
+        check(normal.Y + WhalePrompt.DockFoot == 180 && full.Y == 0,
             "normal top docking stays outside the title bar and fullscreen docking stays inside the work area");
         foreach (var target in new[] { new Rect(-500, -200, 900, 700), new Rect(1800, 900, 800, 700), new Rect(0, 0, 80, 60) })
-            check(work.Contains(new Rect(BallWindow.TopDockPosition(target, work), new Size(280, 88))),
+            check(work.Contains(new Rect(BallWindow.TopDockPosition(target, work), new Size(WhalePrompt.WidthDip, 88))),
                 "top input remains fully reachable for shifted or small targets");
         var prompt = new WhalePrompt(); var submissions = new List<string>(); var focus = 0;
         prompt.Submitted += submissions.Add; prompt.FocusRequested += () => focus++;
-        var row = (DockPanel)prompt.Child;
-        var send = row.Children.OfType<Button>().Single(b => Equals(b.Content, "→"));
+        var send = prompt.Send;
         prompt.SetQuestion(true); prompt.Answer.Text = "生成中文：只解释，不修改。";
         send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -167,26 +166,26 @@ internal static class WhaleChecks
         var sheet = new DrawingVisual();
         using (var draw = sheet.RenderOpen())
         {
-            draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(230, 240, 247)), null, new Rect(0, 0, 1080, 660));
+            draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(230, 240, 247)), null, new Rect(0, 0, 1260, 660));
             var poses = new[] { new WhalePose(109), new WhalePose(170), WhaleArt.DropPose(0),
                 WhaleArt.DropPose(.16), WhaleArt.DropPose(.4), WhaleArt.DropPose(.8) };
             var labels = new[] { "Idle (static)", "Drag / mirrored", "Drop / immediate spray", "Spray + morph (160ms)", "Wash + morph (400ms)", "Native input (800ms)" };
             for (var i = 0; i < poses.Length; i++)
             {
-                var x = i % 3 * 360d + 20; var y = i / 3 * 210d + 44;
+                var x = i % 3 * 420d + 20; var y = i / 3 * 210d + 44;
                 draw.DrawText(new FormattedText(labels[i], CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                     new Typeface("Segoe UI"), 14, GuideTheme.Ink, 1), new Point(x, y - 22));
-                draw.DrawRoundedRectangle(Brushes.White, new Pen(GuideTheme.Outline, 1), new Rect(x, y + 88, 320, 80), 4, 4);
+                draw.DrawRoundedRectangle(Brushes.White, new Pen(GuideTheme.Outline, 1), new Rect(x, y + 88, 380, 80), 4, 4);
                 var view = new WhaleVisual(); view.SetPose(poses[i], i == 1 ? 1 : -1);
-                view.Measure(new Size(280, 88)); view.Arrange(new Rect(0, 0, 280, 88));
-                var bitmap = new RenderTargetBitmap(280, 88, 96, 96, PixelFormats.Pbgra32); bitmap.Render(view);
-                draw.DrawImage(bitmap, new Rect(x + 20, y, 280, 88));
+                view.Measure(new Size(WhalePrompt.WidthDip, 88)); view.Arrange(new Rect(0, 0, WhalePrompt.WidthDip, 88));
+                var bitmap = new RenderTargetBitmap((int)WhalePrompt.WidthDip, 88, 96, 96, PixelFormats.Pbgra32); bitmap.Render(view);
+                draw.DrawImage(bitmap, new Rect(x + 10, y, WhalePrompt.WidthDip, 88));
                 if (i == 5)
                 {
                     var input = new WhalePrompt(); input.SetQuestion(true);
-                    input.Measure(new Size(280, 88)); input.Arrange(new Rect(0, 0, 280, 88));
-                    var prompt = new RenderTargetBitmap(280, 88, 96, 96, PixelFormats.Pbgra32); prompt.Render(input);
-                    draw.DrawImage(prompt, new Rect(x + 20, y, 280, 88));
+                    input.Measure(new Size(WhalePrompt.WidthDip, 88)); input.Arrange(new Rect(0, 0, WhalePrompt.WidthDip, 88));
+                    var prompt = new RenderTargetBitmap((int)WhalePrompt.WidthDip, 88, 96, 96, PixelFormats.Pbgra32); prompt.Render(input);
+                    draw.DrawImage(prompt, new Rect(x + 10, y, WhalePrompt.WidthDip, 88));
                 }
             }
             for (var i = 0; i < 3; i++)
@@ -199,7 +198,7 @@ internal static class WhaleChecks
                 draw.DrawImage(image, new Rect(30 + i * 130, 510, size, size));
             }
         }
-        var result = new RenderTargetBitmap(1080, 660, 96, 96, PixelFormats.Pbgra32); result.Render(sheet);
+        var result = new RenderTargetBitmap(1260, 660, 96, 96, PixelFormats.Pbgra32); result.Render(sheet);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(result));
         var file = Path.GetFullPath(".artifacts/checks/whale-native-states.png"); Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         using var output = File.Create(file); encoder.Save(output);
@@ -207,7 +206,7 @@ internal static class WhaleChecks
         RenderFeedback();
     }
 
-    static RenderTargetBitmap RenderFrame(bool control, double progress, int width = 320, int height = 180, double phase = 0)
+    internal static RenderTargetBitmap RenderFrame(bool control, double progress, int width = 320, int height = 180, double phase = 0)
     {
         var overlay = new OverlayWindow(control);
         try
