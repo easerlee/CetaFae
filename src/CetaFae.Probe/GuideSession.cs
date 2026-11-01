@@ -379,7 +379,8 @@ public sealed class GuideSession : IDisposable
             var modelAnswer = intent is null
                 ? (await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext)))
                     .ToAnswer(identifiedProcess!, observation.Identity)
-                : await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext));
+                : await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
+                    _plugins.GeneralProvider?.InterpretationPolicy));
             var answer = modelAnswer.ForIntent(intent);
             var modelMs = total.ElapsedMilliseconds - observeMs;
             ProbeLog.Log("guide_response_received", ("modelMs", modelMs), ("mode", answer.Mode),

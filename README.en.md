@@ -14,6 +14,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 - **Understand the current window**: visible content and local software identity distinguish the owning application, interface purpose, and uncertainty. Generic vision can attempt unfamiliar software without promising recognition of every window.
 - **Explain and guide**: interpret visible state and ask one clarification if needed. Highlight controls only when their location is reliable; otherwise explain the limitation.
 - **Analyze a region**: use reliable task scopes or select an image region manually. Generic image understanding does not require an adapter for every application.
+- **Chinese/English explanation and translation**: describe your translation goal and select a text region when needed. Show the recognized original and translation, checking recognizable error-code, date, numeric and unit literals. Unreadable content is reported honestly; the application's interface is not replaced.
 - **Optional software references**: after separate confirmation, query a public encyclopedia using the product name and show sources. This does not authenticate the installed executable.
 - **Plugin-based capabilities**: generic vision, software identity, and application adapters share a declarative contract. First-party features are plugins too.
 - **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
@@ -70,7 +71,7 @@ The first two commands build and run non-desktop checks; the last opens CetaFae.
 ## Roadmap
 
 - Complete native settings, remembered-consent, coordinate and input acceptance, including single-display125%/150%/200% scaling.
-- Improve generic understanding, Chinese/English region explanation and translation, and evidence-bounded visible-error assistance.
+- Improve generic understanding and translation fidelity, and complete evidence-bounded visible-error assistance.
 - Complete bounded task coverage and user-led follow-up/continuous guidance; actions remain manual.
 - Complete consolidated privacy, platform, performance, and real-task acceptance. The 3000ms processing target and 90MB idle-memory gate have not passed full formal acceptance.
 - Stabilize the contract and validate independent contributions before publishing third-party interfaces and installation support.

@@ -115,6 +115,7 @@ public static class Program
         ConsentChecks.Run(Check);
         SettingsChecks.Layout(Check);
         await SettingsChecks.RunAsync(Check);
+        await TranslationChecks.RunAsync(Check);
         await PrivacyChecks.RunAsync(Check);
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);
@@ -371,6 +372,7 @@ public static class Program
         if (args.Contains("--live-reference")) await SoftwareIdentityChecks.RunLiveAsync(Check);
         if (args.Contains("--live-scopes")) await ScopeChecks.RunLiveAsync(Check);
         if (args.Contains("--live-general")) await GeneralGuideChecks.RunLiveAsync(Check);
+        if (args.Contains("--live-translation")) await TranslationChecks.RunLiveAsync(Check);
         if (args.Contains("--live-identification")) await IdentificationChecks.RunLiveAsync(Check);
         if (args.Contains("--live-tasks")) await TaskChecks.RunLiveAsync(Check,
             args.SingleOrDefault(a => a.StartsWith("--task-case=", StringComparison.Ordinal))?[12..]);

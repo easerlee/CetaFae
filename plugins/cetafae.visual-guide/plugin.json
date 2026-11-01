@@ -1,12 +1,13 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "kind": "general",
   "id": "cetafae.visual-guide",
-  "version": "0.1.0",
-  "displayName": "通用视觉指导（开发验证）",
+  "version": "0.2.0",
+  "displayName": "通用界面理解与区域翻译（开发验证）",
   "targets": [],
   "uiaView": "control",
-  "taskIds": ["guide.visual"],
+  "taskIds": ["guide.visual", "guide.translate"],
+  "interpretationPolicy": { "languages": ["zh-CN", "en"], "translateSelectedText": true },
   "blockedPoints": [],
   "observationScopes": []
 }

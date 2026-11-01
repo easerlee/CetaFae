@@ -32,6 +32,7 @@ public sealed class PluginCatalog
         throw new InvalidDataException("unsupported_target");
 
     public GuidePlugin? IdentityProvider => Plugins.SingleOrDefault(p => p.Kind == "identity");
+    public GuidePlugin? GeneralProvider => Plugins.SingleOrDefault(p => p.Kind == "general");
 
     public GuidePlugin Resolve(string processName, string title)
     {

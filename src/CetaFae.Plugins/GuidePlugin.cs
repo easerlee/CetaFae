@@ -65,6 +65,21 @@ public sealed class ObservationScopeRule
         AnchorNameContainsAny.Any(s => name.Contains(s, StringComparison.OrdinalIgnoreCase));
 }
 
+public sealed class InterpretationPolicy
+{
+    public IReadOnlyList<string> Languages { get; }
+    public bool TranslateSelectedText { get; }
+
+    [JsonConstructor]
+    public InterpretationPolicy(IReadOnlyList<string> languages, bool translateSelectedText)
+    {
+        Languages = PluginData.Texts(languages, 2, 8);
+        if (Languages.Any(language => language is not ("zh-CN" or "en")))
+            throw new InvalidDataException("plugin_interpretation");
+        TranslateSelectedText = translateSelectedText;
+    }
+}
+
 public sealed class GuidePlugin
 {
     public int SchemaVersion { get; }
@@ -78,6 +93,7 @@ public sealed class GuidePlugin
     public IReadOnlyList<PointBlockRule> BlockedPoints { get; }
     public IReadOnlyList<ObservationScopeRule> ObservationScopes { get; }
     public string? IdentityPolicy { get; }
+    public InterpretationPolicy? InterpretationPolicy { get; }
 
     [JsonIgnore]
     public bool UsesRawView => UiaView == "raw";
@@ -86,10 +102,11 @@ public sealed class GuidePlugin
     public GuidePlugin(int schemaVersion, string id, string version, string displayName,
         IReadOnlyList<PluginTarget> targets, string uiaView, IReadOnlyList<string> taskIds,
         IReadOnlyList<PointBlockRule> blockedPoints, IReadOnlyList<ObservationScopeRule>? observationScopes = null,
-        string kind = "application", string? identityPolicy = null)
+        string kind = "application", string? identityPolicy = null, InterpretationPolicy? interpretationPolicy = null)
     {
-        if (schemaVersion is not (1 or 2 or 3 or 4) || kind is not ("application" or "general" or "identity") ||
-            kind == "general" && schemaVersion != 3 ||
+        if (schemaVersion is not (1 or 2 or 3 or 4 or 5) || kind is not ("application" or "general" or "identity") ||
+            kind == "general" && schemaVersion is not (3 or 5) ||
+            (schemaVersion == 5 ? kind != "general" || interpretationPolicy is null : interpretationPolicy is not null) ||
             (kind == "identity" ? schemaVersion != 4 || identityPolicy != "local-metadata-public-reference" : identityPolicy is not null || schemaVersion == 4) ||
             !PluginData.IsToken(id, 64) ||
             !System.Version.TryParse(version, out _) || !PluginData.IsText(displayName, 200) ||
@@ -101,6 +118,7 @@ public sealed class GuidePlugin
         SchemaVersion = schemaVersion;
         Kind = kind;
         IdentityPolicy = identityPolicy;
+        InterpretationPolicy = interpretationPolicy;
         Id = id;
         Version = version;
         DisplayName = displayName;
