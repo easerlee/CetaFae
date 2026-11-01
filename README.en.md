@@ -16,6 +16,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 - **Analyze a region**: use reliable task scopes or select an image region manually. Generic image understanding does not require an adapter for every application.
 - **Chinese/English explanation and translation**: describe your translation goal and select a text region when needed. Show the recognized original and translation, checking recognizable error-code, date, numeric and unit literals. Unreadable content is reported honestly; the application's interface is not replaced.
 - **Bounded error explanations**: distinguish visible information, unconfirmed possible causes and one safe next check. Missing evidence stays unknown. No automatic log inspection, other-process scan or repair is performed; the explanation does not certify a root cause.
+- **User-led follow-up**: choose Continue asking after a result, perform any action yourself, then submit the next question. Each submission rechecks the same window, for up to eight steps, without reusing an old image or executing actions. Native multi-step acceptance remains pending.
 - **Optional software references**: after separate confirmation, query a public encyclopedia using the product name and show sources. This does not authenticate the installed executable.
 - **Plugin-based capabilities**: generic vision, software identity, and application adapters share a declarative contract. First-party features are plugins too.
 - **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
@@ -40,6 +41,8 @@ The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-fla
 The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page enables or disables shipped plugins; it does not download or install plugins.
 
 On first use, a drop without consent opens the disclosure; it is also available from the tray or whale right-click menu. Read and personally confirm it, then drag onto the target again. Describe your goal when asked, and draw a region if requested. Read the explanation or guidance and operate the target yourself, or end the session.
+
+To continue, first choose Continue asking in the result, then act manually and submit your next question. Content reads pause while this input is armed. Switching to another window ends the entire flow and requires another drop. Changes to the disclosed sending scope or terms invalidate saved consent.
 
 ### Run from source
 
@@ -72,8 +75,8 @@ The first two commands build and run non-desktop checks; the last opens CetaFae.
 ## Roadmap
 
 - Complete native settings, remembered-consent, coordinate and input acceptance, including single-display125%/150%/200% scaling.
-- Improve generic understanding and translation fidelity, and complete evidence-bounded visible-error assistance.
-- Complete bounded task coverage and user-led follow-up/continuous guidance; actions remain manual.
+- Improve generic understanding, translation and visible-error accuracy and failure recovery.
+- Complete real-application acceptance for bounded tasks and user-led follow-up; actions remain manual.
 - Complete consolidated privacy, platform, performance, and real-task acceptance. The 3000ms processing target and 90MB idle-memory gate have not passed full formal acceptance.
 - Stabilize the contract and validate independent contributions before publishing third-party interfaces and installation support.
 - Develop constrained document editing only after explicit task intent, confirmation, snapshot, and rollback gates are met; it is not currently provided.

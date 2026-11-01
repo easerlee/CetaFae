@@ -14,6 +14,9 @@ public sealed class GuideSession : IDisposable
     readonly GuidePanel _panel;
     readonly OverlayWindow _marker = new(control: true);
     readonly GuideRunGate _gate = new();
+    readonly GuideFollowup _followup = new();
+    GuideFollowupRequest? _activeFollowup;
+    int _followupVersion;
     readonly GuideOptions _options;
     readonly GuideModel _model;
     readonly CloudConsentStore _consent;
@@ -59,6 +62,7 @@ public sealed class GuideSession : IDisposable
         _ball.AnswerSubmitted += OnAnswerSubmitted;
         _panel.RegionRequested += OnRegionRequested;
         _panel.ReferenceRequested += OnReferenceRequested;
+        _panel.FollowupRequested += OnFollowupRequested;
         _ball.AllowsForeground = IsAllowedForeground;
         _ball.TargetSelected += OnSelected;
         _ball.TrackingStopped += Cancel;
@@ -132,6 +136,8 @@ public sealed class GuideSession : IDisposable
         _picker = null;
         picker?.Abort();
         _pendingIntent = null;
+        _activeFollowup = null;
+        _followup.Clear();
         _panel.SetRegionAvailable(false);
         _context = null;
         _contextCheckPending = false;
@@ -194,6 +200,14 @@ public sealed class GuideSession : IDisposable
     async void OnTargetChanged()
     {
         _contextCheckPending = true;
+        if (_followup.WaitingForUser && _followup.Target is { } armed)
+        {
+            // Geometry/lifetime checks are allowed while armed, but do not inspect changed content.
+            if (!Native.IsWindow(armed.Window) || !Native.IsWindowVisible(armed.Window) || Native.IsIconic(armed.Window) ||
+                Native.ProcessId(armed.Window) != armed.ProcessId) _ball.StopTracking("target_changed");
+            _contextCheckPending = false;
+            return;
+        }
         if (_picker is not null && _context is { } selecting)
         {
             if (!Native.IsWindow(selecting.Window) || !Native.IsWindowVisible(selecting.Window) ||
@@ -245,7 +259,7 @@ public sealed class GuideSession : IDisposable
 
     bool IsInputForeground(IntPtr window) =>
         (window == _panel.Handle && _panel.IsSessionInteraction || window == _ball.Handle && _ball.IsSessionInteraction) &&
-        _context is not null && _gate.Accepts(_contextVersion);
+        (_context is not null && _gate.Accepts(_contextVersion) || _followup.WaitingForUser && _gate.Accepts(_followupVersion));
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
         _menu.OwnsForeground(window) ||
@@ -255,18 +269,50 @@ public sealed class GuideSession : IDisposable
 
     async void OnAnswerSubmitted(string text)
     {
+        if (!_preview && _followup.WaitingForUser && _gate.Accepts(_followupVersion))
+        {
+            GuideFollowupRequest next;
+            try { next = _followup.Take(text); }
+            catch (InvalidDataException error)
+            {
+                if (error.Message == "sensitive_content")
+                { _ball.StopTracking("sensitive_input"); _panel.SetStatus(FailureMessage(error)); }
+                else { _panel.SetStatus("请用一行文字说明本轮问题（最多300字）。"); _ball.ShowQuestion(); }
+                return;
+            }
+            _panel.ClearQuestion(); _ball.ClearQuestion();
+            await RecognizeAsync(next.Target.Window, next.Request, null, followup: next);
+            return;
+        }
         if (_preview || _context is not { } previous || !_gate.CanClarify(_contextVersion)) return;
         string intent;
         try { intent = _gate.TakeClarification(_contextVersion, text); }
         catch (InvalidDataException)
         {
             _panel.SetStatus("请用一行文字说明你想处理的事（最多300字）。");
+            _ball.ShowQuestion();
             return;
         }
         _panel.ClearQuestion();
         _ball.ClearQuestion();
         // Submission returns to this target through the same bounded activation path as a drop.
-        await RecognizeAsync(previous.Window, intent, previous, previous.Scope?.UserSelected == true ? previous.Scope.Region : null);
+        var followup = _activeFollowup is { } active ? active with { Clarification = intent } : null;
+        if (followup is not null) intent = followup.ScopeIntent;
+        await RecognizeAsync(previous.Window, intent, previous, previous.Scope?.UserSelected == true ? previous.Scope.Region : null, followup);
+    }
+
+    void OnFollowupRequested()
+    {
+        if (_preview || _plugins.GeneralProvider?.InterpretationPolicy?.UserLedFollowup != true ||
+            _context is null || !_gate.Accepts(_contextVersion) || !_followup.CanOffer || _picker is not null) return;
+        _followup.Begin();
+        _referenceRequest?.Cancel(); _panel.SetReferenceQuery(null); _panel.SetReferenceResult("");
+        _request?.Cancel(); _followupVersion = _gate.Begin();
+        _context = null; _contextCheckPending = false; _pendingIntent = null; _activeFollowup = null;
+        _marker.HideAndReset(); _panel.SetControl(null); _panel.SetRegionAvailable(false); _panel.ClearQuestion();
+        _panel.SetStatus("继续提问已准备。可先在当前窗口手动操作，再在上方输入本轮问题（例如“下一步看哪里”）。提交后才重新读取，切换到其他窗口会结束本次指导。");
+        _ball.ShowQuestion();
+        ProbeLog.Log("guide_followup_armed", ("step", _followup.Step + 1));
     }
 
     async void OnSelected(IntPtr window) => await RecognizeAsync(window, null, null);
@@ -276,6 +322,7 @@ public sealed class GuideSession : IDisposable
         if (_preview || !_gate.CloudEnabled || _context is not { } previous || !_gate.Accepts(_contextVersion) || _picker is not null) return;
         var version = _contextVersion;
         var intent = _pendingIntent;
+        var followup = _activeFollowup;
         _marker.HideAndReset();
         _picker = new RegionPicker(previous.Frame, _ball.Scale);
         var picker = _picker;
@@ -286,7 +333,7 @@ public sealed class GuideSession : IDisposable
             { _ball.StopTracking("selection_cancelled"); return; }
             // Admit the owned picker until the existing activation path resumes the bound target.
             picker.Hide();
-            var processing = RecognizeAsync(previous.Window, intent, previous, region);
+            var processing = RecognizeAsync(previous.Window, intent, previous, region, followup);
             _picker = null;
             picker.Abort();
             await processing;
@@ -295,7 +342,8 @@ public sealed class GuideSession : IDisposable
         picker.Show();
     }
 
-    async Task RecognizeAsync(IntPtr window, string? intent, GuideObservation? previous, Rect? selection = null)
+    async Task RecognizeAsync(IntPtr window, string? intent, GuideObservation? previous, Rect? selection = null,
+        GuideFollowupRequest? followup = null)
     {
         if (_preview) return;
         _referenceRequest?.Cancel();
@@ -317,6 +365,8 @@ public sealed class GuideSession : IDisposable
         var version = _gate.Begin();
         _context = null;
         _pendingIntent = null;
+        _activeFollowup = followup;
+        _followup.SuspendOffer();
         _panel.SetRegionAvailable(false);
         _panel.ClearQuestion();
         _ball.ClearQuestion();
@@ -336,8 +386,10 @@ public sealed class GuideSession : IDisposable
             var plugin = _plugins.Resolve(targetProcess.ProcessName, Native.Title(window));
             if (previous is not null && previous.PluginId != plugin.Id)
                 throw new InvalidDataException("target_changed");
+            var flowTarget = new GuideFlowTarget(window, (uint)targetProcess.Id, selectedStart, plugin.Id);
+            followup?.ValidateTarget(flowTarget);
             if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
-            if (previous is null) _ball.BeginDock();
+            if (previous is null && followup is null) _ball.BeginDock();
             _panel.SetControl(null);
             _panel.SetStatus("正在读取所选窗口…");
             var activated = await ActivateSelectedAsync(window, version, token);
@@ -345,7 +397,16 @@ public sealed class GuideSession : IDisposable
             if (!activated) throw new InvalidDataException("target_activation_failed");
             _panel.Reposition();
             stage = ProcessingStage.SourceValidation;
-            if (previous is not null)
+            if (previous is null && followup is not null)
+            {
+                // An armed step may follow manual changes; obtain a fresh local baseline, never the prior result's data.
+                _contextCheckPending = false;
+                previous = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, false, plugin, t));
+                if (!_gate.Accepts(version)) return;
+                if (previous.ProcessId != flowTarget.ProcessId || targetProcess.HasExited)
+                    throw new InvalidDataException("target_changed");
+            }
+            else if (previous is not null)
                 previous.ValidateContext(await ReadContextAsync(previous, token), null);
             stage = ProcessingStage.Collection;
             var observation = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, _options.IncludeImage, plugin, t, intent, selection,
@@ -375,17 +436,19 @@ public sealed class GuideSession : IDisposable
                 ("scoped", observation.Scope is not null), ("imageBytes", payload.Png?.Length ?? 0));
             var task = intent is null ? GuideObservation.TaskDescription :
                 "用户明确提出的目标：" + intent + "。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。";
+            if (followup is not null) task = followup.ModelTask;
             stage = ProcessingStage.Model;
             var modelAnswer = intent is null
                 ? (await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext)))
                     .ToAnswer(identifiedProcess!, observation.Identity)
                 : await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
                     _plugins.GeneralProvider?.InterpretationPolicy));
-            var answer = modelAnswer.ForIntent(intent);
+            var answer = modelAnswer.ForIntent(intent, allowQuestion: followup is { Clarification: null });
             var modelMs = total.ElapsedMilliseconds - observeMs;
             ProbeLog.Log("guide_response_received", ("modelMs", modelMs), ("mode", answer.Mode),
-                ("clarificationLimited", intent is not null && modelAnswer.Mode == "ask"));
+                ("clarificationLimited", intent is not null && modelAnswer.Mode == "ask" && answer.Mode != "ask"));
             if (!_gate.Accepts(version)) return;
+            if (targetProcess.HasExited) throw new InvalidDataException("target_changed");
             stage = ProcessingStage.ResultValidation;
             if (!GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
@@ -412,6 +475,12 @@ public sealed class GuideSession : IDisposable
             {
                 _gate.AwaitClarification(version);
                 _ball.ShowQuestion();
+            }
+            else if (_plugins.GeneralProvider?.InterpretationPolicy?.UserLedFollowup == true)
+            {
+                _followup.Complete(flowTarget, intent);
+                _panel.SetFollowupAvailable(_followup.CanOffer);
+                _activeFollowup = null;
             }
             token.ThrowIfCancellationRequested();
             ProbeLog.Log("guide_result", ("mode", answer.Mode), ("candidates", observation.Candidates.Count),
@@ -561,6 +630,9 @@ public sealed class GuideSession : IDisposable
         _ball.AnswerSubmitted -= OnAnswerSubmitted;
         _panel.RegionRequested -= OnRegionRequested;
         _panel.ReferenceRequested -= OnReferenceRequested;
+        _panel.FollowupRequested -= OnFollowupRequested;
+        _activeFollowup = null;
+        _followup.Clear();
         _referenceRequest?.Cancel();
         _references.Dispose();
         _picker?.Abort();

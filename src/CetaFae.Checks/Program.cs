@@ -117,6 +117,7 @@ public static class Program
         await SettingsChecks.RunAsync(Check);
         await TranslationChecks.RunAsync(Check);
         await ErrorChecks.RunAsync(Check);
+        FollowupChecks.Run(Check);
         await PrivacyChecks.RunAsync(Check);
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);
@@ -375,6 +376,19 @@ public static class Program
         if (args.Contains("--live-general")) await GeneralGuideChecks.RunLiveAsync(Check);
         if (args.Contains("--live-translation")) await TranslationChecks.RunLiveAsync(Check);
         if (args.Contains("--live-errors")) await ErrorChecks.RunLiveAsync(Check);
+        if (args.Contains("--replay-followup-third")) FollowupChecks.ReplayThirdStep(Check);
+        if (args.Contains("--live-followup"))
+        {
+            var selectedStep = args.SingleOrDefault(a => a.StartsWith("--followup-step=", StringComparison.Ordinal));
+            int? onlyStep = null;
+            if (selectedStep is not null)
+            {
+                if (!int.TryParse(selectedStep[16..], out var value) || value is < 1 or > 3)
+                    throw new ArgumentException("unknown_generated_followup_step");
+                onlyStep = value;
+            }
+            await FollowupChecks.RunLiveAsync(Check, onlyStep);
+        }
         if (args.Contains("--live-identification")) await IdentificationChecks.RunLiveAsync(Check);
         if (args.Contains("--live-tasks")) await TaskChecks.RunLiveAsync(Check,
             args.SingleOrDefault(a => a.StartsWith("--task-case=", StringComparison.Ordinal))?[12..]);

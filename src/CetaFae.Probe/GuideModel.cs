@@ -12,10 +12,10 @@ public sealed record GuideCandidate(int Id, string Name, string AutomationId, st
 
 public sealed record GuideAnswer(string Mode, string Explanation, int? CandidateId)
 {
-    public GuideAnswer ForIntent(string? intent)
+    public GuideAnswer ForIntent(string? intent, bool allowQuestion = false)
     {
         // A submitted answer consumes this drop's only clarification, even if the model asks again.
-        if (intent is not null && Mode == "ask")
+        if (intent is not null && Mode == "ask" && !allowQuestion)
             return new GuideAnswer("explain",
                 "已收到你的回答，但仍无法可靠确定下一步。本次不标记位置；请将问号球重新拖到相关窗口，并说明具体目标。", null);
         if (intent is null && Mode != "ask")
@@ -185,7 +185,10 @@ public sealed class GuideModel : IDisposable
             "Copy error codes, numbers, dates and units exactly into the translation, including their original spelling. Do not add an action or marker. " +
             "If text is unreadable, incomplete, too long or cannot be translated reliably, return ordinary explain with candidateId null and honestly state the limitation. " +
             "Never invent missing characters or claim this text establishes an unseen system state. " : "") +
-        (policy.ExplainVisibleErrors ? GuideError.Instructions : "");
+        (policy.ExplainVisibleErrors ? GuideError.Instructions : "") +
+        (policy.UserLedFollowup ? "User-led follow-up may include an original user goal, current request and step number. " +
+            "The latest user request takes precedence. Only the current supplied observation establishes current state. " +
+            "Never infer task completion from a user's claimed click, a step number or a prior response. " : "");
 }
 
 public sealed class GuideRunGate

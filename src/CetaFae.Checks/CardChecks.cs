@@ -61,6 +61,12 @@ static class CardChecks
         error.SetStatus(GuideAnswer.Parse("""{"mode":"error","observedText":"无法连接到服务器，错误代码0x80072EE7。","hypotheses":["可能存在地址解析或连接问题，尚未确认。"],"nextCheck":"请确认提示是在执行什么操作时出现，不必提供私人地址。","missingEvidence":"仅凭一条提示不能判断具体根因。","candidateId":null}""", [],
             new CetaFae.Plugins.InterpretationPolicy(["zh-CN"], false, true)).Explanation);
         yield return ("18 Bounded visible-error explanation", error);
+        var followup = New(); followup.SetCloud(true); followup.SetStatus("生成结果已就绪。可继续提问当前窗口，所有操作由你手动完成。");
+        followup.SetFollowupAvailable(true); followup.SetRegionAvailable(true);
+        yield return ("19 Explicit follow-up action", followup);
+        var bubbleFollowup = New(); bubbleFollowup.SetCloud(true); bubbleFollowup.SetStatus("生成控件位置已核对。所有操作由你手动完成。");
+        bubbleFollowup.SetPoint(true); bubbleFollowup.SetFollowupAvailable(true);
+        yield return ("20 Context bubble with follow-up", bubbleFollowup);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)

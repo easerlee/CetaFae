@@ -2,12 +2,12 @@
   "schemaVersion": 5,
   "kind": "general",
   "id": "cetafae.visual-guide",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "displayName": "通用界面理解、翻译与错误说明（开发验证）",
   "targets": [],
   "uiaView": "control",
-  "taskIds": ["guide.visual", "guide.translate", "guide.error"],
-  "interpretationPolicy": { "languages": ["zh-CN", "en"], "translateSelectedText": true, "explainVisibleErrors": true },
+  "taskIds": ["guide.visual", "guide.translate", "guide.error", "guide.followup"],
+  "interpretationPolicy": { "languages": ["zh-CN", "en"], "translateSelectedText": true, "explainVisibleErrors": true, "userLedFollowup": true },
   "blockedPoints": [],
   "observationScopes": []
 }

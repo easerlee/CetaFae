@@ -21,6 +21,7 @@ public sealed class GuidePanel : Window
     public event Action<string>? AnswerSubmitted;
     public event Action? RegionRequested;
     public event Action<string>? ReferenceRequested;
+    public event Action? FollowupRequested;
     public bool IsAnswering => _card.HasQuestion && IsActive;
     public bool IsSessionInteraction => _card.HasSession && IsActive;
     public IntPtr Handle => new WindowInteropHelper(this).Handle;
@@ -48,6 +49,7 @@ public sealed class GuidePanel : Window
         _card.AnswerSubmitted += text => AnswerSubmitted?.Invoke(text);
         _card.RegionRequested += () => RegionRequested?.Invoke();
         _card.ReferenceRequested += query => ReferenceRequested?.Invoke(query);
+        _card.FollowupRequested += () => FollowupRequested?.Invoke();
         _card.ExitRequested += () => Application.Current.Shutdown();
         _card.Dismissed += Hide;
         _card.AnswerFocusRequested += () =>
@@ -93,6 +95,7 @@ public sealed class GuidePanel : Window
     public void ShowConsent() { _card.ShowConsent(); if (!IsVisible) Show(); }
     public void ShowQuestion() => _card.ShowQuestion();
     public void SetRegionAvailable(bool available) => _card.SetRegionAvailable(available);
+    public void SetFollowupAvailable(bool available) => _card.SetFollowupAvailable(available);
     public void ClearQuestion() => _card.ClearQuestion();
     public void SetReferenceQuery(string? query) => _card.SetReferenceQuery(query);
     public void SetReferenceResult(string result) => _card.SetReferenceResult(result);
@@ -101,6 +104,7 @@ public sealed class GuidePanel : Window
     internal static string Disclosure(GuideOptions options) =>
         "授权在本机按当前Windows用户保存；后续启动恢复开关，不自动读取窗口。接收方、模型、范围或条款改变须重新同意；可从托盘或鲸鱼右键菜单关闭。\n" +
         "开发验证版。启用后，拖放及提交回答会读取所选窗口；展示期间按窗口变化在本机复核控件。\n" +
+        "点击“继续提问”后可先手动操作；等待输入期间暂停内容读取，提交时重新检查同一目标。连续指导发送原始用户目标、本轮问题及步骤编号，不发送旧模型回答；最多8步，切窗或结束即清除。\n" +
         "初次拖入先识别软件和界面用途，不要求已有操作目标；所属进程仅在本机显示，不发送进程名或窗口标题元数据。画面本身可能包含软件名或标题。\n" +
         "身份插件可在本机读取所选程序的产品名、描述、版本、公司、离线签名及包身份；路径仅用于读取，不记录或外发。这些字段不发给模型。可选联网核对会另行展示产品名查询词和公共百科接收方，须再次亲自确认；不默认联网。\n" +
         (options.IncludeImage ? "通用视觉插件可尝试理解未适配的软件，不代表所有软件已正式支持。目标未明时可能发送所选整窗画面；明确目标后发送可靠适配范围的局部画面，或由你框选的区域（可主动选整个目标窗）、范围内控件文字及用户输入的回答。范围不明时先等待选区，不自动改发整窗。PrintWindow先在本机内存绘制所选整窗，再裁剪外发。\n" :

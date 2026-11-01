@@ -33,12 +33,14 @@ internal sealed class GuideCard : Border
     readonly Button _confirmReference;
     readonly Button _details;
     readonly Button _collapse;
+    readonly Button _followup;
     readonly StackPanel _header;
     string? _referenceQuery;
     bool _cloudEnabled;
     bool _regionAvailable;
     bool _questionAvailable;
     bool _hasSession;
+    bool _followupAvailable;
 
     internal GuideCardView View { get; private set; } = GuideCardView.Menu;
     internal bool HasQuestion => View == GuideCardView.Session && !IsCollapsed && !IsBubble && _questionAvailable;
@@ -46,6 +48,7 @@ internal sealed class GuideCard : Border
     internal bool HasRegion => View == GuideCardView.Session && !IsCollapsed && !IsBubble && _regionAvailable;
     internal bool IsBubble { get; private set; }
     internal bool IsCollapsed { get; private set; }
+    internal bool HasFollowup => _followupAvailable && _cloudEnabled && _hasSession && View == GuideCardView.Session && !_questionAvailable;
     internal string FullText => _status.Text;
     internal event Action? PresentationChanged;
     internal ScrollViewer BodyScroll { get; }
@@ -60,6 +63,7 @@ internal sealed class GuideCard : Border
     internal event Action? AnswerFocusRequested;
     internal event Action<string>? AnswerSubmitted;
     internal event Action<string>? ReferenceRequested;
+    internal event Action? FollowupRequested;
 
     internal GuideCard(GuideOptions options)
     {
@@ -127,7 +131,8 @@ internal sealed class GuideCard : Border
         });
         _details = Button("展开详情", () => { IsBubble = IsCollapsed = false; Refresh(); });
         _collapse = Button("收起", Collapse);
-        foreach (var button in new[] { _details, _region, _reference, _confirmReference, _consent, _cloud, _clear, _collapse, _menu, _exit, _back }) Actions.Children.Add(button);
+        _followup = Button("继续提问", () => { if (HasFollowup) FollowupRequested?.Invoke(); });
+        foreach (var button in new[] { _details, _followup, _region, _reference, _confirmReference, _consent, _cloud, _clear, _collapse, _menu, _exit, _back }) Actions.Children.Add(button);
         DockPanel.SetDock(Actions, Dock.Bottom);
         layout.Children.Add(Actions);
         layout.Children.Add(BodyScroll);
@@ -166,7 +171,8 @@ internal sealed class GuideCard : Border
     }
     internal void SetReferenceQuery(string? query) { _referenceQuery = query; _referenceDisclosure.Text = ""; Refresh(); }
     internal void SetReferenceResult(string result) { _referenceResult.Text = result; Refresh(); }
-    internal void SetStatus(string text) { _status.Text = text; _hasSession = true; IsBubble = IsCollapsed = false; View = GuideCardView.Session; Refresh(); }
+    internal void SetStatus(string text) { _status.Text = text; _hasSession = true; _followupAvailable = false; IsBubble = IsCollapsed = false; View = GuideCardView.Session; Refresh(); }
+    internal void SetFollowupAvailable(bool available) { _followupAvailable = available; Refresh(); }
     internal void SetPoint(bool visible) { IsBubble = visible && _hasSession && View == GuideCardView.Session; IsCollapsed = false; Refresh(); }
     internal void Collapse() { IsBubble = false; IsCollapsed = true; Refresh(); }
     internal void ShowMenu() { View = GuideCardView.Menu; Refresh(); }
@@ -181,6 +187,7 @@ internal sealed class GuideCard : Border
         _referenceQuery = null;
         _referenceDisclosure.Text = _referenceResult.Text = "";
         _hasSession = _questionAvailable = _regionAvailable = false;
+        _followupAvailable = false;
         IsBubble = IsCollapsed = false;
         View = GuideCardView.Menu;
         Refresh();
@@ -207,6 +214,7 @@ internal sealed class GuideCard : Border
         Visible(_reference, session && !compact && !bubble && _cloudEnabled && _referenceQuery is not null);
         Visible(_confirmReference, View == GuideCardView.ReferenceConsent && _cloudEnabled && _referenceQuery is not null);
         Visible(_question, HasQuestion && !compact && !bubble);
+        Visible(_followup, HasFollowup && !compact);
         Visible(_region, HasRegion && !compact && !bubble);
         Visible(_consent, View == GuideCardView.Consent && !_cloudEnabled);
         Visible(_cloud, View == GuideCardView.Menu);
