@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using CetaFae.Probe;
 
 namespace CetaFae.Checks;
@@ -15,8 +16,9 @@ internal static class FeedbackChecks
     static void Click(GuideCard card, string label) => card.Actions.Children.Cast<Button>()
         .Single(button => Equals(button.Content, label)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
-    internal static void Run(Action<bool, string> check)
+    internal static void Run(Action<bool, string> check, bool renderMeasured = false)
     {
+        CheckMeasuredReader(check, renderMeasured);
         var work = SystemParameters.WorkArea;
         var entry = new Rect(work.Left + 80, work.Top, 288, 36);
         var panel = new GuidePanel(Options);
@@ -80,6 +82,121 @@ internal static class FeedbackChecks
                 "all native feedback state checks remain offscreen");
         }
         finally { panel.Close(); }
+    }
+
+    static void CheckMeasuredReader(Action<bool, string> check, bool render)
+    {
+        var panel = new GuidePanel(Options);
+        try
+        {
+            panel.BindEntry(() => new Rect(100, 100, WhalePrompt.WidthDip, 36), () => 1, () => true);
+            var surface = (FrameworkElement)panel.Content;
+            void Arrange()
+            {
+                surface.Measure(new Size(panel.Width, panel.Height));
+                surface.Arrange(new Rect(0, 0, panel.Width, panel.Height));
+                surface.UpdateLayout();
+                panel.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                surface.Measure(new Size(panel.Width, panel.Height));
+                surface.Arrange(new Rect(0, 0, panel.Width, panel.Height));
+                surface.UpdateLayout();
+            }
+            for (var round = 0; round < 3; round++)
+            {
+                panel.Card.Reset();
+                panel.Card.SetCloud(true);
+                panel.Card.SetStatus(GuideIdentification.Processing);
+                Arrange();
+                panel.SetControl(null);
+                panel.Card.SetStatus(new GuideIdentification("生成文档工具", string.Concat(Enumerable.Repeat("显示生成待办事项：整理材料、核对结果。", round == 0 ? 5 : round == 1 ? 40 : 1)),
+                    "你希望在这个窗口里了解什么？", "regular").ToAnswer("generated-editor").Explanation);
+                panel.SetPoint(false);
+                panel.SetReferenceQuery("Generated Editor software");
+                panel.SetRegionAvailable(true);
+                Arrange();
+                var state = panel.Card.FeedbackState();
+                check(state.TextPresent && state.TextVisible && state.TextInViewport && state.ViewportReady,
+                    $"measured live reader keeps text visible after result/footer changes round{round}: host={panel.Height}, viewport={panel.Card.BodyScroll.ViewportHeight}, actions={panel.Card.Actions.ActualHeight}");
+                var visibleActions = panel.Card.Actions.Children.Cast<Button>().Where(button => button.Visibility == Visibility.Visible);
+                check(visibleActions.All(button => button.TransformToAncestor(surface).TransformBounds(new Rect(button.RenderSize)).Bottom <= panel.Height + 1),
+                    "measured live reader keeps wrapped result actions inside the actual host");
+                if (render)
+                {
+                    var image = new RenderTargetBitmap((int)Math.Ceiling(panel.Width), (int)Math.Ceiling(panel.Height), 96, 96, PixelFormats.Pbgra32);
+                    image.Render(surface); Save(image, $"feedback-measured-{round}.png");
+                }
+                panel.Card.Collapse(); Arrange();
+                check(panel.Card.IsCollapsed && panel.Height <= 40,
+                    "measured reader retains intentional compact collapse after footer resizing");
+                Click(panel.Card, "展开说明  ﹀"); Arrange();
+                check(panel.Card.FeedbackState() is (true, true, true, true),
+                    "measured reader reopening restores the current explanation viewport");
+            }
+            check(new WindowInteropHelper(panel).Handle == IntPtr.Zero,
+                "measured-reader regression never creates a native window or reads a real target");
+        }
+        finally { panel.Close(); }
+    }
+
+    internal static int RunDesktop()
+    {
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        var panel = new GuidePanel(Options) { Title = "CetaFae generated reader fixture" };
+        var work = SystemParameters.WorkArea;
+        panel.BindEntry(() => new Rect(work.Left + (work.Width - WhalePrompt.WidthDip) / 2,
+            work.Top + 80, WhalePrompt.WidthDip, 36), () => 1, () => true);
+        panel.Card.SetCloud(true);
+        var result = 1;
+        var running = false;
+        panel.Loaded += async (_, _) =>
+        {
+            if (running) return;
+            running = true;
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            try
+            {
+                void Result(int repeat)
+                {
+                    panel.SetStatus(string.Concat(Enumerable.Repeat("生成说明：这里只显示测试文字，不读取任何软件、不联网。", repeat)));
+                    panel.SetPoint(false);
+                    panel.SetReferenceQuery("Generated Editor software");
+                    panel.SetRegionAvailable(true);
+                }
+                var stages = new (string Name, Action Change)[]
+                {
+                    ("processing", () => panel.SetStatus(GuideIdentification.Processing)),
+                    ("long-result-footer", () => Result(20)),
+                    ("collapse", panel.Card.Collapse),
+                    ("reopen", () => Click(panel.Card, "展开说明  ﹀")),
+                    ("short-result", () => Result(1)),
+                    ("reused-processing", () => { panel.Card.Reset(); panel.Card.SetCloud(true); panel.SetStatus(GuideIdentification.Processing); }),
+                    ("reused-result-footer", () => Result(6))
+                };
+                foreach (var (name, change) in stages)
+                {
+                    deadline.Token.ThrowIfCancellationRequested();
+                    change();
+                    await panel.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+                    await Task.Delay(450, deadline.Token);
+                    var state = panel.Card.FeedbackState();
+                    var actionsFit = panel.Card.Actions.Children.Cast<Button>().Where(button => button.Visibility == Visibility.Visible)
+                        .All(button => button.TransformToAncestor(panel.Card).TransformBounds(new Rect(button.RenderSize)).Bottom <= panel.Card.ActualHeight + 1);
+                    var passed = panel.IsVisible && actionsFit && (panel.Card.IsCollapsed ? panel.ActualHeight <= 40 :
+                        state is (true, true, true, true));
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { generatedReaderStage = name, passed,
+                        height = panel.ActualHeight, viewportHeight = panel.Card.BodyScroll.ViewportHeight, actionsFit }));
+                    if (!passed) throw new InvalidOperationException("generated_reader_layout");
+                }
+                Console.WriteLine("PASS: seven generated native reader states; no capture, target read, model request or consent change.");
+                result = 0;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException)
+            { Console.Error.WriteLine("FAIL: generated reader fixture " + ex.GetType().Name); }
+            finally { panel.Close(); app.Shutdown(); }
+        };
+        panel.SetStatus(GuideIdentification.Processing);
+        app.Run();
+        return result;
     }
 
     static RenderTargetBitmap RenderElement(FrameworkElement element, double width, double height)

@@ -19,6 +19,8 @@ public sealed class GuidePanel : Window
     bool _placing;
     bool _locatedResult;
     bool _avoidanceCollapsed;
+    bool _repositionQueued;
+    bool _closed;
     int _presentationRevision;
     public event Action? MenuRequested;
     public event Action? Cancelled;
@@ -46,9 +48,9 @@ public sealed class GuidePanel : Window
         SizeToContent = SizeToContent.Manual;
         _card = new GuideCard(options);
         Content = _surface = new FeedbackSurface(_card);
-        _card.PresentationChanged += () => { Reposition(); UpdateNoticeTracking(); };
+        _card.PresentationChanged += () => { Reposition(); QueueReposition(); UpdateNoticeTracking(); };
         IsVisibleChanged += (_, _) => UpdateNoticeTracking();
-        Closed += (_, _) => _noticePointer.Stop();
+        Closed += (_, _) => { _closed = true; _noticePointer.Stop(); };
         _noticePointer.Tick += (_, _) =>
         {
             var down = Native.MouseButtonDown();
@@ -226,5 +228,17 @@ public sealed class GuidePanel : Window
             Left = bounds.Left; Top = bounds.Top; Height = bounds.Height;
         }
         finally { _placing = false; }
+    }
+
+    void QueueReposition()
+    {
+        if (_closed || _repositionQueued) return;
+        _repositionQueued = true;
+        // ScrollViewer publishes its new extent during layout; an earlier measure can still return the old height.
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            _repositionQueued = false;
+            if (!_closed) Reposition();
+        }));
     }
 }

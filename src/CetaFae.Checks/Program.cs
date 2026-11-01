@@ -29,6 +29,7 @@ public static class Program
         if (args.Contains("--capture-desktop")) return CaptureChecks.Run();
         if (args.Contains("--scroll-desktop")) return ScrollChecks.Run();
         if (args.Contains("--privacy-desktop")) return PrivacyDesktopChecks.Run();
+        if (args.Contains("--feedback-desktop")) return FeedbackChecks.RunDesktop();
         Console.WriteLine($"BUILD: {typeof(GuideSession).Module.ModuleVersionId:N}");
         if (args.Contains("--render-settings"))
         {
@@ -38,7 +39,7 @@ public static class Program
         if (args.Contains("--render-feedback"))
         {
             _ = Dispatcher.CurrentDispatcher;
-            FeedbackChecks.Run(Check); FeedbackChecks.Render(); return 0;
+            FeedbackChecks.Run(Check, renderMeasured: true); FeedbackChecks.Render(); return 0;
         }
         if (args.Contains("--render-drop"))
         {
