@@ -49,6 +49,14 @@ internal sealed class GuideCard : Border
     internal bool IsCollapsed { get; private set; }
     internal bool HasFollowup => _followupAvailable && _cloudEnabled && _hasSession && View == GuideCardView.Session && !_questionAvailable;
     internal string FullText => _status.Text;
+    internal (bool TextPresent, bool TextVisible, bool TextInViewport, bool ViewportReady) FeedbackState()
+    {
+        var ready = BodyScroll.ViewportWidth > 0 && BodyScroll.ViewportHeight > 0;
+        var visible = _status.Visibility == Visibility.Visible && _status.ActualWidth > 0 && _status.ActualHeight > 0;
+        var bounds = _status.TransformToAncestor(BodyScroll).TransformBounds(new Rect(_status.RenderSize));
+        return (!string.IsNullOrWhiteSpace(_status.Text), visible,
+            ready && visible && bounds.IntersectsWith(new Rect(0, 0, BodyScroll.ViewportWidth, BodyScroll.ViewportHeight)), ready);
+    }
     internal event Action? PresentationChanged;
     internal ScrollViewer BodyScroll { get; }
     internal WrapPanel Actions { get; } = new() { Margin = new Thickness(0, 14, 0, 0) };
@@ -180,7 +188,7 @@ internal sealed class GuideCard : Border
     }
     internal void SetReferenceQuery(string? query) { _referenceQuery = query; _referenceDisclosure.Text = ""; Refresh(); }
     internal void SetReferenceResult(string result) { _referenceResult.Text = result; Refresh(); }
-    internal void SetStatus(string text) { _status.Text = text; _hasSession = true; _followupAvailable = false; IsBubble = IsCollapsed = false; View = GuideCardView.Session; Refresh(); }
+    internal void SetStatus(string text) { _status.Text = text; BodyScroll.ScrollToTop(); _hasSession = true; _followupAvailable = false; IsBubble = IsCollapsed = false; View = GuideCardView.Session; Refresh(); }
     internal void SetNotice(string text) { Reset(); _status.Text = text; View = GuideCardView.Notice; Refresh(); }
     internal void DismissNotice()
     {
@@ -199,6 +207,7 @@ internal sealed class GuideCard : Border
     {
         _answer.Clear();
         _status.Text = "";
+        BodyScroll.ScrollToTop();
         _referenceQuery = null;
         _referenceDisclosure.Text = _referenceResult.Text = "";
         _hasSession = _questionAvailable = _regionAvailable = false;

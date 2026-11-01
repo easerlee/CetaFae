@@ -19,6 +19,7 @@ public sealed class GuidePanel : Window
     bool _placing;
     bool _locatedResult;
     bool _avoidanceCollapsed;
+    int _presentationRevision;
     public event Action? MenuRequested;
     public event Action? Cancelled;
     public event Action<string>? AnswerSubmitted;
@@ -117,6 +118,16 @@ public sealed class GuidePanel : Window
     {
         if (_hasTarget?.Invoke() == false) _card.SetNotice(message); else _card.SetStatus(message);
         if (!IsVisible) Show();
+        var revision = ++_presentationRevision;
+        // Observe the actual post-layout state without retaining text or forcing a repaint that masks a failure.
+        Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+        {
+            if (revision != _presentationRevision || !IsVisible) return;
+            var state = _card.FeedbackState();
+            ProbeLog.Log("guide_feedback_layout", ("view", _card.View.ToString()),
+                ("textPresent", state.TextPresent), ("textVisible", state.TextVisible),
+                ("textInViewport", state.TextInViewport), ("viewportReady", state.ViewportReady));
+        }));
     }
     internal void BindEntry(Func<Rect> entry, Func<double> scale, Func<bool> hasTarget)
     { _entry = entry; _scale = scale; _hasTarget = hasTarget; }
@@ -134,7 +145,7 @@ public sealed class GuidePanel : Window
     public void ClearQuestion() => _card.ClearQuestion();
     public void SetReferenceQuery(string? query) => _card.SetReferenceQuery(query);
     public void SetReferenceResult(string result) => _card.SetReferenceResult(result);
-    public void EndSession() { _control = null; _locatedResult = _avoidanceCollapsed = false; _card.Reset(); Hide(); }
+    public void EndSession() { _presentationRevision++; _control = null; _locatedResult = _avoidanceCollapsed = false; _card.Reset(); Hide(); }
 
     internal static string Disclosure(GuideOptions options) =>
         "安装时点击“同意协议并安装”，在本机按当前Windows用户记住同意；安装后直接拖动小鲸鱼求助，不设日常云端开关或首次启动确认。启动本身不读取窗口。接收方、模型、范围或条款改变后，须重新运行安装程序确认；可在鲸汐设置的隐私页撤回同意。\n" +

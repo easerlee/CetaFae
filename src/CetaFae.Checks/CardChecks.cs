@@ -249,6 +249,28 @@ static class CardChecks
         Layout(longCard);
         check(longCard.BodyScroll.ExtentHeight > longCard.BodyScroll.ViewportHeight,
             "long generated text scrolls while the footer remains outside its viewport");
+        longCard.BodyScroll.ScrollToBottom();
+        Layout(longCard);
+        check(longCard.BodyScroll.VerticalOffset > 0, "reused reader fixture begins below the start of a long result");
+        longCard.SetStatus(string.Concat(Enumerable.Repeat("新的生成说明应当从第一行开始阅读。", 40)));
+        Layout(longCard);
+        check(longCard.BodyScroll.VerticalOffset == 0,
+            "a fresh result resets the reused reader to the beginning instead of retaining old scroll position");
+        foreach (var width in new[] { WhalePrompt.WidthDip, GuideTheme.CardWidth })
+        {
+            longCard.Reset(); longCard.SetNotice("这次等得有点久，还没看明白。"); Layout(longCard, width);
+            longCard.SetStatus(GuideIdentification.Processing); Layout(longCard, width);
+            longCard.SetStatus(new GuideIdentification("生成记事本", "显示待办事项：整理材料、核对结果。", "想了解哪一部分？", "regular").ToAnswer("generated-editor").Explanation);
+            longCard.SetPoint(false); longCard.SetReferenceQuery("Generated Editor software"); longCard.SetRegionAvailable(true);
+            Layout(longCard, width);
+            var state = longCard.FeedbackState();
+            check(state.TextPresent && state.TextVisible && state.TextInViewport && state.ViewportReady &&
+                  longCard.BodyScroll.VerticalOffset == 0 && longCard.View == GuideCardView.Session,
+                $"timeout-to-result reuse retains visible nonempty feedback at width{width}");
+            longCard.ShowQuestion(); Layout(longCard, width);
+            check(longCard.HasQuestion && longCard.FeedbackState().TextInViewport,
+                $"question availability cannot replace or hide the new explanation at width{width}");
+        }
     }
 
     internal static void Render(bool recognitionOnly = false)

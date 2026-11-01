@@ -2,6 +2,8 @@
 
 ## Novice recognition feedback (2026-11-01)
 
+Preview.22 native failure follow-up: preserve the reported timeout and blank reader separately. Exercise one reused production reader across long/scrolled text, reset, timeout notice, new processing text, classification result and input availability at288/360DIP. Assert the new result begins at scroll offset zero and has a visible nonempty status intersecting its viewport. Keep render metadata bounded/content-free; no native-result acceptance from these offscreen checks. Do not rerun the model semantic batch when prompts are unchanged.
+
 Freeze ordinary tool, paused settings, actual error dialog, actual warning, a document quoting an error, purpose-known/software-unknown and blank cases before generated model requests. Assert kind and visible facts independently; ordinary is not a health verdict, attention is not root-cause proof, and unreadable/absent purpose cannot become a known kind. No initial marker. Strict parser rejects missing/duplicate/unknown kind and unsupported known classification. Assert no process/handle/PID/file-signature metadata in user-facing progress, success or model-failure fallback; unknown software still retains useful visible content. Privacy/check unavailable, permission limits, unreadable capture, selection required and service failure each retain honest boundaries and plain next steps. Keep generated/model/native evidence separate; no desktop reads or replacements for this development increment.
 
 ## Installation decision correction (2026-11-01)
