@@ -32,4 +32,20 @@ internal static class FeedbackLayout
         }
         return null;
     }
+
+    internal static Rect? Reader(Rect control, Rect entry, Rect work, Size size)
+    {
+        var width = Math.Min(size.Width, work.Width); var height = Math.Min(size.Height, work.Height);
+        var preferred = Attached(entry, work, size);
+        var points = new[] { preferred.TopLeft, new Point(entry.Left, entry.Top - height - 1),
+            new Point(entry.Right + 1, entry.Bottom + 1), new Point(entry.Left - width - 1, entry.Bottom + 1) };
+        var protectedControl = control; protectedControl.Inflate(6, 6);
+        foreach (var point in points)
+        {
+            var bounds = new Rect(Math.Clamp(point.X, work.Left, work.Right - width),
+                Math.Clamp(point.Y, work.Top, work.Bottom - height), width, height);
+            if (!bounds.IntersectsWith(protectedControl) && !bounds.IntersectsWith(entry)) return bounds;
+        }
+        return null;
+    }
 }

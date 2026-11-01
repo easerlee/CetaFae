@@ -13,6 +13,8 @@ public sealed class GuidePanel : Window
     Func<double>? _scale;
     Rect? _control;
     bool _placing;
+    bool _locatedResult;
+    bool _avoidanceCollapsed;
     public event Action? CloudToggled;
     public event Action? MenuRequested;
     public event Action? Cancelled;
@@ -82,7 +84,11 @@ public sealed class GuidePanel : Window
     public void SetCloud(bool enabled) => _card.SetCloud(enabled);
     public void SetStatus(string message) { _card.SetStatus(message); if (!IsVisible) Show(); }
     internal void BindEntry(Func<Rect> entry, Func<double> scale) { _entry = entry; _scale = scale; }
-    internal void SetPoint(bool visible) => _card.SetPoint(visible && _control is not null);
+    internal void SetPoint(bool visible)
+    {
+        _locatedResult = visible && _control is not null;
+        _card.SetPoint(_locatedResult);
+    }
     public void ShowMenu() { _card.ShowMenu(); if (!IsVisible) Show(); }
     public void ShowConsent() { _card.ShowConsent(); if (!IsVisible) Show(); }
     public void ShowQuestion() => _card.ShowQuestion();
@@ -90,7 +96,7 @@ public sealed class GuidePanel : Window
     public void ClearQuestion() => _card.ClearQuestion();
     public void SetReferenceQuery(string? query) => _card.SetReferenceQuery(query);
     public void SetReferenceResult(string result) => _card.SetReferenceResult(result);
-    public void EndSession() { _control = null; _card.Reset(); Hide(); }
+    public void EndSession() { _control = null; _locatedResult = _avoidanceCollapsed = false; _card.Reset(); Hide(); }
 
     internal static string Disclosure(GuideOptions options) =>
         "授权在本机按当前Windows用户保存；后续启动恢复开关，不自动读取窗口。接收方、模型、范围或条款改变须重新同意；可从托盘或鲸鱼右键菜单关闭。\n" +
@@ -116,6 +122,7 @@ public sealed class GuidePanel : Window
 
     internal void SetControl(Rect? bounds)
     {
+        _locatedResult = _avoidanceCollapsed = false;
         var scale = _scale?.Invoke() ?? 1;
         _control = bounds is { } control ? new Rect(control.X / scale, control.Y / scale, control.Width / scale, control.Height / scale) : null;
         Reposition();
@@ -149,7 +156,21 @@ public sealed class GuidePanel : Window
                 Reposition();
                 return;
             }
-            var bounds = bubble ?? FeedbackLayout.Attached(entry, work, size);
+            Rect? reader = null;
+            if (bubble is null && session && _locatedResult && _control is { } protectedControl)
+            {
+                reader = FeedbackLayout.Reader(protectedControl, entry, work, size);
+                if (reader is null && !_card.IsCollapsed && !_avoidanceCollapsed)
+                {
+                    // Collapse once; an explicit reopen must not fall into an automatic-collapse loop.
+                    _avoidanceCollapsed = true;
+                    _card.Collapse();
+                    _placing = false;
+                    Reposition();
+                    return;
+                }
+            }
+            var bounds = bubble ?? reader ?? FeedbackLayout.Attached(entry, work, size);
             if (bubble is not null && _control is { } aim)
                 _surface.SetBubble(true, new Point(aim.X + aim.Width / 2 - bounds.X, aim.Y + aim.Height / 2 - bounds.Y));
             Left = bounds.Left; Top = bounds.Top; Height = bounds.Height;

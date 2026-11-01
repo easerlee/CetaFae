@@ -126,7 +126,7 @@ internal sealed class GuideCard : Border
             View = GuideCardView.Session; Refresh(); ReferenceRequested?.Invoke(query);
         });
         _details = Button("展开详情", () => { IsBubble = IsCollapsed = false; Refresh(); });
-        _collapse = Button("收起", () => { IsBubble = false; IsCollapsed = true; Refresh(); });
+        _collapse = Button("收起", Collapse);
         foreach (var button in new[] { _details, _region, _reference, _confirmReference, _consent, _cloud, _clear, _collapse, _menu, _exit, _back }) Actions.Children.Add(button);
         DockPanel.SetDock(Actions, Dock.Bottom);
         layout.Children.Add(Actions);
@@ -168,6 +168,7 @@ internal sealed class GuideCard : Border
     internal void SetReferenceResult(string result) { _referenceResult.Text = result; Refresh(); }
     internal void SetStatus(string text) { _status.Text = text; _hasSession = true; IsBubble = IsCollapsed = false; View = GuideCardView.Session; Refresh(); }
     internal void SetPoint(bool visible) { IsBubble = visible && _hasSession && View == GuideCardView.Session; IsCollapsed = false; Refresh(); }
+    internal void Collapse() { IsBubble = false; IsCollapsed = true; Refresh(); }
     internal void ShowMenu() { View = GuideCardView.Menu; Refresh(); }
     internal void ShowConsent() { View = GuideCardView.Consent; Refresh(); }
     internal void ShowQuestion() { _questionAvailable = true; Refresh(); }

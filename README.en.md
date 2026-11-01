@@ -10,7 +10,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 - **Lightweight management**: left-clicking the whale opens no management window. The tray and whale right-click share one menu. Explicit first-use consent and on/off state are remembered for the current configuration; changed terms or configuration require confirmation again. Startup alone never collects or sends content.
 - **Drag to select**: an attached input bar, on-demand explanations, and control highlights keep interaction close to the target. Ending a session restores the whale.
-- **Contextual feedback**: explanations expand below the input bar; validated controls can have a short nearby bubble. Details move to the top reader. Collapse preserves the session and highlights, while close or clear ends it. Long explanations scroll.
+- **Contextual feedback**: explanations expand below the input bar; validated controls can have a short nearby bubble. Details move to the reader, which changes side to avoid the control or collapses when space is insufficient. It can be reopened. Collapse preserves the session and highlights, while close or clear ends it. Long explanations scroll.
 - **Understand the current window**: visible content and local software identity distinguish the owning application, interface purpose, and uncertainty. Generic vision can attempt unfamiliar software without promising recognition of every window.
 - **Explain and guide**: interpret visible state and ask one clarification if needed. Highlight controls only when their location is reliable; otherwise explain the limitation.
 - **Analyze a region**: use reliable task scopes or select an image region manually. Generic image understanding does not require an adapter for every application.
