@@ -2,6 +2,10 @@
 
 Updated: 2026-10-30
 
+## Attached feedback concept study (2026-11-01, preview only)
+
+The user requested an interactive demonstration of two alternatives before native implementation. Build an isolated, fixed-data HTML study under ignored.artifacts/feedback-study/: (1) the existing blue input shell grows a light reading area below; (2) a short droplet bubble anchors beside the highlighted control, with optional detail expansion at the top shell. Use existing #258FEC water blue, #F8FCFF reading surface, #143747 ink and Microsoft YaHei UI; keep send inside the input and close inside the blue shell. Management stays in tray/right-click. Distinguish collapse from end-session; persistent errors, selected-region requests and sensitive-content refusal must have clear actions. Compare ordinary/maximized layouts and reduced motion, text overflow, active controls and keyboard input in generated browser content only. No model, target-window capture, native product modification or new support claim. This is an authorized throwaway visual study, not approved production design; real rendering/performance and lifecycle remain separate gates.
+
 
 ## Remembered consent and unified management (2026-10-31)
 
