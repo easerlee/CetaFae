@@ -31,6 +31,8 @@ public sealed record GuideAnswer(string Mode, string Explanation, int? Candidate
         if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException("answer_shape");
         if (root.TryGetProperty("mode", out var responseMode) && responseMode.ValueKind == JsonValueKind.String && responseMode.GetString() == "translate")
             return GuideTranslation.Parse(root, interpretationPolicy);
+        if (responseMode.ValueKind == JsonValueKind.String && responseMode.GetString() == "error")
+            return GuideError.Parse(root, interpretationPolicy);
         var names = root.EnumerateObject().Select(p => p.Name).ToArray();
         if (names.Length != 3 || names.Distinct().Count() != 3 ||
             !names.Order().SequenceEqual(new[] { "candidateId", "explanation", "mode" }))
@@ -182,7 +184,8 @@ public sealed class GuideModel : IDisposable
             "translation is its translation (1-600 characters). Both must be single-line strings. Preserve original labels by quoting the complete source. " +
             "Copy error codes, numbers, dates and units exactly into the translation, including their original spelling. Do not add an action or marker. " +
             "If text is unreadable, incomplete, too long or cannot be translated reliably, return ordinary explain with candidateId null and honestly state the limitation. " +
-            "Never invent missing characters or claim this text establishes an unseen system state. " : "");
+            "Never invent missing characters or claim this text establishes an unseen system state. " : "") +
+        (policy.ExplainVisibleErrors ? GuideError.Instructions : "");
 }
 
 public sealed class GuideRunGate

@@ -69,14 +69,16 @@ public sealed class InterpretationPolicy
 {
     public IReadOnlyList<string> Languages { get; }
     public bool TranslateSelectedText { get; }
+    public bool ExplainVisibleErrors { get; }
 
     [JsonConstructor]
-    public InterpretationPolicy(IReadOnlyList<string> languages, bool translateSelectedText)
+    public InterpretationPolicy(IReadOnlyList<string> languages, bool translateSelectedText, bool explainVisibleErrors = false)
     {
         Languages = PluginData.Texts(languages, 2, 8);
         if (Languages.Any(language => language is not ("zh-CN" or "en")))
             throw new InvalidDataException("plugin_interpretation");
         TranslateSelectedText = translateSelectedText;
+        ExplainVisibleErrors = explainVisibleErrors;
     }
 }
 

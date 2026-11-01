@@ -146,7 +146,8 @@ static class TaskChecks
                 var payload = GuidePayload.From(observation);
                 var task = item.Intent is null ? GuideObservation.TaskDescription :
                     "用户明确提出的目标：" + item.Intent + "。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。";
-                var answer = (await model.AskAsync(task, payload.Candidates, payload.Png, CancellationToken.None)).ForIntent(item.Intent);
+                var answer = (await model.AskAsync(task, payload.Candidates, payload.Png, CancellationToken.None,
+                    interpretationPolicy: installed.GeneralProvider?.InterpretationPolicy)).ForIntent(item.Intent);
                 var plugin = installed.Resolve(item.Family.Process, item.Family.Title);
                 var valid = answer.Mode == item.Mode && answer.CandidateId == item.CandidateId &&
                     (item.Fact is null || answer.Explanation.Contains(item.Fact, StringComparison.OrdinalIgnoreCase)) &&

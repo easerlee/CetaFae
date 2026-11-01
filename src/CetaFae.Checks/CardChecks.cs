@@ -57,6 +57,10 @@ static class CardChecks
         yield return ("16 Contextual droplet bubble", bubble);
         var collapsed = New(); collapsed.SetStatus("原说明保留，重新展开不发请求。"); Click(Find(collapsed, "收起"));
         yield return ("17 Attached reopen tab", collapsed);
+        var error = New(); error.SetCloud(true);
+        error.SetStatus(GuideAnswer.Parse("""{"mode":"error","observedText":"无法连接到服务器，错误代码0x80072EE7。","hypotheses":["可能存在地址解析或连接问题，尚未确认。"],"nextCheck":"请确认提示是在执行什么操作时出现，不必提供私人地址。","missingEvidence":"仅凭一条提示不能判断具体根因。","candidateId":null}""", [],
+            new CetaFae.Plugins.InterpretationPolicy(["zh-CN"], false, true)).Explanation);
+        yield return ("18 Bounded visible-error explanation", error);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
