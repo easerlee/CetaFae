@@ -1,12 +1,18 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace CetaFae.Probe;
 
 public sealed class GuidePanel : Window
 {
     readonly GuideCard _card;
+    readonly FeedbackSurface _surface;
+    Func<Rect>? _entry;
+    Func<double>? _scale;
+    Rect? _control;
+    bool _placing;
     public event Action? CloudToggled;
     public event Action? MenuRequested;
     public event Action? Cancelled;
@@ -26,11 +32,14 @@ public sealed class GuidePanel : Window
         ShowInTaskbar = false;
         ShowActivated = false;
         Topmost = true;
+        AllowsTransparency = true;
+        Background = Brushes.Transparent;
         Width = Math.Min(GuideTheme.CardWidth, SystemParameters.WorkArea.Width - 24);
         MaxHeight = Math.Min(GuideTheme.CardMaxHeight, SystemParameters.WorkArea.Height - 24);
-        SizeToContent = SizeToContent.Height;
+        SizeToContent = SizeToContent.Manual;
         _card = new GuideCard(options);
-        Content = _card;
+        Content = _surface = new FeedbackSurface(_card);
+        _card.PresentationChanged += Reposition;
         _card.CloudToggled += () => CloudToggled?.Invoke();
         _card.MenuRequested += () => MenuRequested?.Invoke();
         _card.Cancelled += () => Cancelled?.Invoke();
@@ -60,7 +69,7 @@ public sealed class GuidePanel : Window
         {
             if (e.Key == Key.Escape) { Cancelled?.Invoke(); e.Handled = true; }
         };
-        Place(null);
+        Reposition();
     }
 
     void SetKeyboardAccess(bool active)
@@ -72,6 +81,8 @@ public sealed class GuidePanel : Window
 
     public void SetCloud(bool enabled) => _card.SetCloud(enabled);
     public void SetStatus(string message) { _card.SetStatus(message); if (!IsVisible) Show(); }
+    internal void BindEntry(Func<Rect> entry, Func<double> scale) { _entry = entry; _scale = scale; }
+    internal void SetPoint(bool visible) => _card.SetPoint(visible && _control is not null);
     public void ShowMenu() { _card.ShowMenu(); if (!IsVisible) Show(); }
     public void ShowConsent() { _card.ShowConsent(); if (!IsVisible) Show(); }
     public void ShowQuestion() => _card.ShowQuestion();
@@ -79,7 +90,7 @@ public sealed class GuidePanel : Window
     public void ClearQuestion() => _card.ClearQuestion();
     public void SetReferenceQuery(string? query) => _card.SetReferenceQuery(query);
     public void SetReferenceResult(string result) => _card.SetReferenceResult(result);
-    public void EndSession() { _card.Reset(); Hide(); }
+    public void EndSession() { _control = null; _card.Reset(); Hide(); }
 
     internal static string Disclosure(GuideOptions options) =>
         "授权在本机按当前Windows用户保存；后续启动恢复开关，不自动读取窗口。接收方、模型、范围或条款改变须重新同意；可从托盘或鲸鱼右键菜单关闭。\n" +
@@ -103,27 +114,46 @@ public sealed class GuidePanel : Window
         return IntPtr.Zero;
     }
 
-    public void Place(Rect? target, Rect? avoid = null, Rect? entry = null)
+    internal void SetControl(Rect? bounds)
     {
-        var work = SystemParameters.WorkArea;
-        var frame = target ?? work;
-        var positions = new[]
+        var scale = _scale?.Invoke() ?? 1;
+        _control = bounds is { } control ? new Rect(control.X / scale, control.Y / scale, control.Width / scale, control.Height / scale) : null;
+        Reposition();
+    }
+
+    internal void Reposition()
+    {
+        if (_placing) return;
+        _placing = true;
+        try
         {
-            new Point(frame.Right + 8, frame.Top), new Point(frame.Left - Width - 8, frame.Top),
-            new Point(work.Right - Width - 8, work.Top + 8), new Point(work.Left + 8, work.Top + 8),
-            new Point(work.Right - Width - 8, work.Bottom - MaxHeight - 8),
-            new Point(work.Left + 8, work.Bottom - MaxHeight - 8)
-        };
-        foreach (var point in positions)
-        {
-            var rect = new Rect(point, new Size(Width, MaxHeight));
-            if (!work.Contains(rect) || avoid is { } marker && rect.IntersectsWith(marker) ||
-                entry is { } input && rect.IntersectsWith(input)) continue;
-            Left = point.X;
-            Top = point.Y;
-            return;
+            var work = SystemParameters.WorkArea;
+            var entry = _entry?.Invoke() ?? new Rect(work.Right - 96, work.Bottom - 96, 88, 88);
+            var session = _card.View == GuideCardView.Session;
+            var compactBubble = session && _card.IsBubble;
+            Width = Math.Min(work.Width, session ? (compactBubble ? 258 : WhalePrompt.WidthDip) : GuideTheme.CardWidth);
+            MaxHeight = Math.Min(work.Height, session ? (compactBubble ? 260 : 320) : GuideTheme.CardMaxHeight);
+            _surface.SetBubble(compactBubble);
+            // Child visibility invalidation otherwise waits for the dispatcher, leaving a stale HWND height.
+            _card.InvalidateMeasure();
+            _surface.InvalidateMeasure();
+            _surface.Measure(new Size(Width, MaxHeight));
+            var size = new Size(Width, Math.Min(MaxHeight, Math.Max(30, _surface.DesiredSize.Height)));
+            Rect? bubble = compactBubble && _control is { } control
+                ? FeedbackLayout.Bubble(control, entry, work, size) : null;
+            if (compactBubble && bubble is null)
+            {
+                // A cramped target gets the full attached reader, never an unrelated floating bubble.
+                _card.SetPoint(false);
+                _placing = false;
+                Reposition();
+                return;
+            }
+            var bounds = bubble ?? FeedbackLayout.Attached(entry, work, size);
+            if (bubble is not null && _control is { } aim)
+                _surface.SetBubble(true, new Point(aim.X + aim.Width / 2 - bounds.X, aim.Y + aim.Height / 2 - bounds.Y));
+            Left = bounds.Left; Top = bounds.Top; Height = bounds.Height;
         }
-        Left = work.Left + 8;
-        Top = work.Top + 8;
+        finally { _placing = false; }
     }
 }

@@ -1,10 +1,14 @@
 # Selected-Window Guidance: Implementation Specification
 
-Updated: 2026-10-30
+Updated: 2026-11-01
 
-## Attached feedback concept study (2026-11-01, preview only)
+## Attached feedback (2026-11-01, native candidate)
 
-The user requested an interactive demonstration of two alternatives before native implementation. Build an isolated, fixed-data HTML study under ignored.artifacts/feedback-study/: (1) the existing blue input shell grows a light reading area below; (2) a short droplet bubble anchors beside the highlighted control, with optional detail expansion at the top shell. Use existing #258FEC water blue, #F8FCFF reading surface, #143747 ink and Microsoft YaHei UI; keep send inside the input and close inside the blue shell. Management stays in tray/right-click. Distinguish collapse from end-session; persistent errors, selected-region requests and sensitive-content refusal must have clear actions. Compare ordinary/maximized layouts and reduced motion, text overflow, active controls and keyboard input in generated browser content only. No model, target-window capture, native product modification or new support claim. This is an authorized throwaway visual study, not approved production design; real rendering/performance and lifecycle remain separate gates.
+The user approved combining the two demonstrated surfaces. Reuse the existing bounded, non-activating GuidePanel HWND: ordinary feedback attaches below the existing input shell; a validated and actually visible control marker may instead show a compact droplet bubble beside that control. Expanding details replaces that bubble with the attached full reading surface. Collapse keeps the session and marker, with an attached reopen tab; the existing shell close and clear actions end the session. Management remains exclusively in tray/right-click. Keep full explanations available without another model request or invented summary. Long text scrolls above fixed actions. Failed recognition and privacy refusal attach to the returning whale without retaining target content or marks. Consent remains explicit and separate from ordinary feedback. Preserve preview.13 art, input dimensions, capture scope, transport and cancellation gates.
+
+Implementation tasks: add generated checks for collapse/details/reset, consent guards and placement around the input/control/work-area; implement the two presentations using the same native card and handle; connect only validated marker results to the bubble; render actual WPF normal/top/long/error states offscreen and inspect them; run both configurations, package preview.14 and synchronize source. Native replacement is permission-bound. Acceptance includes no duplicate reading surface, no control/input overlap for bubbles, readable long text and reachable actions, no automatic focus, no stale content after cancellation/revocation, and unchanged guidance/privacy behavior. Headless checks do not close native focus, visual, 3000ms or90MB gates.
+
+Design provenance: the isolated fixed-data study under ignored.artifacts/feedback-study/ demonstrated both surfaces and passed14browser checks. The subsequent user approval authorizes their combined native implementation; that earlier HTML result itself remains preview evidence, not native or performance acceptance. Use existing #258FEC water blue, #F8FCFF reading surface, #143747 ink and Microsoft YaHei UI; preserve input/send/close geometry.
 
 
 ## Remembered consent and unified management (2026-10-31)

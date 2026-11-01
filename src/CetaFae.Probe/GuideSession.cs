@@ -40,6 +40,9 @@ public sealed class GuideSession : IDisposable
         _plugins = plugins;
         _model = new GuideModel(options);
         _panel = new GuidePanel(options);
+        _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale);
+        _ball.LocationChanged += OnEntryChanged;
+        _ball.SizeChanged += OnEntryChanged;
         _preview = preview;
         _consent = new CloudConsentStore(options);
         var saved = preview ? default : _consent.Read();
@@ -80,7 +83,6 @@ public sealed class GuideSession : IDisposable
 
     void ShowConsent()
     {
-        _panel.Place(_context?.Frame, entry: _ball.InteractionBounds);
         _panel.ShowConsent();
     }
 
@@ -223,6 +225,11 @@ public sealed class GuideSession : IDisposable
         finally { _checkingContext = false; }
     }
 
+    void OnEntryChanged(object? sender, EventArgs args)
+    {
+        if (_panel.IsVisible) _panel.Reposition();
+    }
+
     bool IsInputForeground(IntPtr window) =>
         (window == _panel.Handle && _panel.IsSessionInteraction || window == _ball.Handle && _ball.IsSessionInteraction) &&
         _context is not null && _gate.Accepts(_contextVersion);
@@ -318,12 +325,12 @@ public sealed class GuideSession : IDisposable
                 throw new InvalidDataException("target_changed");
             if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
             if (previous is null) _ball.BeginDock();
-            _panel.Place(GuideObservation.WindowRect(window));
+            _panel.SetControl(null);
             _panel.SetStatus("正在读取所选窗口…");
             var activated = await ActivateSelectedAsync(window, version, token);
             if (!_gate.Accepts(version)) return;
             if (!activated) throw new InvalidDataException("target_activation_failed");
-            _panel.Place(GuideObservation.WindowRect(window), entry: _ball.InteractionBounds);
+            _panel.Reposition();
             stage = ProcessingStage.SourceValidation;
             if (previous is not null)
                 previous.ValidateContext(await ReadContextAsync(previous, token), null);
@@ -381,8 +388,9 @@ public sealed class GuideSession : IDisposable
             {
                 if (_marker.PlaceControl(rect, observation.Frame, _ball.Scale)) _marker.Show();
             }
-            _panel.Place(observation.Frame, bounds, _ball.InteractionBounds);
+            _panel.SetControl(bounds);
             _panel.SetStatus(answer.Explanation);
+            _panel.SetPoint(bounds is not null && _marker.IsVisible);
             _ball.SetResult();
             _panel.SetReferenceQuery(observation.Identity?.ReferenceQuery);
             _panel.SetRegionAvailable(true);
@@ -527,6 +535,8 @@ public sealed class GuideSession : IDisposable
 
     public void Dispose()
     {
+        _ball.LocationChanged -= OnEntryChanged;
+        _ball.SizeChanged -= OnEntryChanged;
         _ball.TargetSelected -= OnSelected;
         _ball.TrackingStopped -= Cancel;
         _ball.TargetMoved -= OnTargetChanged;

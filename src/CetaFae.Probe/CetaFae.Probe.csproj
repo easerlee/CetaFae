@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CetaFae.Probe</AssemblyName>
-    <Version>0.2.0-preview.13</Version>
+    <Version>0.2.0-preview.14</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>CetaFae</Product>
     <Description>Whale interaction and selected-window guidance preview</Description>

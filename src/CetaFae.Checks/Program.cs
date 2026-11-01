@@ -30,6 +30,11 @@ public static class Program
         if (args.Contains("--scroll-desktop")) return ScrollChecks.Run();
         if (args.Contains("--privacy-desktop")) return PrivacyDesktopChecks.Run();
         Console.WriteLine($"BUILD: {typeof(GuideSession).Module.ModuleVersionId:N}");
+        if (args.Contains("--render-feedback"))
+        {
+            _ = Dispatcher.CurrentDispatcher;
+            FeedbackChecks.Run(Check); FeedbackChecks.Render(); return 0;
+        }
         if (args.Contains("--render-drop"))
         {
             _ = Dispatcher.CurrentDispatcher;
@@ -115,6 +120,7 @@ public static class Program
         await TransportChecks.RunAsync(Check);
         TaskChecks.Run(Check);
         CardChecks.Run(Check);
+        FeedbackChecks.Run(Check);
         WhaleChecks.Run(Check);
         OverlayChecks.Run(Check);
         DropChecks.Run(Check);

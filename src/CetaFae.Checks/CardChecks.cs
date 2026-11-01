@@ -53,6 +53,10 @@ static class CardChecks
         var referenced = New(); referenced.SetCloud(true); referenced.SetStatus("原软件与页面说明保留。");
         referenced.SetReferenceResult("联网候选（未确认与本机软件相同）：\nGenerated Editor：An example software tool.\n来源：https://en.wikipedia.org/?curid=42\n不代表软件真伪或安全。");
         yield return ("15 Public reference candidate result", referenced);
+        var bubble = New(); bubble.SetCloud(true); bubble.SetStatus("右侧高亮的是询问保存位置的开关，当前为开启状态。这里只指出位置，没有修改设置。"); bubble.SetPoint(true);
+        yield return ("16 Contextual droplet bubble", bubble);
+        var collapsed = New(); collapsed.SetStatus("原说明保留，重新展开不发请求。"); Click(Find(collapsed, "收起"));
+        yield return ("17 Attached reopen tab", collapsed);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
@@ -80,7 +84,19 @@ static class CardChecks
         check(consent == 1, "only an explicit action in the disclosure requests cloud consent");
         card.SetCloud(true);
         card.SetStatus("Generated question"); card.ShowQuestion(); card.SetRegionAvailable(true);
+        check(Find(card, "菜单").Visibility == Visibility.Collapsed &&
+              Find(card, "关闭云端").Visibility == Visibility.Collapsed,
+            "attached session feedback leaves management exclusively in the tray and whale menu");
         card.Answer.Text = "生成回答";
+        Click(Find(card, "收起"));
+        check(card.IsCollapsed && card.FullText == "Generated question" && card.Answer.Text == "生成回答" &&
+              submitted == 0 && regions == 0 && card.HasSession, "collapse retains session, explanation and pending answer without dispatching anything");
+        Click(Find(card, "展开说明  ﹀"));
+        check(!card.IsCollapsed && card.HasQuestion && card.Answer.Text == "生成回答", "attached reopen restores the existing reading surface without another request");
+        card.SetPoint(true);
+        check(card.IsBubble && !card.IsCollapsed && card.FullText == "Generated question", "context bubble preserves the full actual explanation rather than inventing a summary");
+        Click(Find(card, "展开详情"));
+        check(!card.IsBubble && card.HasQuestion && card.FullText == "Generated question", "bubble details switch the same surface to its full attached reader");
         card.ShowMenu();
         check(!card.HasQuestion && !card.HasRegion && card.HasSession, "menu hides session actions without submitting or clearing its pending answer");
         Click(Find(card, "选择识别区域"));
@@ -110,6 +126,22 @@ static class CardChecks
         card.SetCloud(true); card.SetReferenceQuery("Generated Editor software"); Click(Find(card, "联网核对软件")); card.Reset();
         Click(Find(card, "确认本次联网"));
         check(queries.Count == 1 && !card.HasSession, "reset clears query, confirmation and public result state");
+        check(!card.IsBubble && !card.IsCollapsed && card.FullText.Length == 0,
+            "ending feedback removes compact state and old explanation");
+        var work = new Rect(-1280, 0, 1280, 720);
+        var entry = new Rect(-760, 0, 288, 36);
+        var control = new Rect(-160, 240, 50, 24);
+        var attached = FeedbackLayout.Attached(entry, work, new Size(288, 260));
+        check(work.Contains(attached) && attached.Left == entry.Left && attached.Top == entry.Bottom + 1,
+            "attached reader joins directly below the real input body on negative-coordinate work areas");
+        var bubbleBounds = FeedbackLayout.Bubble(control, entry, work, new Size(258, 210));
+        check(bubbleBounds is { } safe && work.Contains(safe) && !safe.IntersectsWith(entry) && !safe.IntersectsWith(control),
+            "control bubble stays in the work area without covering its target or input");
+        check(FeedbackLayout.Bubble(new Rect(0, 40, 100, 30), new Rect(0, 0, 100, 36),
+            new Rect(0, 0, 100, 100), new Size(258, 210)) is null,
+            "cramped control placement requires the attached-reader fallback");
+        check(work.Contains(FeedbackLayout.Attached(new Rect(-96, 632, 88, 88), work, new Size(288, 320))),
+            "failed-session feedback stays visible beside the bottom-edge home whale");
         check(!BallWindow.IsDrag(new Point(10, 10), new Point(11, 11), 1) &&
               BallWindow.IsDrag(new Point(10, 10), new Point(30, 10), 1) &&
               !BallWindow.IsDrag(new Point(10, 10), new Point(12, 12), 2),
@@ -131,7 +163,7 @@ static class CardChecks
         finally { targetFrame.Close(); controlFrame.Close(); }
         foreach (var (name, state) in States())
         {
-            foreach (var width in new[] { 320d, GuideTheme.CardWidth })
+            foreach (var width in new[] { 258d, WhalePrompt.WidthDip, 320d, GuideTheme.CardWidth })
             {
                 Layout(state, width);
                 var actions = state.Actions.Children.Cast<Button>().Where(b => b.Visibility == Visibility.Visible).ToArray();
@@ -140,7 +172,7 @@ static class CardChecks
                     var bounds = button.TransformToAncestor(state).TransformBounds(new Rect(button.RenderSize));
                     return bounds.Left >= 0 && bounds.Right <= width + 1 && bounds.Top >= 0 && bounds.Bottom <= state.ActualHeight + 1;
                 }), $"{name}: all required actions fit outside scroll content at width{width}");
-                check(state.View == GuideCardView.Menu || state.BodyScroll.ViewportWidth > 0 && state.BodyScroll.ViewportHeight > 0 &&
+                check(state.IsCollapsed || state.View == GuideCardView.Menu || state.BodyScroll.ViewportWidth > 0 && state.BodyScroll.ViewportHeight > 0 &&
                       state.BodyScroll.ExtentWidth <= state.BodyScroll.ViewportWidth + 1,
                     $"{name}: visible text has a positive viewport without horizontal clipping at width{width}");
             }
