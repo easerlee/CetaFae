@@ -33,6 +33,7 @@ AllowNoIcons=no
 CloseApplications=no
 RestartApplications=no
 UninstallDisplayIcon={app}\CetaFae.Probe.exe
+SetupIconFile=..\jingxi.ico
 OutputDir={#OutputDir}
 OutputBaseFilename=CetaFae-{#AppVersion}-win-x64-setup
 Compression=lzma2/fast
