@@ -113,6 +113,7 @@ public static class Program
                 "application runtime retains culture data for editable WPF controls");
         PrivacyChecks.CheckDisclosureLayout(Check);
         ConsentChecks.Run(Check);
+        InstallationChecks.Run(Check);
         SettingsChecks.Layout(Check);
         await SettingsChecks.RunAsync(Check);
         await TranslationChecks.RunAsync(Check);

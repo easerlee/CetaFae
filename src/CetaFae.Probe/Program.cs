@@ -10,6 +10,12 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        if (args.Length == 2 && args[0] is "--installation-info" or "--complete-installation")
+        {
+            Environment.ExitCode = args[0] == "--installation-info"
+                ? InstallationAgreement.Export(args[1]) : InstallationAgreement.Complete(args[1]);
+            return;
+        }
         if (args.SequenceEqual(new[] { "--observe-worker" }))
         {
             // UIA runs on an MTA thread without creating a WPF application or owning a window.
@@ -98,7 +104,6 @@ public static class Program
         }
         session = new GuideSession(ball, preferences.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences);
         if (invalidPreferences) ball.Dispatcher.InvokeAsync(session.ShowConfigurationWarning);
-        else if (!preview && !session.CloudEnabled) ball.Dispatcher.InvokeAsync(session.ShowConsent);
         app.Exit += (_, _) => { settings?.Close(); session.Dispose(); ball.Cleanup(); ProbeLog.Close(); };
         if (int.TryParse(ArgValue(args, "--exit-after"), out var exitAfter) && exitAfter > 0)
             app.Dispatcher.InvokeAsync(async () =>

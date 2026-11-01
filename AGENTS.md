@@ -25,7 +25,7 @@ Updated: 2026-10-27
 
 - Obtain explicit permission before visible app launches, screenshots, pointer movement, or keyboard input because the user may be using the computer.
 - Coding, builds, and generated-data model checks may proceed without occupying the desktop.
-- The user must operate the in-product cloud-consent control personally. Consent may be revoked at any time.
+- The user personally accepts the installation agreement once; the installer records the disclosed current-user/configuration grant. No routine cloud toggle or in-app first-start affirmative step. Settings retains disclosure and withdrawal. Never automate acceptance or edit the actual grant during development checks.
 - Do not modify Windows or Edge settings during explanation/guidance validation.
 
 ## Verification and Reporting

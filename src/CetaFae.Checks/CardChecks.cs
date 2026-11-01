@@ -86,10 +86,9 @@ static class CardChecks
     internal static void Run(Action<bool, string> check)
     {
         var notice = New(); notice.SetCloud(true); notice.SetNotice("已准备好。直接拖动小鲸鱼到要了解的窗口即可。");
-        var noticeDismissals = 0; var noticeCancellations = 0; var noticeGrants = 0;
+        var noticeDismissals = 0; var noticeCancellations = 0;
         notice.Dismissed += () => noticeDismissals++;
         notice.Cancelled += () => noticeCancellations++;
-        notice.ConsentAccepted += () => noticeGrants++;
         check(notice.View == GuideCardView.Notice && !notice.HasSession && !notice.HasQuestion &&
               notice.Actions.Visibility == Visibility.Collapsed && notice.DismissButton.Visibility == Visibility.Visible,
             "standalone ready notice has a header close action without collapse or clear footer");
@@ -97,11 +96,11 @@ static class CardChecks
         check(!notice.IsCollapsed && noticeCancellations == 0,
             "stale session actions cannot collapse or cancel a transient notice");
         Click(notice.DismissButton);
-        check(noticeDismissals == 1 && noticeGrants == 0 && notice.FullText.Length == 0 && !notice.HasSession,
+        check(noticeDismissals == 1 && notice.FullText.Length == 0 && !notice.HasSession,
             "notice close clears only presentation and never grants or cancels consent");
         notice.ShowConsent(); notice.DismissNotice();
         check(notice.View == GuideCardView.Consent && noticeDismissals == 1,
-            "outside notice dismissal cannot consume the explicit first-use decision");
+            "outside notice dismissal does not close read-only agreement details");
         var noticeBounds = new Rect(100, 100, 288, 180);
         check(GuidePanel.ShouldDismissNotice(false, true, new Point(80, 80), noticeBounds) &&
               !GuidePanel.ShouldDismissNotice(true, true, new Point(80, 80), noticeBounds) &&
@@ -125,28 +124,18 @@ static class CardChecks
               !BallWindow.ShouldHideForFullscreen(true, false, true) &&
               !BallWindow.ShouldHideForFullscreen(false, false, false),
             "fullscreen auto-hide exempts active guidance and a pressed or dragged whale");
-        var declined = New(); var declinedGrants = 0;
-        declined.ConsentAccepted += () => declinedGrants++;
-        declined.ShowConsent(); Click(Find(declined, "暂不使用"));
-        Click(Find(declined, "同意并开始使用"));
-        check(declinedGrants == 0 && declined.View != GuideCardView.Consent,
-            "declining onboarding invalidates the hidden affirmative callback without granting consent");
         var card = New();
-        var consent = 0; var regions = 0; var submitted = 0;
-        card.ConsentAccepted += () => consent++;
+        var regions = 0; var submitted = 0;
         card.RegionRequested += () => regions++;
         card.AnswerSubmitted += _ => submitted++;
-        check(card.Actions.Children.Cast<Button>().Any(button => Equals(button.Content, "同意并开始使用")),
-            "first-use disclosure provides one affirmative start action instead of a daily cloud toggle");
-        Click(Find(card, "同意并开始使用"));
-        check(consent == 0, "hidden or stale consent callback cannot enable cloud before disclosure");
         Click(Find(card, "使用与隐私说明"));
-        check(card.View == GuideCardView.Consent && consent == 0, "opening cloud disclosure alone never grants consent");
-        Click(Find(card, "同意并开始使用"));
-        check(consent == 1, "only an explicit action in the disclosure requests cloud consent");
+        check(card.View == GuideCardView.Consent &&
+              !card.Actions.Children.Cast<Button>().Any(button => Equals(button.Content, "同意并开始使用")),
+            "in-app disclosure is read-only with no first-start or settings affirmative consent action");
+        Click(Find(card, "关闭说明"));
+        check(card.View != GuideCardView.Consent && !card.HasSession,
+            "closing read-only agreement leaves no session and cannot grant collection");
         card.SetCloud(true);
-        Click(Find(card, "同意并开始使用"));
-        check(consent == 1, "a repeated or stale affirmative callback never toggles an existing grant off");
         card.SetStatus("Generated question"); card.ShowQuestion(); card.SetRegionAvailable(true);
         check(Find(card, "菜单").Visibility == Visibility.Collapsed &&
               Find(card, "使用与隐私说明").Visibility == Visibility.Collapsed,

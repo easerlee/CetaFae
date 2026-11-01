@@ -8,7 +8,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 ## Features
 
-- **Lightweight management**: left-clicking the whale opens no management window. The tray and whale right-click share one menu. One explicit first-use agreement is remembered for the current configuration, with no routine cloud toggle; changed terms or configuration require confirmation again. Startup alone never collects or sends content.
+- **Lightweight management**: left-clicking the whale opens no management window. The tray and whale right-click share one menu. Agree once during installation and drag to use afterward, with no first-launch confirmation or routine cloud toggle; settings retains disclosure and withdrawal. Startup alone never collects or sends content.
 - **Unobtrusive presence**: dismiss transient notices with their header close button or an outside click. The idle whale hides while another foreground application is fullscreen and returns afterward. Ordinary maximization and active guidance remain available; fullscreen detection uses local window geometry without analyzing content.
 - **Drag to select**: an attached input bar, on-demand explanations, and control highlights keep interaction close to the target. Ending a session restores the whale.
 - **Contextual feedback**: explanations expand below the input bar; validated controls can have a short nearby bubble. Details move to the reader, which changes side to avoid the control or collapses when space is insufficient. It can be reopened. Collapse preserves the session and highlights, while close or clear ends it. Long explanations scroll.
@@ -35,13 +35,13 @@ Representative human-tested flows include locating an Edge download toggle, expl
 
 ## Getting started
 
-Download a Windows x64 preview from [GitHub Releases](https://github.com/easerlee/CetaFae/releases), extract it, and run `CetaFae.Probe.exe`. Windows and the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) are required. Published packages may lag behind the main branch; consult the matching release notes.
+Download a Windows x64 preview from [GitHub Releases](https://github.com/easerlee/CetaFae/releases), extract it, and run `CetaFae.Probe.exe`. Legacy extracted packages require Windows and the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) are required. Published packages may lag behind the main branch; consult the matching release notes.
 
 The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-flash`. Supply a compatible model service yourself; CetaFae bundles neither a model nor a proxy. Image understanding requires multimodal input support.
 
 The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page enables or disables shipped plugins; it does not download or install plugins.
 
-The main branch shows usage/privacy disclosure on the first launch. Personally choose Agree and start once; later launches reuse valid same-configuration consent, with no routine cloud toggle. Startup itself neither reads a window nor sends an inference request. After declining, use Settings → Privacy to review and confirm. That page offers Withdraw consent when agreed; withdrawal ends the current session and requires fresh confirmation before reuse. An installer is not provided yet; a future Agree and install action may incorporate this single decision.
+The main branch includes a self-contained Windows x64 installer candidate. Review the actual connection disclosure and choose Agree and install once. After installation, drag the whale directly; first launch and subsequent restarts have no second consent prompt and never collect content automatically. Settings retains read-only disclosure and withdrawal. Revocation, changed recipient/model/scope/terms or unusable records require reviewing the agreement in the installer again. The candidate compiles; native installation, cancellation and uninstall acceptance are pending, and it is not a formal distribution release.
 
 Drag onto the target, describe your goal when asked, and select a region if requested. Read the guidance and operate the target yourself, or end the session. Changed recipient, model, sending scope or terms require confirmation again.
 
@@ -57,7 +57,17 @@ dotnet run --project src/CetaFae.Checks -c Debug --no-build
 dotnet run --project src/CetaFae.Probe -c Release -- --guide
 ```
 
-The first two commands build and run non-desktop checks; the last opens CetaFae. Override the current launch with `--base-url https://your-service.example/v1 --model your-model`; changes persist only after an explicit save in settings. Optional authentication is read only from the process environment variable `CETAFAE_API_KEY`; never commit credentials. Non-secret preferences are stored at `%LOCALAPPDATA%/CetaFae/settings.json`. Invalid configuration disables cloud processing until reviewed, saved and personally authorized again.
+The first two commands build and run non-desktop checks; the last opens CetaFae. Override the current launch with `--base-url https://your-service.example/v1 --model your-model`; changes persist only after an explicit save in settings. Optional authentication is read only from the process environment variable `CETAFAE_API_KEY`; never commit credentials. Non-secret preferences are stored at `%LOCALAPPDATA%/CetaFae/settings.json`. Invalid configuration disables cloud processing until reviewed, saved and confirmed through the installer again.
+
+### Build the installer candidate
+
+On Windows, install Inno Setup 6.7.4 with the Simplified Chinese messages file and the .NET 8 SDK, then run:
+
+```powershell
+./installer/Build-Installer.ps1 -Compiler 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' -ChineseMessagesFile 'C:/Program Files (x86)/Inno Setup 6/Languages/ChineseSimplified.isl'
+```
+
+Output is under `.artifacts/installer/`. The package includes the runtime, a Start menu shortcut and uninstall support. It installs per user without elevation or startup registration. Its agreement reflects existing non-secret settings; cancellation or failure creates no new consent, and silent installation cannot replace personal confirmation. A model service is still required. Extracting or launching source builds does not imply installation consent.
 
 ## Technical implementation
 

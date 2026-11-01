@@ -75,14 +75,14 @@ internal sealed class GuideSettingsView : Border
         var advanced = new StackPanel();
         advanced.Children.Add(Text("服务地址（远程服务须使用 HTTPS）")); advanced.Children.Add(_endpoint);
         advanced.Children.Add(Text("模型名称")); advanced.Children.Add(_model); advanced.Children.Add(_image);
-        advanced.Children.Add(Text("鉴权仍从运行时环境获取；此窗口不接收、不显示或保存密钥。修改地址、模型或图片范围后须重新授权。"));
+        advanced.Children.Add(Text("鉴权仍从运行时环境获取；此窗口不接收、不显示或保存密钥。修改地址、模型或图片范围后须重新运行安装程序确认协议。"));
         Advanced = new Expander { Header = "高级连接设置", IsExpanded = true, Content = advanced,
             Margin = new Thickness(0, 12, 0, 0) };
         _pages[0].Children.Add(Advanced);
 
         _pages[1].Children.Add(Title("你决定鲸汐何时看窗口"));
-        _pages[1].Children.Add(Text("开始使用时确认一次，之后直接拖动小鲸鱼求助，无需日常开关。撤回同意会结束当前求助，不再发起窗口读取或识别请求；已发送内容无法从上游撤回。"));
-        _cloudAction = Action("查看说明并开始使用", () => CloudRequested?.Invoke()); _pages[1].Children.Add(_cloudAction);
+        _pages[1].Children.Add(Text("安装时确认一次协议，之后直接拖动小鲸鱼求助，无需日常开关或首次启动确认。撤回同意会结束当前求助，不再发起窗口读取或识别请求；已发送内容无法从上游撤回。"));
+        _cloudAction = Action("查看使用协议", () => CloudRequested?.Invoke()); _pages[1].Children.Add(_cloudAction);
         _pages[1].Children.Add(Text("以下为当前已保存配置的完整说明。高级设置尚未保存的编辑不会改变授权。"));
         _pages[1].Children.Add(_disclosure);
 
@@ -101,7 +101,7 @@ internal sealed class GuideSettingsView : Border
         }
 
         _pages[3].Children.Add(Title("从拖动开始"));
-        _pages[3].Children.Add(Text("1. 配置可用的模型服务，首次点击“同意并开始使用”。\n2. 此后直接将小鲸鱼拖到要了解的窗口。\n3. 需要时回答问题或框选区域，再阅读说明并自行操作。\n4. 点击对话条内的 × 结束；设置隐私页可撤回同意。"));
+        _pages[3].Children.Add(Text("1. 安装时同意使用协议，并准备可用的模型服务。\n2. 此后直接将小鲸鱼拖到要了解的窗口。\n3. 需要时回答问题或框选区域，再阅读说明并自行操作。\n4. 点击对话条内的 × 结束；设置隐私页可撤回同意。"));
         _pages[3].Children.Add(Title("遇到问题"));
         _pages[3].Children.Add(Text("先在连接页手动检测服务。隐私检查失败不代表检测到了敏感内容；鲸汐会停止这次识别，而不是绕过检查。\n诊断导出仅含产品/运行时版本、云端状态、连接结果类别和插件状态，不包含密钥、地址、路径、截图、控件文字或问答。"));
         _pages[3].Children.Add(Text($"版本：{Program.VersionLabel} · 开发预览，尚未完成正式性能及平台验收。"));
@@ -109,7 +109,7 @@ internal sealed class GuideSettingsView : Border
 
         _endpoint.Text = preferences.BaseUrl; _model.Text = preferences.Model; _image.IsChecked = preferences.IncludeImage;
         SetCloud(cloudEnabled, preferences.Options);
-        if (invalid) SetNotice("本机设置损坏或无法读取，云端保持关闭。请核对连接配置并保存，再亲自授权。");
+        if (invalid) SetNotice("本机设置损坏或无法读取，云端保持关闭。请核对连接配置并保存，再重新运行安装程序确认协议。");
         _endpoint.TextChanged += (_, _) => Edited(); _model.TextChanged += (_, _) => Edited();
         _image.Checked += (_, _) => Edited(); _image.Unchecked += (_, _) => Edited();
         foreach (var toggle in _plugins.Values) { toggle.Checked += (_, _) => Edited(); toggle.Unchecked += (_, _) => Edited(); }
@@ -126,9 +126,9 @@ internal sealed class GuideSettingsView : Border
     }
     internal void SetCloud(bool enabled, GuideOptions options)
     {
-        _cloud.Text = enabled ? "已同意使用；尚未检测服务状态。" : "尚未同意使用；不会读取窗口或发起识别。";
-        _cloudAction.Content = enabled ? "撤回同意" : "查看说明并开始使用";
-        _disclosure.Text = GuidePanel.Disclosure(options);
+        _cloud.Text = enabled ? "已同意使用；尚未检测服务状态。" : "未有有效的安装同意；重新运行安装程序确认前不会读取窗口或发起识别。";
+        _cloudAction.Content = enabled ? "撤回同意" : "查看使用协议";
+        _disclosure.Text = InstallationAgreement.Text(options);
     }
     internal void SelectPage(int index)
     {

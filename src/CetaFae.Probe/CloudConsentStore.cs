@@ -1,6 +1,5 @@
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 
 namespace CetaFae.Probe;
@@ -10,7 +9,7 @@ internal sealed class CloudConsentStore(GuideOptions options, string? file = nul
     internal readonly record struct State(bool Granted, bool Enabled);
     sealed record Record(int Version, string Disclosure, bool Enabled);
     readonly string _file = file ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CetaFae", "consent.dat");
-    readonly string _scope = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(GuidePanel.Disclosure(options))));
+    readonly string _scope = InstallationAgreement.Scope(options);
     static bool StorageFailure(Exception ex) => ex is IOException or UnauthorizedAccessException or CryptographicException or JsonException or ArgumentException;
     void CheckPath()
     {

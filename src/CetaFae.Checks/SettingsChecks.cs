@@ -31,7 +31,7 @@ internal static class SettingsChecks
         }
         var edit = new GuideSettingsView(GuidePreferences.Default, catalog, false);
         var privacyAction = ((Grid)edit.BodyScroll.Content).Children.OfType<Panel>()
-            .SelectMany(page => page.Children.OfType<Button>()).Single(button => Equals(button.Content, "查看说明并开始使用"));
+            .SelectMany(page => page.Children.OfType<Button>()).Single(button => Equals(button.Content, "查看使用协议"));
         var consentRequests = 0; edit.CloudRequested += () => consentRequests++;
         privacyAction.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         check(consentRequests == 1, "privacy settings requests disclosure without granting permission");

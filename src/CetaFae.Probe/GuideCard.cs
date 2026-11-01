@@ -24,7 +24,6 @@ internal sealed class GuideCard : Border
     readonly Button _submit;
     readonly Button _menu;
     readonly Button _cloud;
-    readonly Button _consent;
     readonly Button _clear;
     readonly Button _region;
     readonly Button _exit;
@@ -55,7 +54,6 @@ internal sealed class GuideCard : Border
     internal WrapPanel Actions { get; } = new() { Margin = new Thickness(0, 14, 0, 0) };
     internal Button DismissButton { get; }
     internal TextBox Answer => _answer;
-    internal event Action? ConsentAccepted;
     internal event Action? MenuRequested;
     internal event Action? Cancelled;
     internal event Action? RegionRequested;
@@ -75,7 +73,7 @@ internal sealed class GuideCard : Border
         Padding = GuideTheme.Padding;
         TextElement.SetForeground(this, GuideTheme.Ink);
         TextElement.SetFontFamily(this, new FontFamily("Microsoft YaHei UI"));
-        _disclosure = new TextBlock { Text = GuidePanel.Disclosure(options), TextWrapping = TextWrapping.Wrap,
+        _disclosure = new TextBlock { Text = InstallationAgreement.Text(options), TextWrapping = TextWrapping.Wrap,
             FontSize = 12, LineHeight = 19, Foreground = GuideTheme.Muted };
         var layout = new DockPanel();
         var header = _header = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
@@ -119,11 +117,6 @@ internal sealed class GuideCard : Border
             if (View != GuideCardView.Menu) return;
             ShowConsent();
         });
-        _consent = Button("同意并开始使用", () =>
-        {
-            // A hidden button or stale callback cannot bypass the visible disclosure state.
-            if (View == GuideCardView.Consent && !_cloudEnabled) ConsentAccepted?.Invoke();
-        });
         _clear = Button("清除标记", () => { if (View == GuideCardView.Session) Cancelled?.Invoke(); });
         _region = Button("选择识别区域", () => { if (HasRegion) RegionRequested?.Invoke(); });
         _exit = Button("退出", () => ExitRequested?.Invoke());
@@ -148,7 +141,7 @@ internal sealed class GuideCard : Border
         _details = Button("展开详情", () => { IsBubble = IsCollapsed = false; Refresh(); });
         _collapse = Button("收起", Collapse);
         _followup = Button("继续提问", () => { if (HasFollowup) FollowupRequested?.Invoke(); });
-        foreach (var button in new[] { _details, _followup, _region, _reference, _confirmReference, _consent, _cloud, _clear, _collapse, _menu, _exit, _back }) Actions.Children.Add(button);
+        foreach (var button in new[] { _details, _followup, _region, _reference, _confirmReference, _cloud, _clear, _collapse, _menu, _exit, _back }) Actions.Children.Add(button);
         DockPanel.SetDock(Actions, Dock.Bottom);
         layout.Children.Add(Actions);
         layout.Children.Add(BodyScroll);
@@ -243,13 +236,12 @@ internal sealed class GuideCard : Border
         Visible(_question, HasQuestion && !compact && !bubble);
         Visible(_followup, HasFollowup && !compact);
         Visible(_region, HasRegion && !compact && !bubble);
-        Visible(_consent, View == GuideCardView.Consent && !_cloudEnabled);
         Visible(_cloud, View == GuideCardView.Menu);
         Visible(_clear, session && !compact && !bubble);
         Visible(_menu, false);
         Visible(_exit, View == GuideCardView.Menu);
         Visible(_back, !session && !notice);
-        _back.Content = View == GuideCardView.Consent && !_cloudEnabled ? "暂不使用" : "返回";
+        _back.Content = View == GuideCardView.Consent ? "关闭说明" : "返回";
         Visible(_details, session && (bubble || compact));
         _details.Content = compact ? "展开说明  ﹀" : "展开详情";
         Visible(_collapse, session && !compact);

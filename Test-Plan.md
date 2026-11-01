@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Installation decision correction (2026-11-01)
+
+The user stopped the withdrawal/reconfirmation loop after accepting preview.20's notice header close. Do not mark outside-click or reconfirmation as passed. Replace first-start consent acceptance with installation-time agreement: generated isolated export/receipt/scope/store tests, self-contained publish, installer compilation and offscreen production disclosure/settings QA first. Freeze a single later native batch for fresh install acceptance/cancel, no second prompt on app start/restart, withdrawal refusal, scope-change refusal, reinstall recovery, shortcuts and uninstall. Never run that installer or replace the live whale without desktop approval. No silent-install path may grant consent. Retain earlier accepted fullscreen/notice evidence and all open formal performance gates.
+
 ## Functional maturation verification contract (2026-11-01, planned)
 
 The user requested a functionality-first development plan and explicitly deferred ordinary-user trials and delivery, then approved implementation including lightweight settings. Tech-Spec's F0–F7 roadmap owns the next work order. The initial planning update ran no tests; subsequent actual checks belong in验证记录.md. Existing dated batches below remain historical coverage, not instructions to repeat each one now.

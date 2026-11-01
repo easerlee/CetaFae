@@ -29,16 +29,15 @@ public static class ObservationWorker
 
     internal static string SerializeRequest(Request request) => JsonSerializer.Serialize(request, Json);
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000",
+        Justification = "An empty assembly location intentionally selects the bundled apphost instead of dotnet.")]
     public static async Task<GuideObservation> ReadAsync(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
         string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null)
     {
         await Gate.WaitAsync(token);
         try
         {
-            var start = new ProcessStartInfo("dotnet");
-            start.Environment.Remove("CETAFAE_API_KEY");
-            start.ArgumentList.Add(typeof(ObservationWorker).Assembly.Location);
-            start.ArgumentList.Add("--observe-worker");
+            var start = CreateStartInfo(Environment.ProcessPath!, typeof(ObservationWorker).Assembly.Location);
             var body = await ExchangeAsync(start, SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection, identityProvider)), token);
             var reply = JsonSerializer.Deserialize<Reply>(body, Json) ?? throw new InvalidDataException("worker_reply");
             if (reply.Error is { } error) throw new InvalidDataException(SafeError(error));
@@ -57,6 +56,16 @@ public static class ObservationWorker
             return observation;
         }
         finally { Gate.Release(); }
+    }
+
+    internal static ProcessStartInfo CreateStartInfo(string processPath, string assemblyPath)
+    {
+        // Single-file deployments have no assembly path and must not require an installed dotnet host.
+        var start = new ProcessStartInfo(assemblyPath.Length == 0 ? processPath : "dotnet");
+        start.Environment.Remove("CETAFAE_API_KEY");
+        if (assemblyPath.Length > 0) start.ArgumentList.Add(assemblyPath);
+        start.ArgumentList.Add("--observe-worker");
+        return start;
     }
 
     internal static void ValidateScopeReply(GuideObservation observation, GuidePlugin plugin, string? intent,

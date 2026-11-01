@@ -54,7 +54,6 @@ public sealed class GuideSession : IDisposable
         _panel.SetCloud(saved.Enabled);
         _menu = new GuideMenu(ball, () => _ball.StopTracking("cancelled"), settings: settings);
         _menu.SetCloud(saved.Enabled);
-        _panel.ConsentAccepted += AcceptConsent;
         _panel.MenuRequested += OnMenuRequested;
         _panel.Cancelled += () => _ball.StopTracking("cancelled");
         _panel.AnswerSubmitted += OnAnswerSubmitted;
@@ -97,23 +96,11 @@ public sealed class GuideSession : IDisposable
     }
     internal void ManageConsent() { if (_gate.CloudEnabled) RevokeConsent(); else ShowConsent(); }
     internal void ShowConfigurationWarning() => _panel.SetStatus(
-        "本机设置无法读取，云端保持关闭。请从鲸鱼右键或托盘打开鲸汐设置，核对并保存后亲自授权。");
+        "本机设置无法读取，云端保持关闭。请从鲸鱼右键或托盘打开鲸汐设置，核对并保存后重新运行安装程序确认协议。");
 
     internal void ShowConsent()
     {
         _panel.ShowConsent();
-    }
-
-    void AcceptConsent()
-    {
-        if (_preview) { _panel.SetStatus("这是静态预览，不会确认使用或发送请求。"); return; }
-        if (_gate.CloudEnabled) return;
-        if (!_consent.Save(true))
-        { _panel.SetStatus("无法保存使用同意，尚未开始。请检查本机用户配置目录权限后重试。"); return; }
-        _gate.SetCloud(true); _panel.SetCloud(true); _menu.SetCloud(true);
-        _ball.StopTracking("consent_accepted");
-        _panel.SetStatus("已准备好。以后直接拖动小鲸鱼到要了解的窗口即可；无需再次开启。设置的隐私页可撤回同意。");
-        ProbeLog.Log("guide_consent", ("enabled", true));
     }
 
     void RevokeConsent()
@@ -123,7 +110,7 @@ public sealed class GuideSession : IDisposable
         _gate.SetCloud(false); _panel.SetCloud(false); _menu.SetCloud(false);
         var saved = _consent.Revoke();
         _panel.SetStatus("已撤回同意，不再读取窗口或发起识别请求。已发送的内容无法从上游撤回。" +
-            (saved ? "再次使用请到设置隐私页重新确认。" : "撤回未能保存；本次运行已停止识别，下次启动前请修复配置目录权限，避免旧授权恢复。"));
+            (saved ? "再次使用请重新运行安装程序确认协议。" : "撤回未能保存；本次运行已停止识别，下次启动前请修复配置目录权限，避免旧授权恢复。"));
         ProbeLog.Log("guide_consent", ("enabled", false), ("saved", saved));
     }
 
@@ -352,7 +339,7 @@ public sealed class GuideSession : IDisposable
         if (!_gate.CloudEnabled)
         {
             _ball.StopTracking("consent_required");
-            _panel.SetStatus("请先在鲸汐设置的隐私页阅读说明并开始使用；尚未读取窗口内容或发送请求。");
+            _panel.SetStatus("请重新运行鲸汐安装程序确认使用协议；尚未读取窗口内容或发送请求。");
             return;
         }
         _request?.Cancel();
@@ -631,7 +618,6 @@ public sealed class GuideSession : IDisposable
         _panel.RegionRequested -= OnRegionRequested;
         _panel.ReferenceRequested -= OnReferenceRequested;
         _panel.FollowupRequested -= OnFollowupRequested;
-        _panel.ConsentAccepted -= AcceptConsent;
         _activeFollowup = null;
         _followup.Clear();
         _referenceRequest?.Cancel();
