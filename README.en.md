@@ -16,6 +16,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 - **Analyze a region**: use reliable task scopes or select an image region manually. Generic image understanding does not require an adapter for every application.
 - **Optional software references**: after separate confirmation, query a public encyclopedia using the product name and show sources. This does not authenticate the installed executable.
 - **Plugin-based capabilities**: generic vision, software identity, and application adapters share a declarative contract. First-party features are plugins too.
+- **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
 
 Representative human-tested flows include locating an Edge download toggle, explaining paused Windows Update status, finding the WinRAR extraction destination, and interpreting generated Notepad text within a selected region. These examples do not establish complete application support or full regression coverage of the latest source.
 
@@ -34,6 +35,8 @@ Download a Windows x64 preview from [GitHub Releases](https://github.com/easerle
 
 The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-flash`. Supply a compatible model service yourself; CetaFae bundles neither a model nor a proxy. Image understanding requires multimodal input support.
 
+The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page enables or disables shipped plugins; it does not download or install plugins.
+
 On first use, a drop without consent opens the disclosure; it is also available from the tray or whale right-click menu. Read and personally confirm it, then drag onto the target again. Describe your goal when asked, and draw a region if requested. Read the explanation or guidance and operate the target yourself, or end the session.
 
 ### Run from source
@@ -46,7 +49,7 @@ dotnet run --project src/CetaFae.Checks -c Debug --no-build
 dotnet run --project src/CetaFae.Probe -c Release -- --guide
 ```
 
-The first two commands build and run non-desktop checks; the last opens CetaFae. Override the service with `--base-url https://your-service.example/v1 --model your-model`. Optional authentication is read only from the process environment variable `CETAFAE_API_KEY`; never commit credentials.
+The first two commands build and run non-desktop checks; the last opens CetaFae. Override the current launch with `--base-url https://your-service.example/v1 --model your-model`; changes persist only after an explicit save in settings. Optional authentication is read only from the process environment variable `CETAFAE_API_KEY`; never commit credentials. Non-secret preferences are stored at `%LOCALAPPDATA%/CetaFae/settings.json`. Invalid configuration disables cloud processing until reviewed, saved and personally authorized again.
 
 ## Technical implementation
 
@@ -66,10 +69,10 @@ The first two commands build and run non-desktop checks; the last opens CetaFae.
 
 ## Roadmap
 
-- Complete native compatibility acceptance for remembered consent, tray menus, and lightweight interaction.
-- Strengthen generic understanding, scope selection, and failure recovery.
+- Complete native settings, remembered-consent, coordinate and input acceptance, including single-display125%/150%/200% scaling.
+- Improve generic understanding, Chinese/English region explanation and translation, and evidence-bounded visible-error assistance.
+- Complete bounded task coverage and user-led follow-up/continuous guidance; actions remain manual.
 - Complete consolidated privacy, platform, performance, and real-task acceptance. The 3000ms processing target and 90MB idle-memory gate have not passed full formal acceptance.
-- Complete native visual acceptance of the refined whale, water, and transitions.
 - Stabilize the contract and validate independent contributions before publishing third-party interfaces and installation support.
 - Develop constrained document editing only after explicit task intent, confirmation, snapshot, and rollback gates are met; it is not currently provided.
 

@@ -1,10 +1,12 @@
 using System.Windows;
+using System.Reflection;
 using CetaFae.Plugins;
 
 namespace CetaFae.Probe;
 
 public static class Program
 {
+    internal static string VersionLabel => typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
     [STAThread]
     public static void Main(string[] args)
     {
@@ -23,11 +25,14 @@ public static class Program
             Environment.ExitCode = 2;
             return;
         }
-        GuideOptions options;
+        var store = new GuidePreferencesStore();
+        var stored = store.Read();
+        GuidePreferences preferences;
         try
         {
-            options = GuideOptions.Create(ArgValue(args, "--base-url") ?? "http://127.0.0.1:8787/v1",
-                ArgValue(args, "--model") ?? "deepseek-v4.1-flash", !args.Contains("--text-only"));
+            preferences = (stored.Value with { BaseUrl = ArgValue(args, "--base-url") ?? stored.Value.BaseUrl,
+                Model = ArgValue(args, "--model") ?? stored.Value.Model,
+                IncludeImage = !args.Contains("--text-only") && stored.Value.IncludeImage }).Validate();
         }
         catch (ArgumentException)
         {
@@ -36,8 +41,8 @@ public static class Program
             return;
         }
 
-        PluginCatalog plugins;
-        try { plugins = PluginCatalog.Load(System.IO.Path.Combine(AppContext.BaseDirectory, "plugins")); }
+        PluginCatalog shipped;
+        try { shipped = PluginCatalog.Load(System.IO.Path.Combine(AppContext.BaseDirectory, "plugins")); }
         catch (Exception ex) when (ex is System.IO.IOException or System.IO.InvalidDataException or UnauthorizedAccessException or
                                       System.Text.Json.JsonException or ArgumentException)
         {
@@ -49,8 +54,51 @@ public static class Program
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var ball = new BallWindow();
         ball.Show();
-        var session = new GuideSession(ball, options, args.Contains("--guide-preview"), plugins);
-        app.Exit += (_, _) => { session.Dispose(); ball.Cleanup(); ProbeLog.Close(); };
+        var preview = args.Contains("--guide-preview");
+        var invalidPreferences = stored.Status == PreferencesStatus.Invalid;
+        if (invalidPreferences && !preview) new CloudConsentStore(preferences.Options).Forget();
+        var plugins = preferences.Filter(shipped);
+        GuideSettingsWindow? settings = null;
+        GuideSession session = null!;
+        void OpenSettings()
+        {
+            session.EndForSettings();
+            if (settings is not null) { settings.Activate(); return; }
+            settings = new GuideSettingsWindow(preferences, shipped, () => session.CloudEnabled, Apply,
+                () => session.ManageCloud(), status => GuideDiagnostics.Create(shipped, plugins, session.CloudEnabled, status), invalidPreferences);
+            settings.Closed += (_, _) => settings = null;
+            settings.Show();
+        }
+        string? Apply(GuidePreferences next)
+        {
+            if (preview) return "静态预览不会更改配置。";
+            next = next.Validate();
+            var nextPlugins = next.Filter(shipped);
+            var revoke = invalidPreferences || next.RequiresNewConsent(preferences);
+            if (revoke)
+            {
+                // Forget before saving a new recipient, including changes back to a previously granted one.
+                session.RevokeForConfiguration();
+                if (!new CloudConsentStore(preferences.Options).Forget())
+                    return "云端已在本次运行中关闭，但无法清除旧授权记录。新配置尚未保存；请修复用户配置目录权限后重试。";
+            }
+            if (!store.Save(next)) return revoke
+                ? "无法保存设置，仍使用旧连接配置，云端已关闭。请检查本机用户配置目录权限后重试。"
+                : "无法保存设置，旧配置保持有效。请检查本机用户配置目录权限后重试。";
+            if (!preferences.SameAs(next) || invalidPreferences)
+            {
+                session.EndForSettings();
+                session.Dispose();
+                preferences = next; plugins = nextPlugins;
+                // A changed disclosure cannot reuse the previous grant; the store checks its exact hash.
+                session = new GuideSession(ball, next.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences);
+            }
+            invalidPreferences = false;
+            return null;
+        }
+        session = new GuideSession(ball, preferences.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences);
+        if (invalidPreferences) ball.Dispatcher.InvokeAsync(session.ShowConfigurationWarning);
+        app.Exit += (_, _) => { settings?.Close(); session.Dispose(); ball.Cleanup(); ProbeLog.Close(); };
         if (int.TryParse(ArgValue(args, "--exit-after"), out var exitAfter) && exitAfter > 0)
             app.Dispatcher.InvokeAsync(async () =>
             {

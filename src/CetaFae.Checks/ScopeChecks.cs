@@ -84,6 +84,17 @@ static class ScopeChecks
         var transferred = JsonSerializer.Deserialize<GuidePlugin>(JsonSerializer.Serialize(plugin, ObservationWorker.Json), ObservationWorker.Json)!;
         check(transferred.ScopeFor("find generated").Padding == 16, "collector IPC preserves the reviewed scope contract");
         var frame = new Rect(-100, 80, 600, 400);
+        foreach (var scale in new[] { 1d, 1.25, 1.5, 2 })
+        {
+            var selected = RegionPicker.Selection(frame, new Point(40 / scale, 60 / scale),
+                new Point(240 / scale, 160 / scale), scale);
+            check(selected == new Rect(-60, 140, 200, 100),
+                "region selection preserves physical coordinates at 100/125/150/200 percent scaling");
+            var reversed = RegionPicker.Selection(frame, new Point(240 / scale, 160 / scale),
+                new Point(40 / scale, 60 / scale), scale);
+            check(reversed == selected,
+                "reverse-direction selection uses the same bounded physical region at every supported scale");
+        }
         var anchor = new GuideScopeAnchor("Generated option", "ControlType.CheckBox", new Rect(0, 180, 100, 30), [7]);
         var scope = GuideScope.Resolve(frame, rule, [anchor]);
         check(scope.Region == new Rect(-16, 164, 132, 62), "unique scope is local to its anchor on a negative-origin desktop");

@@ -20,13 +20,14 @@ internal sealed class GuideMenu : IDisposable
     internal bool OwnsForeground(IntPtr window) => (_opening || Menu.IsOpen) &&
         (window == _ball.Handle || window == (PresentationSource.FromVisual(Menu) as HwndSource)?.Handle);
 
-    internal GuideMenu(BallWindow ball, Action toggle, Action disclosure, Action clear, bool registerTray = true)
+    internal GuideMenu(BallWindow ball, Action toggle, Action disclosure, Action clear, bool registerTray = true, Action? settings = null)
     {
         _ball = ball;
         _cloud = Item("启用云端", toggle);
         Menu.Items.Add(_cloud);
         Menu.Items.Add(Item("查看云端授权", disclosure));
         Menu.Items.Add(Item("清除标记", clear));
+        if (settings is not null) Menu.Items.Add(Item("鲸汐设置", settings));
         Menu.Items.Add(new Separator());
         Menu.Items.Add(Item("退出鲸汐", () => Application.Current.Shutdown()));
         _icon = CreateIcon();

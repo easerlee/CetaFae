@@ -30,6 +30,11 @@ public static class Program
         if (args.Contains("--scroll-desktop")) return ScrollChecks.Run();
         if (args.Contains("--privacy-desktop")) return PrivacyDesktopChecks.Run();
         Console.WriteLine($"BUILD: {typeof(GuideSession).Module.ModuleVersionId:N}");
+        if (args.Contains("--render-settings"))
+        {
+            _ = Dispatcher.CurrentDispatcher;
+            SettingsChecks.Layout(Check); SettingsChecks.Render(); return 0;
+        }
         if (args.Contains("--render-feedback"))
         {
             _ = Dispatcher.CurrentDispatcher;
@@ -108,6 +113,8 @@ public static class Program
                 "application runtime retains culture data for editable WPF controls");
         PrivacyChecks.CheckDisclosureLayout(Check);
         ConsentChecks.Run(Check);
+        SettingsChecks.Layout(Check);
+        await SettingsChecks.RunAsync(Check);
         await PrivacyChecks.RunAsync(Check);
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);

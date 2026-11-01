@@ -152,7 +152,7 @@ public sealed class BallWindow : Window
         Native.SetWindowLong(_hwnd, Native.GWL_EXSTYLE, ex | Native.WS_EX_NOACTIVATE | Native.WS_EX_TOOLWINDOW);
         HwndSource.FromHwnd(_hwnd)!.AddHook(PreventMouseActivation);
 
-        _scale = Math.Max(1.0, Native.GetDpiForSystem() / 96.0);
+        _scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
         var work = SystemParameters.WorkArea;
         var home = HomePosition(work); Left = home.X; Top = home.Y;
 
@@ -161,6 +161,14 @@ public sealed class BallWindow : Window
             ("dpiScale", _scale),
             ("ballDip", FrameDip()),
             ("fg", Native.Hex(Native.GetForegroundWindow())));
+    }
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        _scale = newDpi.DpiScaleX;
+        // Coordinates from a previous scale cannot remain valid in a target-bound session.
+        if (IsLoaded) { StopTracking("dpi_changed"); PlaceBall(HomePosition(SystemParameters.WorkArea)); }
     }
 
     static IntPtr PreventMouseActivation(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)

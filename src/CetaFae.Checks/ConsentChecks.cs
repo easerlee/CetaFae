@@ -26,6 +26,9 @@ static class ConsentChecks
                 check(!new CloudConsentStore(changed, path).Read().Granted, "changed recipient/model/scope cannot reuse consent");
             check(store.Save(false) && new CloudConsentStore(options, path).Read() is { Granted: true, Enabled: false },
                 "disabled state survives restart without forgetting the unchanged grant");
+            check(store.Forget() && !store.Read().Granted && !File.Exists(path),
+                "explicit configuration reset removes the old grant so returning to a prior receiver cannot revive it");
+            check(store.Save(false), "fresh personal consent can be recorded after configuration reset");
             var bytes = File.ReadAllBytes(path); bytes[^1] ^= 0xff; File.WriteAllBytes(path, bytes);
             check(!store.Read().Granted, "tampered protected consent fails closed");
             File.WriteAllText(path, "{\"enabled\":true}");
@@ -53,6 +56,12 @@ static class ConsentChecks
             ball.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0,
                 System.Windows.Input.MouseButton.Right) { RoutedEvent = System.Windows.Input.Mouse.MouseUpEvent });
             check(requests == 1, "whale right button routes to the shared management entry without desktop input");
+            var settingsRequests = 0;
+            using var withSettings = new GuideMenu(ball, () => { }, () => { }, () => { }, registerTray: false,
+                settings: () => settingsRequests++);
+            withSettings.Menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "鲸汐设置"))
+                .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            check(settingsRequests == 1, "settings is dispatched through the same tray/whale menu without an additional entry surface");
         }
         finally { ball.Close(); }
     }

@@ -2,7 +2,9 @@
 
 ## Functional maturation verification contract (2026-11-01, planned)
 
-The user requested a functionality-first development plan and explicitly deferred ordinary-user trials and delivery. Tech-Spec's F0–F7 roadmap owns the next work order. This section plans future engineering verification only: no tests, model runs, native launches or resource jobs were performed by the planning update. Existing dated batches below remain historical coverage, not instructions to repeat each one now.
+The user requested a functionality-first development plan and explicitly deferred ordinary-user trials and delivery, then approved implementation including lightweight settings. Tech-Spec's F0–F7 roadmap owns the next work order. The initial planning update ran no tests; subsequent actual checks belong in验证记录.md. Existing dated batches below remain historical coverage, not instructions to repeat each one now.
+
+Settings AC-19 coverage: offscreen four-page narrow/normal/long-text layouts before integration; defaults/CLI precedence, bounded strict settings parsing and atomic-save failure; endpoint/model validation, no credential persistence; filtered catalog disable/all-disabled/identity-independent recovery; configuration change cancels old session and scope-hash rejects old consent; connection status for reachable/missing model/401/402/429/5xx/malformed/oversized/cancellation, redirects refused and no automatic requests; diagnostic export whitelist. Use generated data and controlled HTTP handlers, not a real target window. Shared menu dispatch and static visuals are not native focus/IME/replacement acceptance. Batch the latter after a coherent candidate.
 
 ### Development checks and the frozen batch
 

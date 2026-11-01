@@ -38,6 +38,12 @@ internal sealed class CloudConsentStore(GuideOptions options, string? file = nul
         catch (Exception ex) when (StorageFailure(ex)) { return default; }
     }
 
+    internal bool Forget()
+    {
+        try { CheckPath(); File.Delete(_file); return true; }
+        catch (Exception ex) when (StorageFailure(ex)) { return false; }
+    }
+
     internal bool Save(bool enabled)
     {
         var temporary = _file + "." + Guid.NewGuid().ToString("N") + ".tmp";

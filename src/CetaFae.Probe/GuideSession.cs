@@ -33,7 +33,8 @@ public sealed class GuideSession : IDisposable
     string? _pendingIntent;
     readonly bool _preview;
 
-    public GuideSession(BallWindow ball, GuideOptions options, bool preview, PluginCatalog plugins)
+    public GuideSession(BallWindow ball, GuideOptions options, bool preview, PluginCatalog plugins,
+        Action? settings = null, bool restoreConsent = true)
     {
         _ball = ball;
         _options = options;
@@ -45,11 +46,11 @@ public sealed class GuideSession : IDisposable
         _ball.SizeChanged += OnEntryChanged;
         _preview = preview;
         _consent = new CloudConsentStore(options);
-        var saved = preview ? default : _consent.Read();
+        var saved = preview || !restoreConsent ? default : _consent.Read();
         _hasConsent = saved.Granted;
         _gate.SetCloud(saved.Enabled);
         _panel.SetCloud(saved.Enabled);
-        _menu = new GuideMenu(ball, RequestCloudToggle, ShowConsent, () => _ball.StopTracking("cancelled"));
+        _menu = new GuideMenu(ball, RequestCloudToggle, ShowConsent, () => _ball.StopTracking("cancelled"), settings: settings);
         _menu.SetCloud(saved.Enabled);
         _panel.CloudToggled += ToggleCloud;
         _panel.MenuRequested += OnMenuRequested;
@@ -80,6 +81,18 @@ public sealed class GuideSession : IDisposable
     {
         _menu.Show();
     }
+
+    internal bool CloudEnabled => _gate.CloudEnabled;
+    internal void EndForSettings() => _ball.StopTracking("settings_opened");
+    internal void RevokeForConfiguration()
+    {
+        _ball.StopTracking("configuration_changed");
+        _gate.SetCloud(false); _hasConsent = false;
+        _panel.SetCloud(false); _menu.SetCloud(false);
+    }
+    internal void ManageCloud() { if (_gate.CloudEnabled) ToggleCloud(); else ShowConsent(); }
+    internal void ShowConfigurationWarning() => _panel.SetStatus(
+        "本机设置无法读取，云端保持关闭。请从鲸鱼右键或托盘打开鲸汐设置，核对并保存后亲自授权。");
 
     void ShowConsent()
     {
