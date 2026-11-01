@@ -412,9 +412,7 @@ public sealed class GuideSession : IDisposable
             _pendingIntent = intent;
             if (_contextCheckPending) OnTargetChanged();
             var observeMs = total.ElapsedMilliseconds;
-            _panel.SetStatus(identifiedProcess is null ? "正在识别下一步…" :
-                GuideIdentification.Ownership(identifiedProcess) + (observation.Identity is null ? "" : "\n" + observation.Identity.Describe()) +
-                "\n正在识别软件和当前界面…");
+            _panel.SetStatus(identifiedProcess is null ? "正在寻找你要了解的位置…" : GuideIdentification.Processing);
             stage = ProcessingStage.Payload;
             var payload = GuidePayload.From(observation);
             ProbeLog.Log("guide_request_start", ("observeMs", observeMs),
@@ -481,7 +479,7 @@ public sealed class GuideSession : IDisposable
                 var ownership = CurrentOwnership();
                 var localIdentity = ownership is null ? null : _context?.Identity;
                 _ball.StopTracking("processing_timeout");
-                var message = "识别超时，请重新拖放。此次没有指向任何位置。";
+                var message = "这次等得有点久，还没看明白。\n请稍后再把鲸鱼拖过来试一次；这次没有标出操作位置。";
                 _panel.SetStatus(ownership is not null ? GuideIdentification.Unavailable(ownership, message, localIdentity) : message);
             }
             ProbeLog.Log("guide_failure", ("category", cancelled ? "cancelled" : "timeout"), ("stage", stage.ToString()));
@@ -495,7 +493,7 @@ public sealed class GuideSession : IDisposable
                 _pendingIntent = intent;
                 _marker.HideAndReset();
                 _panel.SetRegionAvailable(true);
-                _panel.SetStatus("没有可靠的自动识别范围。请点击“选择识别区域”，在此窗口内框选将发送的画面；无需重新回答。尚未发送本阶段的新请求。");
+                _panel.SetStatus("请帮我圈一下你想了解的地方。\n点击“选择识别区域”，把相关文字或按钮框进去即可，不用重新回答。圈好前不会发送这一步的新内容。");
                 ProbeLog.Log("guide_selection_required");
                 return;
             }
@@ -562,25 +560,25 @@ public sealed class GuideSession : IDisposable
     public static string FailureMessage(Exception ex) => ex switch
     {
         InvalidDataException { Message: "scope_unavailable" } =>
-            "无法可靠确定此目标所需的最小范围，此处理阶段未发送新的识别请求，也不退回发送整窗。请说明更具体的目标，或等待该插件补充支持。",
-        HttpRequestException => "识别服务不可用，请检查本机模型代理。",
+            "还不知道该看哪一部分。\n请重新把鲸鱼拖入窗口，并说明想了解什么；范围确定前不会发送这一步的新内容，也不会改发整个窗口。",
+        HttpRequestException => "暂时连接不上识别服务。\n请稍后再试，或在“鲸汐设置”里查看连接状态。",
         InvalidDataException { Message: "target_not_foreground" } =>
-            "目标窗口不在前台，本次处理已停止。请先点击目标窗口的空白处，再拖入问号球。",
+            "请先点一下要了解的窗口，再把鲸鱼拖进去。\n这次先停止，避免看错窗口。",
         InvalidDataException { Message: "target_activation_failed" } =>
-            "系统未允许激活目标窗口，本次处理已停止。请先点击目标窗口的空白处，再拖入问号球。",
+            "没能切换到你选择的窗口。\n请先点一下那个窗口，再把鲸鱼拖进去。",
         InvalidDataException { Message: "elevated_target" } =>
-            "目标窗口以管理员权限运行，或无法确认其权限。鲸汐仅支持可确认的非管理员窗口，本次已停止识别，不会尝试提权或绕过限制。",
+            "这个窗口暂时不能查看。\n它可能受到系统保护，鲸汐不会绕过保护。请换一个普通窗口继续使用。",
         InvalidDataException { Message: "capture_target_unavailable" or "capture_dimensions" or "capture_unusable" } =>
-            "无法取得可靠的目标窗口画面，本次已停止识别。请恢复并保持目标窗口可见后重新拖放；不会改为读取整个屏幕。",
+            "这次没看清窗口里的画面。\n请先把窗口打开并保持可见，再拖一次鲸鱼；不会改为查看整个屏幕。",
         InvalidDataException { Message: "unsupported_target" } =>
-            "没有已启用插件支持这个窗口，本次处理已停止。",
+            "暂时还不能解释这个窗口。\n你可以在“鲸汐设置 → 功能”里确认“通用界面理解”是否开启。",
         InvalidDataException { Message: "plugin_conflict" } =>
-            "多个已启用插件匹配这个窗口，暂不识别。请调整插件启用清单后重启。",
+            "鲸汐的功能设置有冲突，这次先不查看。\n请到“鲸汐设置 → 功能”关闭重复的功能后再试。",
         InvalidDataException { Message: "sensitive_content" } =>
-            "检测到密码字段或疑似密钥，本次识别已停止，不显示解释或标记。请隐藏敏感内容后重新拖放。",
+            "这里可能有密码或其他私密信息，鲸汐已停止识别。\n请先隐藏这些内容，再拖一次鲸鱼。",
         InvalidDataException { Message: "privacy_unavailable" } =>
-            "无法完成敏感内容检查，本次识别已停止，不显示解释或标记。这不代表检测到了敏感内容；请稍后重试，若仍失败请报告此提示。",
-        _ => "未取得可靠的窗口信息或模型结果，此次不标记位置。"
+            "还没完成隐私检查，这次先不识别。\n这不代表发现了私密信息。请稍后再试；仍然失败时，请反馈这段提示。",
+        _ => "这次还没看明白，暂时不能给出可靠的说明。\n请稍后把鲸鱼重新拖到这个窗口，再试一次；这次没有标出操作位置。"
     };
 
     async Task<GuideObservation> ReadContextAsync(GuideObservation previous, CancellationToken token)

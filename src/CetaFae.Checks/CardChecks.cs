@@ -32,7 +32,7 @@ static class CardChecks
         var enabled = New(); enabled.SetCloud(true);
         yield return ("09 Menu - cloud on", enabled);
         var identity = New(); identity.SetCloud(true);
-        identity.SetStatus(new GuideIdentification("生成文档工具", "显示生成文档内容", "你希望在这里处理什么？")
+        identity.SetStatus(new GuideIdentification("生成文档工具", "显示生成文档内容", "你希望在这里处理什么？", "regular")
             .ToAnswer("generated-editor").Explanation); identity.ShowQuestion();
         yield return ("10 Window identification", identity);
         var unknown = New(); unknown.SetCloud(true);
@@ -43,11 +43,11 @@ static class CardChecks
         unavailable.SetStatus(GuideIdentification.Unavailable("generated-editor", "识别服务不可用，请检查本机模型代理。"));
         yield return ("12 Local ownership after model failure", unavailable);
         var layered = New(); layered.SetCloud(true);
-        layered.SetStatus(new GuideIdentification("生成文档工具", "显示生成文档", "你希望处理什么？")
+        layered.SetStatus(new GuideIdentification("生成文档工具", "显示生成文档", "你希望处理什么？", "regular")
             .ToAnswer("generated-editor", SoftwareIdentityChecks.Generated).Explanation);
         layered.ShowQuestion(); layered.SetRegionAvailable(true); layered.SetReferenceQuery(SoftwareIdentityChecks.Generated.ReferenceQuery);
         yield return ("13 Layered identity and optional lookup", layered);
-        var reference = New(); reference.SetCloud(true); reference.SetStatus("已有本机和画面判断，等待可选查询确认。");
+        var reference = New(); reference.SetCloud(true); reference.SetStatus("想进一步了解这个软件时，可以查看公开资料。");
         reference.SetReferenceQuery(SoftwareIdentityChecks.Generated.ReferenceQuery); Click(Find(reference, "联网核对软件"));
         yield return ("14 Explicit public receiver disclosure", reference);
         var referenced = New(); referenced.SetCloud(true); referenced.SetStatus("原软件与页面说明保留。");
@@ -71,6 +71,20 @@ static class CardChecks
         yield return ("21 Dismissible ready notice", ready);
         var failed = New(); failed.SetNotice(string.Concat(Enumerable.Repeat("生成失败提示：请检查连接后重新拖放。此文字仅用于滚动检查。", 18)));
         yield return ("22 Long dismissible notice", failed);
+        var normal = New(); normal.SetCloud(true); normal.SetStatus(new GuideIdentification("浏览器设置", "这里可以选择下载文件的保存位置。", "你想调整哪一项？", "regular").ToAnswer("generated-browser").Explanation); normal.ShowQuestion();
+        yield return ("23 Ordinary interface", normal);
+        var attention = New(); attention.SetCloud(true); attention.SetStatus(new GuideIdentification(null, "提示文件不存在，暂时打不开。", "是在打开哪个文件时看到的？", "attention").ToAnswer("generated-file-tool").Explanation); attention.ShowQuestion();
+        yield return ("24 Error or warning", attention);
+        var partial = New(); partial.SetCloud(true); partial.SetStatus(new GuideIdentification(null, null, "你想了解其中哪一部分？").ToAnswer("generated-unknown").Explanation); partial.ShowQuestion(); partial.SetRegionAvailable(true);
+        yield return ("25 Uncertain content", partial);
+        var protectedWindow = New(); protectedWindow.SetNotice(GuideSession.FailureMessage(new InvalidDataException("elevated_target")));
+        yield return ("26 Protected window", protectedWindow);
+        var privacy = New(); privacy.SetNotice(GuideSession.FailureMessage(new InvalidDataException("sensitive_content")));
+        yield return ("27 Private content", privacy);
+        var service = New(); service.SetNotice(GuideIdentification.Unavailable("generated-process", GuideSession.FailureMessage(new System.Net.Http.HttpRequestException())));
+        yield return ("28 Service unavailable", service);
+        var recognizing = New(); recognizing.SetCloud(true); recognizing.SetStatus(GuideIdentification.Processing);
+        yield return ("29 Recognition in progress", recognizing);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
@@ -237,9 +251,9 @@ static class CardChecks
             "long generated text scrolls while the footer remains outside its viewport");
     }
 
-    internal static void Render()
+    internal static void Render(bool recognitionOnly = false)
     {
-        var states = States().ToArray();
+        var states = (recognitionOnly ? States().Skip(22) : States()).ToArray();
         var height = (int)Math.Ceiling(states.Length / 3d) * 506;
         var visual = new DrawingVisual();
         using (var draw = visual.RenderOpen())
@@ -263,7 +277,7 @@ static class CardChecks
         var bitmap = new RenderTargetBitmap(1140, height, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        var path = Path.GetFullPath(".artifacts/checks/cards-layered-identity-20261030.png");
+        var path = Path.GetFullPath(recognitionOnly ? ".artifacts/checks/recognition-states.png" : ".artifacts/checks/cards-layered-identity-20261030.png");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         using var output = File.Create(path); encoder.Save(output);
         Console.WriteLine("Generated offscreen card preview: " + path + "; no native window, capture or network");

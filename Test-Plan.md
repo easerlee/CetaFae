@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Novice recognition feedback (2026-11-01)
+
+Freeze ordinary tool, paused settings, actual error dialog, actual warning, a document quoting an error, purpose-known/software-unknown and blank cases before generated model requests. Assert kind and visible facts independently; ordinary is not a health verdict, attention is not root-cause proof, and unreadable/absent purpose cannot become a known kind. No initial marker. Strict parser rejects missing/duplicate/unknown kind and unsupported known classification. Assert no process/handle/PID/file-signature metadata in user-facing progress, success or model-failure fallback; unknown software still retains useful visible content. Privacy/check unavailable, permission limits, unreadable capture, selection required and service failure each retain honest boundaries and plain next steps. Keep generated/model/native evidence separate; no desktop reads or replacements for this development increment.
+
 ## Installation decision correction (2026-11-01)
 
 The user stopped the withdrawal/reconfirmation loop after accepting preview.20's notice header close. Do not mark outside-click or reconfirmation as passed. Replace first-start consent acceptance with installation-time agreement: generated isolated export/receipt/scope/store tests, self-contained publish, installer compilation and offscreen production disclosure/settings QA first. Freeze a single later native batch for fresh install acceptance/cancel, no second prompt on app start/restart, withdrawal refusal, scope-change refusal, reinstall recovery, shortcuts and uninstall. Never run that installer or replace the live whale without desktop approval. No silent-install path may grant consent. Retain earlier accepted fullscreen/notice evidence and all open formal performance gates.

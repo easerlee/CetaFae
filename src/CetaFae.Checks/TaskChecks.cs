@@ -112,7 +112,7 @@ static class TaskChecks
                 $"generated {item.Family.Id}/{item.StateId} has a valid deliberate target scope and independent expected decision");
         }
         var known = GuideSession.FailureMessage(new InvalidDataException("elevated_target"));
-        check(known.Contains("无法确认") && known.Contains("不会尝试提权") && !known.Contains("尚未发送"),
+        check(known.Contains("可能受到系统保护") && known.Contains("不会绕过保护") && !known.Contains("尚未发送"),
             "unconfirmed privilege is explained without promising earlier content was never sent");
         check(FailureCode(new InvalidDataException("answer_candidate")) == "answer_candidate" &&
               FailureCode(new InvalidDataException("generated private content")) == "unclassified",
@@ -120,7 +120,7 @@ static class TaskChecks
         check(FailureCode(new ArgumentException("answer_candidate")) == "unclassified",
             "task diagnostic failure codes also require the known exception category");
         var capture = GuideSession.FailureMessage(new InvalidDataException("capture_unusable"));
-        check(capture.Contains("无法取得可靠") && capture.Contains("不会改为读取整个屏幕"),
+        check(capture.Contains("没看清窗口里的画面") && capture.Contains("不会改为查看整个屏幕"),
             "capture failure gives a target-only recovery instruction without full-screen fallback");
         foreach (var code in new[] { "target_not_foreground", "target_activation_failed", "unsupported_target" })
             check(!GuideSession.FailureMessage(new InvalidDataException(code)).Contains("未读取窗口内容或发送请求"),

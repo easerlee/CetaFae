@@ -306,8 +306,8 @@ static class PrivacyChecks
               ObservationWorker.SafeError("privacy_unavailable") == "privacy_unavailable" &&
               ObservationWorker.SafeError(generatedToken) == "worker_failed",
             "worker IPC preserves fixed privacy codes and discards arbitrary error content");
-        check(GuideSession.FailureMessage(new InvalidDataException("sensitive_content")).Contains("密码字段或疑似密钥") &&
-              GuideSession.FailureMessage(new InvalidDataException("privacy_unavailable")).Contains("无法完成敏感内容检查"),
+        check(GuideSession.FailureMessage(new InvalidDataException("sensitive_content")).Contains("密码或其他私密信息") &&
+              GuideSession.FailureMessage(new InvalidDataException("privacy_unavailable")).Contains("还没完成隐私检查"),
             "privacy refusals have actionable fixed messages rather than a model failure");
     }
 

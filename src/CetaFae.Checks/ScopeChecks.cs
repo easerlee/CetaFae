@@ -160,7 +160,7 @@ static class ScopeChecks
               Math.Abs(scaled.Candidates[0].Bounds.Y - 16d * 30 / 62) < .001,
             "outbound candidate geometry follows the actual encoded image scale");
         check(ObservationWorker.SafeError("scope_unavailable") == "scope_unavailable" &&
-              GuideSession.FailureMessage(new InvalidDataException("scope_unavailable")).Contains("不退回发送整窗"),
+              GuideSession.FailureMessage(new InvalidDataException("scope_unavailable")).Contains("不会改发整个窗口"),
             "scope refusal survives worker IPC with explicit no-fallback disclosure");
     }
 

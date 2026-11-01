@@ -59,11 +59,11 @@ public static class Program
             WhaleChecks.Render();
             return 0;
         }
-        if (args.Contains("--render-cards"))
+        if (args.Contains("--render-cards") || args.Contains("--render-recognition"))
         {
             _ = Dispatcher.CurrentDispatcher;
             CardChecks.Run(Check);
-            CardChecks.Render();
+            CardChecks.Render(args.Contains("--render-recognition"));
             return 0;
         }
         if (args.Contains("--transport-allocation"))
@@ -137,13 +137,13 @@ public static class Program
         DropChecks.Run(Check);
         PromptChecks.Run(Check);
         Check(GuideSession.FailureMessage(new InvalidDataException("target_not_foreground"))
-                  .Contains("请先点击目标窗口", StringComparison.Ordinal),
+                  .Contains("请先点一下要了解的窗口", StringComparison.Ordinal),
             "foreground rejection gives an actionable target-focus instruction");
         Check(!GuideSession.FailureMessage(new InvalidDataException("private provider text"))
                   .Contains("private provider text", StringComparison.Ordinal),
             "unrecognized failure details are not echoed into the panel");
         Check(GuideSession.FailureMessage(new InvalidDataException("target_activation_failed"))
-                  .Contains("系统未允许激活目标窗口", StringComparison.Ordinal),
+                  .Contains("没能切换到你选择的窗口", StringComparison.Ordinal),
             "OS activation refusal is reported separately from a model failure");
         var toggled = Candidates[0] with { ToggleState = "On" };
         Check(!GuideObservation.HasSameContext([toggled], [toggled with { ToggleState = "Off" }]),
