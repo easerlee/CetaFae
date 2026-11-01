@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -149,28 +150,48 @@ public sealed class GuideModel : IDisposable
         var apiKey = Environment.GetEnvironmentVariable("CETAFAE_API_KEY");
         if (!string.IsNullOrWhiteSpace(apiKey))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException("model_http_failure", null, response.StatusCode);
-        if (response.Content.Headers.ContentLength > MaxResponseBytes)
-            throw new InvalidDataException("model_response_too_large");
-        await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
-        using var bytes = new MemoryStream();
-        var buffer = new byte[4096];
-        int count;
-        while ((count = await stream.ReadAsync(buffer, timeout.Token)) != 0)
+        var transportId = Guid.NewGuid().ToString("N");
+        var clock = Stopwatch.StartNew();
+        var waitingFor = "headers";
+        var outcome = "failed";
+        int? status = null;
+        void Trace(string phase) => ProbeLog.Log("guide_model_transport", ("request", transportId),
+            ("phase", phase), ("waitingFor", waitingFor), ("elapsedMs", clock.ElapsedMilliseconds), ("status", status));
+        Trace("started");
+        try
         {
-            if (bytes.Length + count > MaxResponseBytes) throw new InvalidDataException("model_response_too_large");
-            bytes.Write(buffer, 0, count);
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            status = (int)response.StatusCode;
+            Trace("headers");
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException("model_http_failure", null, response.StatusCode);
+            if (response.Content.Headers.ContentLength > MaxResponseBytes)
+                throw new InvalidDataException("model_response_too_large");
+            waitingFor = "body";
+            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+            using var bytes = new MemoryStream();
+            var buffer = new byte[4096];
+            int count;
+            while ((count = await stream.ReadAsync(buffer, timeout.Token)) != 0)
+            {
+                if (bytes.Length + count > MaxResponseBytes) throw new InvalidDataException("model_response_too_large");
+                bytes.Write(buffer, 0, count);
+            }
+            Trace("body");
+            waitingFor = "validation";
+            using var document = JsonDocument.Parse(bytes.ToArray(), new JsonDocumentOptions { MaxDepth = 24 });
+            var choices = document.RootElement.GetProperty("choices");
+            if (choices.GetArrayLength() != 1 || choices[0].GetProperty("finish_reason").GetString() != "stop")
+                throw new InvalidDataException("model_incomplete");
+            var message = choices[0].GetProperty("message");
+            if (message.TryGetProperty("refusal", out var refusal) && refusal.ValueKind != JsonValueKind.Null)
+                throw new InvalidDataException("model_refusal");
+            var result = message.GetProperty("content").GetString() ?? "";
+            outcome = "completed";
+            return result;
         }
-        using var document = JsonDocument.Parse(bytes.ToArray(), new JsonDocumentOptions { MaxDepth = 24 });
-        var choices = document.RootElement.GetProperty("choices");
-        if (choices.GetArrayLength() != 1 || choices[0].GetProperty("finish_reason").GetString() != "stop")
-            throw new InvalidDataException("model_incomplete");
-        var message = choices[0].GetProperty("message");
-        if (message.TryGetProperty("refusal", out var refusal) && refusal.ValueKind != JsonValueKind.Null)
-            throw new InvalidDataException("model_refusal");
-        return message.GetProperty("content").GetString() ?? "";
+        catch (OperationCanceledException) { outcome = "cancelled"; throw; }
+        finally { Trace(outcome); }
     }
 
     public void Dispose() => _http.Dispose();

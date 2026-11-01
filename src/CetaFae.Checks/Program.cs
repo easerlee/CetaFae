@@ -391,6 +391,7 @@ public static class Program
             await FollowupChecks.RunLiveAsync(Check, onlyStep);
         }
         if (args.Contains("--live-identification")) await IdentificationChecks.RunLiveAsync(Check);
+        if (args.Contains("--live-identification-probe")) await IdentificationChecks.RunLiveAsync(Check, productionProbe: true);
         if (args.Contains("--live-tasks")) await TaskChecks.RunLiveAsync(Check,
             args.SingleOrDefault(a => a.StartsWith("--task-case=", StringComparison.Ordinal))?[12..]);
         if (args.Contains("--live") || args.Contains("--live-winrar"))
