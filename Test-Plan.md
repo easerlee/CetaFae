@@ -1,5 +1,31 @@
 # CetaFae Concentrated Verification Plan
 
+## Functional maturation verification contract (2026-11-01, planned)
+
+The user requested a functionality-first development plan and explicitly deferred ordinary-user trials and delivery. Tech-Spec's F0–F7 roadmap owns the next work order. This section plans future engineering verification only: no tests, model runs, native launches or resource jobs were performed by the planning update. Existing dated batches below remain historical coverage, not instructions to repeat each one now.
+
+### Development checks and the frozen batch
+
+- During each authorized implementation phase, exercise affected production paths with local checks and representative generated failures. Use generated-input model probes for changed semantic contracts, recording failure before repair. Fix known privacy/cancellation defects immediately. Do not defer all checks until F7 or substitute a growing check count for task correctness.
+- Reuse the accepted preview.14 interaction/art baseline and the62 generated task/state probes. Mark which dependencies changed before selecting regression; do not ask for repeated manual Edge cycles after unrelated changes. Native evidence only carries over where build/dependencies/environment remain applicable, never by assumption across changed safety or capture behavior.
+- F0 freezes acceptance for proposed DPI, translation and P1 promotions in requirements before implementation. Tests for an addition are planned coverage until its scope is included and evidence exists. Current single-monitor100-percent support is not silently relabelled as high-DPI support.
+- F6 freezes binary, plugin data, prompts/model configuration, case oracles and platform matrix. F7 first runs automated/generated suites, then batches unavoidable native and real-application engineering checks under explicit consent. No ordinary-user recruitment, distribution trial or automatic public release is part of F7.
+
+### Functional coverage to prepare
+
+1. **Understanding and identity (F1/F2):** known/unknown software, familiar/unfamiliar page, standard/custom-drawn content, no accessible controls, unreadable/partial text, mixed language and unavailable model. Separate local identity from visible facts and uncertain purpose; no invented content or marker. Collection/privacy failure must not expose an identity/content fallback that bypasses refusal.
+2. **Explanation/translation (F2, proposed promotion):** Chinese↔English selected text, original labels, error codes, dates/numbers/units, long output and ambiguity. Independently specify expected facts and prohibited additions. Reuse the attached reader/details rather than introducing a new popup. Check legibility, selection scope and no translation of unrelated content.
+3. **Visible error assistance (F3):** S-01–06 normal, missing evidence, ambiguous intent and unavailable safe next action. Assert observed facts versus labelled hypotheses, one safe next check and no unsupported diagnosis, hidden collection, command execution or dangerous recommendation. Any newly scoped reference lookup also needs query/recipient/privacy and failure cases.
+4. **Single-step guidance (F4):** all18 S/W/E tasks plus WinRAR X-01 as additional development coverage. Cover clear goal, clarification, satisfied goal, absent/disabled controls, similar labels and conflicting state. Evaluate the final explanation and actual target, not just model mode/valid JSON. TC-2 visual-region accuracy needs its own independent position oracle; outbound selection success cannot pass it.
+5. **Follow-up and multi-step (F5, P1 promotion):** at least three manually performed steps, user-requested continuation, changed goal, incomplete action, unexpected state, clarification limit and verified completion. Reject stale context, late results and cross-target requests; leaving the target/revoking consent ends collection and clears feedback. Do not infer a successful task from an observed click.
+6. **Platform and presentation (F1/F7, DPI promotion):** single monitor100/125/150/200percent, ordinary/maximized/small windows, DPI changes, input/IME, drag/drop, selection rectangles, actual marked control and attached-feedback avoidance. Check coordinate conversions separately from rendered/native alignment. Mixed-DPI/multiple-monitor results remain unsupported until separately scoped.
+7. **Integrated safety and failures (all phases/F6):** unauthorized/elevated/unreadable targets, sensitive/unknown privacy metadata, hidden subtrees, target-only capture, selection bounds, model/prompt/plugin injection, malformed and semantically false answers, quota/network failure, timeout, rapid submissions, clear/revoke/close/minimize/switch, late replies, collector reaping and metadata-only retention. Test failures at initial understanding, answer submission and selected-region stages rather than only the first request.
+8. **Formal performance (F7):** retain the exact stage3000ms, cleanup500ms and fresh/post20-use90MB Private Bytes protocols below, including owned helpers. Use one identified process for its resource history; changed binaries do not inherit its measurements. Separate external model latency from local cost without dropping either from the applicable gate. A smooth animation or successful retry is not a formal pass.
+
+### Batch outcome and regression policy
+
+Produce a requirement/case/platform support matrix with separate local, generated-model and native evidence. Preserve first-attempt failures, cancellations and retries separately, with build and environment identity. Repair a shared privacy/collection/transport fault across its affected capabilities; an isolated task anchor does not automatically reopen unrelated art and every formal resource round. If a new failure makes ongoing collection unsafe, stop that batch immediately. The output is a development-maturity decision with remaining blockers, not a claim of universal-window support, proven error root causes or delivery readiness.
+
 ## Wider water and sinking transition (2026-10-31)
 
 Latest width decision:288DIP (80 percent of360), no text/control scaling. Use256/288/320DIP in both orientations and regenerate the final-width playback/grid; previous360DIP candidate results are development history, not this width's acceptance.
@@ -183,7 +209,7 @@ No OS reinstall, live network/permission-policy change, VM power-off or administ
 
 ## Concentrated execution and regression selection
 
-1. **Preparation without desktop:** finalize cases and safe fixtures, source/dependency review, clean Debug/isolated Release build, complete headless suite, synthetic model/fault cases, no sensitive artifacts. Resolve reproducible defects before user testing.
+1. **Preparation without desktop:** finalize cases and safe fixtures, source/dependency review, clean Debug/isolated Release build, complete headless suite, synthetic model/fault cases, no sensitive artifacts. Resolve reproducible defects before native engineering verification; ordinary-user trials are deferred by the November1 direction.
 2. **Native engineering batch:** approved generated privacy/capture/focus/marker tests on the candidate. One failure triage may block promotion; don't repeatedly launch one experiment per guess.
 3. **Real task batch:** freeze cases by application; one set of clear instructions/choices per batch. Include ordinary/intended/satisfied/refusal cases and generic region selection. Existing accepted evidence is reusable only if its dependencies/build/environment remain relevant; record partial reuse honestly.
 4. **Timing/resource batch:** cold starts and warm cases, then fresh→20actualuses→post-use on one process. Fit existing functional cycles into resource use history. Allow breaks outside timed windows; do not claim a fixed short duration for all19 tasks.
