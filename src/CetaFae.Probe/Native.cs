@@ -166,7 +166,10 @@ internal static class Native
         static bool Covers(System.Windows.Rect rectangle, System.Windows.Rect area) => !rectangle.IsEmpty &&
             Math.Abs(rectangle.Left - area.Left) <= 1 && Math.Abs(rectangle.Top - area.Top) <= 1 &&
             Math.Abs(rectangle.Right - area.Right) <= 1 && Math.Abs(rectangle.Bottom - area.Bottom) <= 1;
-        return !monitor.IsEmpty && monitor.Width > 0 && monitor.Height > 0 && Covers(frame, monitor) && Covers(client, monitor);
+        // A fullscreen client can retain native frame borders outside its monitor.
+        return !monitor.IsEmpty && monitor.Width > 0 && monitor.Height > 0 && !frame.IsEmpty &&
+            frame.Left <= monitor.Left + 1 && frame.Top <= monitor.Top + 1 &&
+            frame.Right >= monitor.Right - 1 && frame.Bottom >= monitor.Bottom - 1 && Covers(client, monitor);
     }
 
     internal static bool ForegroundFullscreen(IntPtr entry)

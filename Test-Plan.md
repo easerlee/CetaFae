@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Fullscreen frame overscan regression (2026-11-01)
+
+Freeze the authorized game's measured client/monitor0,0,3440,1440 and frame-1,-31,3441,1441 as a failing headless case before correcting frame enclosure. Also cover negative-coordinate translation, clipping at each frame edge, ordinary maximization with title chrome and oversized clients; preserve existing invalid/different-monitor/session/drag exclusions. No game-name branch or expanded content access. After both configurations pass and the candidate is packaged, obtain separate permission before replacing the whale. One focused native check must verify idle hiding in the same game and non-activating restoration on switching away, without model requests, screenshots or changing game settings. Diagnosis alone and historical browser F11 evidence do not accept this changed native path or every game/multi-monitor mode.
+
 ## Novice recognition feedback (2026-11-01)
 
 For the preview.24 zero-viewport failure, arrange the actual production feedback surface at GuidePanel's calculated width/height after each state transition. Freeze processing, long generated identification, local-name reference action, region action, collapse/reopen and repeated timeout/result cycles before repair. Require nonempty intersecting text, positive body viewport and fully visible action bounds without creating a native handle. Standalone CardChecks at a fixed maximum height cannot substitute for this measured-host regression. Native confirmation remains a later permission-bound gate.

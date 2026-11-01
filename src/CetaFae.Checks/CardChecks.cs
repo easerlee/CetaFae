@@ -127,6 +127,20 @@ static class CardChecks
             "notice-to-session transition restores real guidance actions without a second close action");
         var screen = new Rect(-1920, 0, 1920, 1080);
         check(Native.IsFullscreenGeometry(screen, screen, screen), "borderless fullscreen client covers its monitor at negative coordinates");
+        var wideScreen = new Rect(0, 0, 3440, 1440);
+        check(Native.IsFullscreenGeometry(new Rect(-1, -31, 3442, 1472), wideScreen, wideScreen),
+            "observed fullscreen client remains fullscreen when its native frame extends beyond monitor edges");
+        var translatedScreen = new Rect(-3440, -1440, 3440, 1440);
+        check(Native.IsFullscreenGeometry(new Rect(-3441, -1471, 3442, 1472), translatedScreen, translatedScreen),
+            "fullscreen frame overscan works at negative monitor coordinates");
+        check(new[] { new Rect(2, 0, 3438, 1440), new Rect(0, 2, 3440, 1438),
+                      new Rect(0, 0, 3438, 1440), new Rect(0, 0, 3440, 1438) }
+                .All(frame => !Native.IsFullscreenGeometry(frame, wideScreen, wideScreen)),
+            "a frame clipped inside any monitor edge cannot establish fullscreen");
+        check(!Native.IsFullscreenGeometry(new Rect(-1, -31, 3442, 1472), new Rect(0, 32, 3440, 1408), wideScreen),
+            "overscanning frame does not hide ordinary maximization with title chrome");
+        check(!Native.IsFullscreenGeometry(new Rect(-2, -32, 3444, 1474), new Rect(-2, -2, 3444, 1444), wideScreen),
+            "an oversized client does not establish single-monitor fullscreen");
         check(!Native.IsFullscreenGeometry(screen, new Rect(-1920, 32, 1920, 1048), screen),
             "maximized title chrome is not classified as fullscreen even with an auto-hidden taskbar");
         check(!Native.IsFullscreenGeometry(new Rect(-1920, 0, 1920, 1040), new Rect(-1920, 32, 1920, 1008), screen) &&
