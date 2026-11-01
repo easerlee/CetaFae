@@ -81,8 +81,8 @@ internal sealed class GuideSettingsView : Border
         _pages[0].Children.Add(Advanced);
 
         _pages[1].Children.Add(Title("你决定鲸汐何时看窗口"));
-        _pages[1].Children.Add(Text("只有你拖入的所选窗口才会用于求助。关闭云端后，不再发起新的窗口读取或识别请求；已发送内容无法从上游撤回。"));
-        _cloudAction = Action("查看云端授权", () => CloudRequested?.Invoke()); _pages[1].Children.Add(_cloudAction);
+        _pages[1].Children.Add(Text("开始使用时确认一次，之后直接拖动小鲸鱼求助，无需日常开关。撤回同意会结束当前求助，不再发起窗口读取或识别请求；已发送内容无法从上游撤回。"));
+        _cloudAction = Action("查看说明并开始使用", () => CloudRequested?.Invoke()); _pages[1].Children.Add(_cloudAction);
         _pages[1].Children.Add(Text("以下为当前已保存配置的完整说明。高级设置尚未保存的编辑不会改变授权。"));
         _pages[1].Children.Add(_disclosure);
 
@@ -101,7 +101,7 @@ internal sealed class GuideSettingsView : Border
         }
 
         _pages[3].Children.Add(Title("从拖动开始"));
-        _pages[3].Children.Add(Text("1. 配置可用的模型服务，阅读并亲自同意云端授权。\n2. 将小鲸鱼拖到要了解的窗口。\n3. 需要时回答问题或框选区域，再阅读说明并自行操作。\n4. 点击对话条内的 × 结束；右键鲸鱼可再次打开设置。"));
+        _pages[3].Children.Add(Text("1. 配置可用的模型服务，首次点击“同意并开始使用”。\n2. 此后直接将小鲸鱼拖到要了解的窗口。\n3. 需要时回答问题或框选区域，再阅读说明并自行操作。\n4. 点击对话条内的 × 结束；设置隐私页可撤回同意。"));
         _pages[3].Children.Add(Title("遇到问题"));
         _pages[3].Children.Add(Text("先在连接页手动检测服务。隐私检查失败不代表检测到了敏感内容；鲸汐会停止这次识别，而不是绕过检查。\n诊断导出仅含产品/运行时版本、云端状态、连接结果类别和插件状态，不包含密钥、地址、路径、截图、控件文字或问答。"));
         _pages[3].Children.Add(Text($"版本：{Program.VersionLabel} · 开发预览，尚未完成正式性能及平台验收。"));
@@ -126,8 +126,8 @@ internal sealed class GuideSettingsView : Border
     }
     internal void SetCloud(bool enabled, GuideOptions options)
     {
-        _cloud.Text = enabled ? "云端已启用；尚未检测服务状态。" : "云端已关闭；不会自动识别。";
-        _cloudAction.Content = enabled ? "关闭云端" : "查看并确认云端授权";
+        _cloud.Text = enabled ? "已同意使用；尚未检测服务状态。" : "尚未同意使用；不会读取窗口或发起识别。";
+        _cloudAction.Content = enabled ? "撤回同意" : "查看说明并开始使用";
         _disclosure.Text = GuidePanel.Disclosure(options);
     }
     internal void SelectPage(int index)

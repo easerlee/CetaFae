@@ -12,7 +12,6 @@ namespace CetaFae.Probe;
 internal sealed class GuideMenu : IDisposable
 {
     internal ContextMenu Menu { get; } = new();
-    readonly MenuItem _cloud;
     readonly System.Windows.Forms.NotifyIcon _tray;
     readonly System.Drawing.Icon _icon;
     readonly BallWindow _ball;
@@ -20,18 +19,15 @@ internal sealed class GuideMenu : IDisposable
     internal bool OwnsForeground(IntPtr window) => (_opening || Menu.IsOpen) &&
         (window == _ball.Handle || window == (PresentationSource.FromVisual(Menu) as HwndSource)?.Handle);
 
-    internal GuideMenu(BallWindow ball, Action toggle, Action disclosure, Action clear, bool registerTray = true, Action? settings = null)
+    internal GuideMenu(BallWindow ball, Action clear, bool registerTray = true, Action? settings = null)
     {
         _ball = ball;
-        _cloud = Item("启用云端", toggle);
-        Menu.Items.Add(_cloud);
-        Menu.Items.Add(Item("查看云端授权", disclosure));
-        Menu.Items.Add(Item("清除标记", clear));
         if (settings is not null) Menu.Items.Add(Item("鲸汐设置", settings));
+        Menu.Items.Add(Item("清除标记", clear));
         Menu.Items.Add(new Separator());
         Menu.Items.Add(Item("退出鲸汐", () => Application.Current.Shutdown()));
         _icon = CreateIcon();
-        _tray = new System.Windows.Forms.NotifyIcon { Icon = _icon, Text = "鲸汐 · 云端关闭", Visible = registerTray };
+        _tray = new System.Windows.Forms.NotifyIcon { Icon = _icon, Text = "鲸汐 · 尚未同意", Visible = registerTray };
         _tray.MouseUp += (_, e) =>
         {
             if (e.Button is System.Windows.Forms.MouseButtons.Left or System.Windows.Forms.MouseButtons.Right)
@@ -47,8 +43,7 @@ internal sealed class GuideMenu : IDisposable
     }
     internal void SetCloud(bool enabled)
     {
-        _cloud.Header = enabled ? "关闭云端" : "启用云端";
-        _tray.Text = enabled ? "鲸汐 · 云端已启用" : "鲸汐 · 云端关闭";
+        _tray.Text = enabled ? "鲸汐 · 可以求助" : "鲸汐 · 尚未同意";
     }
     internal void Show()
     {

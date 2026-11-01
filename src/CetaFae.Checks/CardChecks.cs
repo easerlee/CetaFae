@@ -81,21 +81,31 @@ static class CardChecks
 
     internal static void Run(Action<bool, string> check)
     {
+        var declined = New(); var declinedGrants = 0;
+        declined.ConsentAccepted += () => declinedGrants++;
+        declined.ShowConsent(); Click(Find(declined, "暂不使用"));
+        Click(Find(declined, "同意并开始使用"));
+        check(declinedGrants == 0 && declined.View != GuideCardView.Consent,
+            "declining onboarding invalidates the hidden affirmative callback without granting consent");
         var card = New();
         var consent = 0; var regions = 0; var submitted = 0;
-        card.CloudToggled += () => consent++;
+        card.ConsentAccepted += () => consent++;
         card.RegionRequested += () => regions++;
         card.AnswerSubmitted += _ => submitted++;
-        Click(Find(card, "同意并启用云端"));
+        check(card.Actions.Children.Cast<Button>().Any(button => Equals(button.Content, "同意并开始使用")),
+            "first-use disclosure provides one affirmative start action instead of a daily cloud toggle");
+        Click(Find(card, "同意并开始使用"));
         check(consent == 0, "hidden or stale consent callback cannot enable cloud before disclosure");
-        Click(Find(card, "查看云端授权"));
+        Click(Find(card, "使用与隐私说明"));
         check(card.View == GuideCardView.Consent && consent == 0, "opening cloud disclosure alone never grants consent");
-        Click(Find(card, "同意并启用云端"));
+        Click(Find(card, "同意并开始使用"));
         check(consent == 1, "only an explicit action in the disclosure requests cloud consent");
         card.SetCloud(true);
+        Click(Find(card, "同意并开始使用"));
+        check(consent == 1, "a repeated or stale affirmative callback never toggles an existing grant off");
         card.SetStatus("Generated question"); card.ShowQuestion(); card.SetRegionAvailable(true);
         check(Find(card, "菜单").Visibility == Visibility.Collapsed &&
-              Find(card, "关闭云端").Visibility == Visibility.Collapsed,
+              Find(card, "使用与隐私说明").Visibility == Visibility.Collapsed,
             "attached session feedback leaves management exclusively in the tray and whale menu");
         card.Answer.Text = "生成回答";
         Click(Find(card, "收起"));

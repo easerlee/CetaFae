@@ -44,6 +44,9 @@ internal sealed class CloudConsentStore(GuideOptions options, string? file = nul
         catch (Exception ex) when (StorageFailure(ex)) { return false; }
     }
 
+    // A disabled tombstone is a safe fallback when the old grant cannot be removed.
+    internal bool Revoke() => Forget() || Save(false);
+
     internal bool Save(bool enabled)
     {
         var temporary = _file + "." + Guid.NewGuid().ToString("N") + ".tmp";

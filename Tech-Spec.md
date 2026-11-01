@@ -2,6 +2,18 @@
 
 Updated: 2026-11-01
 
+## One-time onboarding consent (approved2026-11-01)
+
+Goal: remove routine cloud toggles while preserving a single personal first-use decision, automatic same-configuration reuse, settings-only withdrawal and the existing selected-window privacy boundary. The current unpacked preview has no installer: show the existing disclosure card once on startup when consent is missing/invalid; its primary action is "同意并开始使用". Later installation may integrate this into "同意并安装", but no installer or legal-agreement delivery is claimed here. A rejected/withdrawn drop only shows a status directing the user to Settings, without repeated disclosure, activation, content reads or requests. Withdraw by deleting the saved grant (fall back to a protected disabled record if deletion fails); if neither persistence operation succeeds, keep this process disabled and disclose failure. Do not silently upgrade legacy disabled records into permission. Configuration changes and corrupt preferences retain the existing safe reset behavior. Keep the running preview.18 until replacement consent.
+
+Implementation plan, using the existing WPF controls and protected store:
+- [x] Update requirements and current README/Test-Plan instructions; preserve historical switch tests as evidence for their original builds.
+- [x] Observe failing checks for the missing store-revocation API and the stale hidden affirmative callback after declining; cover the toggle-free shared menu, affirmative event, settings labels and saved-grant removal.
+- [x] Simplify GuideMenu; replace GuideSession's toggle with separate accept/withdraw operations, reuse CloudConsentStore, show missing-consent onboarding once through the startup dispatcher. Keep owned-request cancellation and new-consent requirements.
+- [x] Reuse the production card/settings layout for new copy; retain complete receiver/scope/retention disclosure and a rejection action. Debug/Release each1168 checks pass; normal/narrow production views inspected offscreen. No desktop launch or real consent operation during development.
+- [x] Package preview.19 separately with checked Release module db98dfb8037c4ec08de501e79f186708; source/evidence synchronization is recorded with the Git commit.
+- [ ] Native first use, restart, withdrawal in flight, settings and affected follow-up cases require one newly approved consolidated batch; local checks cannot accept these or timing/resources. Store checks cover grant removal and honest locked-file failure, but not the deletion-fails/disabled-tombstone-succeeds branch. Startup dispatcher and full session wiring remain native acceptance gaps.
+
 ## Attached feedback (2026-11-01, native candidate)
 
 The user approved combining the two demonstrated surfaces. Reuse the existing bounded, non-activating GuidePanel HWND: ordinary feedback attaches below the existing input shell; a validated and actually visible control marker may instead show a compact droplet bubble beside that control. Expanding details replaces that bubble with the attached full reading surface. Collapse keeps the session and marker, with an attached reopen tab; the existing shell close and clear actions end the session. Management remains exclusively in tray/right-click. Keep full explanations available without another model request or invented summary. Long text scrolls above fixed actions. Failed recognition and privacy refusal attach to the returning whale without retaining target content or marks. Consent remains explicit and separate from ordinary feedback. Preserve preview.13 art, input dimensions, capture scope, transport and cancellation gates.

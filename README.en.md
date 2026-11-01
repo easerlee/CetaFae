@@ -8,7 +8,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 ## Features
 
-- **Lightweight management**: left-clicking the whale opens no management window. The tray and whale right-click share one menu. Explicit first-use consent and on/off state are remembered for the current configuration; changed terms or configuration require confirmation again. Startup alone never collects or sends content.
+- **Lightweight management**: left-clicking the whale opens no management window. The tray and whale right-click share one menu. One explicit first-use agreement is remembered for the current configuration, with no routine cloud toggle; changed terms or configuration require confirmation again. Startup alone never collects or sends content.
 - **Drag to select**: an attached input bar, on-demand explanations, and control highlights keep interaction close to the target. Ending a session restores the whale.
 - **Contextual feedback**: explanations expand below the input bar; validated controls can have a short nearby bubble. Details move to the reader, which changes side to avoid the control or collapses when space is insufficient. It can be reopened. Collapse preserves the session and highlights, while close or clear ends it. Long explanations scroll.
 - **Understand the current window**: visible content and local software identity distinguish the owning application, interface purpose, and uncertainty. Generic vision can attempt unfamiliar software without promising recognition of every window.
@@ -25,7 +25,7 @@ Representative human-tested flows include locating an Edge download toggle, expl
 
 ## Safety
 
-- **Explicit consent and revocation**: disclose payload scope, recipient, model, and retention before enabling cloud processing. Disabling stops new collection and requests and invalidates active sessions. Content already sent cannot be recalled from upstream services.
+- **Explicit consent and revocation**: disclose payload scope, recipient, model, and retention before enabling cloud processing. Withdrawing consent in Settings stops new collection and requests and invalidates active sessions. Content already sent cannot be recalled from upstream services.
 - **Selected window only**: no full-desktop capture followed by cropping, and no automatic reading of other windows or background tabs.
 - **Limited outbound scope**: initial understanding may send the selected whole-window image. Once the goal is known, use reliable local scopes or user selections; wait when scope is uncertain. PrintWindow still renders the selected whole window in local memory before cropping.
 - **Conservative sensitive-content rejection**: visible password fields or recognizable credential text stop processing. Unavailable privacy checks fail closed. This is not a universal secret detector or a pixel-redaction guarantee.
@@ -40,7 +40,9 @@ The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-fla
 
 The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page enables or disables shipped plugins; it does not download or install plugins.
 
-On first use, a drop without consent opens the disclosure; it is also available from the tray or whale right-click menu. Read and personally confirm it, then drag onto the target again. Describe your goal when asked, and draw a region if requested. Read the explanation or guidance and operate the target yourself, or end the session.
+The main branch shows usage/privacy disclosure on the first launch. Personally choose Agree and start once; later launches reuse valid same-configuration consent, with no routine cloud toggle. Startup itself neither reads a window nor sends an inference request. After declining, use Settings → Privacy to review and confirm. That page offers Withdraw consent when agreed; withdrawal ends the current session and requires fresh confirmation before reuse. An installer is not provided yet; a future Agree and install action may incorporate this single decision.
+
+Drag onto the target, describe your goal when asked, and select a region if requested. Read the guidance and operate the target yourself, or end the session. Changed recipient, model, sending scope or terms require confirmation again.
 
 To continue, first choose Continue asking in the result, then act manually and submit your next question. Content reads pause while this input is armed. Switching to another window ends the entire flow and requires another drop. Changes to the disclosed sending scope or terms invalidate saved consent.
 

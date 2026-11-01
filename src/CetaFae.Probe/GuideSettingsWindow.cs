@@ -84,7 +84,7 @@ internal sealed class GuideSettingsWindow : Window
         if (error is not null) { _view.SetCloud(_cloudEnabled(), _saved.Options); _view.SetNotice(error); return; }
         _saved = preferences;
         _view.SetCloud(_cloudEnabled(), _saved.Options);
-        _view.SetNotice("设置已保存。配置变更已结束旧求助；云端关闭时请到隐私页亲自授权后重新拖入。");
+        _view.SetNotice("设置已保存。配置变更已结束旧求助；尚未同意时请到隐私页确认，再重新拖入。");
     }
 
     void Export()

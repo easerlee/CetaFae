@@ -23,7 +23,7 @@ internal static class GuideConnection
         ConnectionStatus.Unavailable => "暂时无法连接服务。请检查服务是否运行、地址和网络，再手动检测。",
         ConnectionStatus.InvalidResponse => "未取得可用的模型列表；部分兼容服务不支持此检测，不能据此判断识别能力。",
         ConnectionStatus.Cancelled => "检测已取消；没有读取窗口或发送问答。",
-        _ => "尚未检测。启用云端不代表模型服务已经可用。"
+        _ => "尚未检测。同意使用不代表模型服务已经可用。"
     };
 
     internal static async Task<ConnectionStatus> TestAsync(GuideOptions options, CancellationToken token,

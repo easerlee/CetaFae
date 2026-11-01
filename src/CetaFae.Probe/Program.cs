@@ -65,7 +65,7 @@ public static class Program
             session.EndForSettings();
             if (settings is not null) { settings.Activate(); return; }
             settings = new GuideSettingsWindow(preferences, shipped, () => session.CloudEnabled, Apply,
-                () => session.ManageCloud(), status => GuideDiagnostics.Create(shipped, plugins, session.CloudEnabled, status), invalidPreferences);
+                () => session.ManageConsent(), status => GuideDiagnostics.Create(shipped, plugins, session.CloudEnabled, status), invalidPreferences);
             settings.Closed += (_, _) => settings = null;
             settings.Show();
         }
@@ -98,6 +98,7 @@ public static class Program
         }
         session = new GuideSession(ball, preferences.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences);
         if (invalidPreferences) ball.Dispatcher.InvokeAsync(session.ShowConfigurationWarning);
+        else if (!preview && !session.CloudEnabled) ball.Dispatcher.InvokeAsync(session.ShowConsent);
         app.Exit += (_, _) => { settings?.Close(); session.Dispose(); ball.Cleanup(); ProbeLog.Close(); };
         if (int.TryParse(ArgValue(args, "--exit-after"), out var exitAfter) && exitAfter > 0)
             app.Dispatcher.InvokeAsync(async () =>

@@ -30,6 +30,15 @@ internal static class SettingsChecks
             check(PresentationSource.FromVisual(view) is null, "settings layout creates no native handle");
         }
         var edit = new GuideSettingsView(GuidePreferences.Default, catalog, false);
+        var privacyAction = ((Grid)edit.BodyScroll.Content).Children.OfType<Panel>()
+            .SelectMany(page => page.Children.OfType<Button>()).Single(button => Equals(button.Content, "查看说明并开始使用"));
+        var consentRequests = 0; edit.CloudRequested += () => consentRequests++;
+        privacyAction.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        check(consentRequests == 1, "privacy settings requests disclosure without granting permission");
+        edit.SetCloud(true, GuidePreferences.Default.Options);
+        check(Equals(privacyAction.Content, "撤回同意"), "withdrawal lives in privacy settings, not the everyday menu");
+        privacyAction.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        check(consentRequests == 2, "settings dispatches one explicit withdrawal action without a native window");
         var submits = 0; edit.SaveRequested += _ => submits++;
         edit.Endpoint.Text = "http://remote.invalid/v1";
         edit.SaveButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

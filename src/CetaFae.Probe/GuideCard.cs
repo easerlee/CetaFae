@@ -54,7 +54,7 @@ internal sealed class GuideCard : Border
     internal ScrollViewer BodyScroll { get; }
     internal WrapPanel Actions { get; } = new() { Margin = new Thickness(0, 14, 0, 0) };
     internal TextBox Answer => _answer;
-    internal event Action? CloudToggled;
+    internal event Action? ConsentAccepted;
     internal event Action? MenuRequested;
     internal event Action? Cancelled;
     internal event Action? RegionRequested;
@@ -102,20 +102,24 @@ internal sealed class GuideCard : Border
         BodyScroll = new ScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         _menu = Button("菜单", () => MenuRequested?.Invoke());
-        _cloud = Button("查看云端授权", () =>
+        _cloud = Button("使用与隐私说明", () =>
         {
             if (View != GuideCardView.Menu) return;
-            if (_cloudEnabled) CloudToggled?.Invoke(); else ShowConsent();
+            ShowConsent();
         });
-        _consent = Button("同意并启用云端", () =>
+        _consent = Button("同意并开始使用", () =>
         {
             // A hidden button or stale callback cannot bypass the visible disclosure state.
-            if (View == GuideCardView.Consent && !_cloudEnabled) CloudToggled?.Invoke();
+            if (View == GuideCardView.Consent && !_cloudEnabled) ConsentAccepted?.Invoke();
         });
         _clear = Button("清除标记", () => Cancelled?.Invoke());
         _region = Button("选择识别区域", () => { if (HasRegion) RegionRequested?.Invoke(); });
         _exit = Button("退出", () => ExitRequested?.Invoke());
-        _back = Button("返回", () => { if (_hasSession) { View = GuideCardView.Session; Refresh(); } else Dismissed?.Invoke(); });
+        _back = Button("返回", () =>
+        {
+            if (_hasSession) { View = GuideCardView.Session; Refresh(); }
+            else { Reset(); Dismissed?.Invoke(); }
+        });
         _reference = Button("联网核对软件", () =>
         {
             if (View != GuideCardView.Session || IsCollapsed || IsBubble || !_cloudEnabled || _referenceQuery is null) return;
@@ -205,8 +209,8 @@ internal sealed class GuideCard : Border
         var session = View == GuideCardView.Session;
         var compact = session && IsCollapsed;
         var bubble = session && IsBubble;
-        _caption.Text = bubble ? "就在这里 · 仅指路，未修改" : View == GuideCardView.ReferenceConsent ? "可选 · 单次公共资料查询" : View == GuideCardView.Consent ? "启用前，请了解发送与留存范围" :
-            View == GuideCardView.Menu ? (_cloudEnabled ? "云端已启用 · 由你操作目标软件" : "云端关闭 · 拖动入口即可选窗") : "解释与指路 · 由你操作";
+        _caption.Text = bubble ? "就在这里 · 仅指路，未修改" : View == GuideCardView.ReferenceConsent ? "可选 · 单次公共资料查询" : View == GuideCardView.Consent ? "开始前，请了解发送与留存范围" :
+            View == GuideCardView.Menu ? (_cloudEnabled ? "可以求助 · 由你操作目标软件" : "尚未同意 · 请先了解使用说明") : "解释与指路 · 由你操作";
         Visible(_disclosure, View == GuideCardView.Consent);
         Visible(_status, View == GuideCardView.Session);
         Visible(_referenceDisclosure, View == GuideCardView.ReferenceConsent);
@@ -218,11 +222,11 @@ internal sealed class GuideCard : Border
         Visible(_region, HasRegion && !compact && !bubble);
         Visible(_consent, View == GuideCardView.Consent && !_cloudEnabled);
         Visible(_cloud, View == GuideCardView.Menu);
-        _cloud.Content = _cloudEnabled ? "关闭云端" : "查看云端授权";
         Visible(_clear, session && !compact && !bubble);
         Visible(_menu, false);
         Visible(_exit, View == GuideCardView.Menu);
         Visible(_back, View != GuideCardView.Session);
+        _back.Content = View == GuideCardView.Consent && !_cloudEnabled ? "暂不使用" : "返回";
         Visible(_details, session && (bubble || compact));
         _details.Content = compact ? "展开说明  ﹀" : "展开详情";
         Visible(_collapse, session && !compact);

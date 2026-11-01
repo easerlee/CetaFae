@@ -25,9 +25,14 @@ static class ConsentChecks
                          options with { BaseUrl = new Uri("https://example.invalid/v1/") } })
                 check(!new CloudConsentStore(changed, path).Read().Granted, "changed recipient/model/scope cannot reuse consent");
             check(store.Save(false) && new CloudConsentStore(options, path).Read() is { Granted: true, Enabled: false },
-                "disabled state survives restart without forgetting the unchanged grant");
-            check(store.Forget() && !store.Read().Granted && !File.Exists(path),
-                "explicit configuration reset removes the old grant so returning to a prior receiver cannot revive it");
+                "legacy disabled records remain disabled and never silently upgrade to permission");
+            check(store.Save(true), "explicit fresh confirmation can restore a generated grant");
+            using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                check(!store.Revoke(), "locked withdrawal persistence reports failure rather than pretending the grant was removed");
+            check(store.Revoke() && !store.Read().Granted && !File.Exists(path),
+                "settings withdrawal removes the old grant; restarting requires fresh personal confirmation");
+            check(store.Save(true) && store.Read().Enabled && store.Revoke() && !store.Read().Enabled,
+                "reconfirmation then withdrawal survives the generated store cycle without a routine toggle");
             check(store.Save(false), "fresh personal consent can be recorded after configuration reset");
             var bytes = File.ReadAllBytes(path); bytes[^1] ^= 0xff; File.WriteAllBytes(path, bytes);
             check(!store.Read().Granted, "tampered protected consent fails closed");
@@ -42,22 +47,22 @@ static class ConsentChecks
         var ball = new BallWindow();
         try
         {
-            var toggles = 0; var disclosures = 0; var clears = 0;
-            using var menu = new GuideMenu(ball, () => toggles++, () => disclosures++, () => clears++, registerTray: false);
+            var clears = 0;
+            using var menu = new GuideMenu(ball, () => clears++, registerTray: false);
             var items = menu.Menu.Items.OfType<MenuItem>().ToArray();
-            check(items.Select(i => i.Header).SequenceEqual(new[] { "启用云端", "查看云端授权", "清除标记", "退出鲸汐" }),
-                "shared tray/whale menu exposes one consistent set of management commands");
-            foreach (var item in items.Take(3)) item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            check(toggles == 1 && disclosures == 1 && clears == 1, "shared commands dispatch once without opening a native menu");
+            check(items.Select(i => i.Header).SequenceEqual(new[] { "清除标记", "退出鲸汐" }),
+                "shared tray/whale menu has no routine cloud toggle or separate consent command");
+            items[0].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            check(clears == 1, "ordinary menu command clears once without a consent operation");
             menu.SetCloud(true);
-            check(Equals(items[0].Header, "关闭云端") && !menu.OwnsForeground(IntPtr.Zero),
-                "menu reflects cloud state and does not authorize arbitrary foreground handles while closed");
+            check(items.Select(i => i.Header).SequenceEqual(new[] { "清除标记", "退出鲸汐" }) && !menu.OwnsForeground(IntPtr.Zero),
+                "remembered consent never adds a routine switch or authorizes arbitrary foreground handles");
             var requests = 0; ball.MenuRequested += () => requests++;
             ball.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0,
                 System.Windows.Input.MouseButton.Right) { RoutedEvent = System.Windows.Input.Mouse.MouseUpEvent });
             check(requests == 1, "whale right button routes to the shared management entry without desktop input");
             var settingsRequests = 0;
-            using var withSettings = new GuideMenu(ball, () => { }, () => { }, () => { }, registerTray: false,
+            using var withSettings = new GuideMenu(ball, () => { }, registerTray: false,
                 settings: () => settingsRequests++);
             withSettings.Menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "鲸汐设置"))
                 .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
