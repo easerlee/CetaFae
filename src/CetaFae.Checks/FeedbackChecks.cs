@@ -22,7 +22,8 @@ internal static class FeedbackChecks
         var panel = new GuidePanel(Options);
         try
         {
-            panel.BindEntry(() => entry, () => 2);
+            var scale = 2d;
+            panel.BindEntry(() => entry, () => scale);
             panel.Card.SetStatus("生成窗口说明，全部文字仅用于离屏检查。");
             check(panel.Left == entry.Left && panel.Top == entry.Bottom + 1 && panel.Width == 288,
                 "live reader uses the input body anchor rather than the whale's transparent canvas");
@@ -34,6 +35,17 @@ internal static class FeedbackChecks
             var bubble = new Rect(panel.Left, panel.Top, panel.Width, panel.Height);
             check(panel.Card.IsBubble && work.Contains(bubble) && !bubble.IntersectsWith(control) && !bubble.IntersectsWith(entry),
                 "validated target pixels convert once into a safe DIP bubble placement");
+            foreach (var currentScale in new[] { 1d, 1.25, 1.5, 2 })
+            {
+                scale = currentScale;
+                panel.SetControl(new Rect(control.X * scale, control.Y * scale, control.Width * scale, control.Height * scale));
+                check(new Rect(panel.Left, panel.Top, panel.Width, panel.Height) == bubble,
+                    "same logical control preserves bubble placement at 100/125/150/200 percent without double scaling");
+                var grab = new Point(18, 22); var origin = new Point(140, 90);
+                var dragged = BallWindow.DragPosition(new Point((origin.X + grab.X) * scale, (origin.Y + grab.Y) * scale), grab, scale);
+                check(dragged == origin,
+                    "whale drag preserves pointer grab offset across 100/125/150/200 percent scaling");
+            }
             Click(panel.Card, "展开详情");
             check(!panel.Card.IsBubble && panel.Width == 288 && panel.Top == entry.Bottom + 1 && panel.Card.FullText.Contains("生成窗口"),
                 "native details replace the same bubble surface with the attached full explanation");

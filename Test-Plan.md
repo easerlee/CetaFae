@@ -6,6 +6,8 @@ The user requested a functionality-first development plan and explicitly deferre
 
 Settings AC-19 coverage: offscreen four-page narrow/normal/long-text layouts before integration; defaults/CLI precedence, bounded strict settings parsing and atomic-save failure; endpoint/model validation, no credential persistence; filtered catalog disable/all-disabled/identity-independent recovery; configuration change cancels old session and scope-hash rejects old consent; connection status for reachable/missing model/401/402/429/5xx/malformed/oversized/cancellation, redirects refused and no automatic requests; diagnostic export whitelist. Use generated data and controlled HTTP handlers, not a real target window. Shared menu dispatch and static visuals are not native focus/IME/replacement acceptance. Batch the latter after a coherent candidate.
 
+AC-20 headless coordinates separately exercise100/125/150/200-percent user-selection physical regions, reverse drags, same logical control bubble placement and pointer grab offset. Native per-scale pixel alignment and dynamic DPI transitions are distinct acceptance cases. Expanded reader avoidance in a cramped target remains an implementation gap; a safe bubble alone does not pass all FR-14 states.
+
 ### Development checks and the frozen batch
 
 - During each authorized implementation phase, exercise affected production paths with local checks and representative generated failures. Use generated-input model probes for changed semantic contracts, recording failure before repair. Fix known privacy/cancellation defects immediately. Do not defer all checks until F7 or substitute a growing check count for task correctness.
