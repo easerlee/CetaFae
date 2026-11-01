@@ -23,7 +23,7 @@ internal static class FeedbackChecks
         try
         {
             var scale = 2d;
-            panel.BindEntry(() => entry, () => scale);
+            panel.BindEntry(() => entry, () => scale, () => true);
             panel.Card.SetStatus("生成窗口说明，全部文字仅用于离屏检查。");
             check(panel.Left == entry.Left && panel.Top == entry.Bottom + 1 && panel.Width == 288,
                 "live reader uses the input body anchor rather than the whale's transparent canvas");

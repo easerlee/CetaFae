@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace CetaFae.Probe;
 
@@ -11,6 +12,9 @@ public sealed class GuidePanel : Window
     readonly FeedbackSurface _surface;
     Func<Rect>? _entry;
     Func<double>? _scale;
+    Func<bool>? _hasTarget;
+    readonly DispatcherTimer _noticePointer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(50) };
+    bool _pointerDown;
     Rect? _control;
     bool _placing;
     bool _locatedResult;
@@ -42,7 +46,22 @@ public sealed class GuidePanel : Window
         SizeToContent = SizeToContent.Manual;
         _card = new GuideCard(options);
         Content = _surface = new FeedbackSurface(_card);
-        _card.PresentationChanged += Reposition;
+        _card.PresentationChanged += () => { Reposition(); UpdateNoticeTracking(); };
+        IsVisibleChanged += (_, _) => UpdateNoticeTracking();
+        Closed += (_, _) => _noticePointer.Stop();
+        _noticePointer.Tick += (_, _) =>
+        {
+            var down = Native.MouseButtonDown();
+            if (_card.View == GuideCardView.Notice)
+            {
+                var pointer = Native.Cursor();
+                var frame = Native.Frame(Handle);
+                if (ShouldDismissNotice(_pointerDown, down, new Point(pointer.X, pointer.Y),
+                    new Rect(frame.Left, frame.Top, frame.Right - frame.Left, frame.Bottom - frame.Top)))
+                    _card.DismissNotice();
+            }
+            _pointerDown = down;
+        };
         _card.ConsentAccepted += () => ConsentAccepted?.Invoke();
         _card.MenuRequested += () => MenuRequested?.Invoke();
         _card.Cancelled += () => Cancelled?.Invoke();
@@ -76,6 +95,18 @@ public sealed class GuidePanel : Window
         Reposition();
     }
 
+    internal static bool ShouldDismissNotice(bool wasDown, bool down, Point pointer, Rect bounds) =>
+        down && !wasDown && !bounds.IsEmpty && !bounds.Contains(pointer);
+
+    void UpdateNoticeTracking()
+    {
+        if (!IsVisible || _card.View != GuideCardView.Notice) { _noticePointer.Stop(); return; }
+        if (_noticePointer.IsEnabled) return;
+        // Ignore the press that produced this notice; only a subsequent outside press dismisses it.
+        _pointerDown = Native.MouseButtonDown();
+        _noticePointer.Start();
+    }
+
     void SetKeyboardAccess(bool active)
     {
         Focusable = active;
@@ -84,8 +115,14 @@ public sealed class GuidePanel : Window
     }
 
     public void SetCloud(bool enabled) => _card.SetCloud(enabled);
-    public void SetStatus(string message) { _card.SetStatus(message); if (!IsVisible) Show(); }
-    internal void BindEntry(Func<Rect> entry, Func<double> scale) { _entry = entry; _scale = scale; }
+    public void SetStatus(string message)
+    {
+        if (_hasTarget?.Invoke() == false) _card.SetNotice(message); else _card.SetStatus(message);
+        if (!IsVisible) Show();
+    }
+    internal void BindEntry(Func<Rect> entry, Func<double> scale, Func<bool> hasTarget)
+    { _entry = entry; _scale = scale; _hasTarget = hasTarget; }
+    internal void DismissNotice() => _card.DismissNotice();
     internal void SetPoint(bool visible)
     {
         _locatedResult = visible && _control is not null;
@@ -140,7 +177,7 @@ public sealed class GuidePanel : Window
         {
             var work = SystemParameters.WorkArea;
             var entry = _entry?.Invoke() ?? new Rect(work.Right - 96, work.Bottom - 96, 88, 88);
-            var session = _card.View == GuideCardView.Session;
+            var session = _card.View is GuideCardView.Session or GuideCardView.Notice;
             var compactBubble = session && _card.IsBubble;
             Width = Math.Min(work.Width, session ? (compactBubble ? 258 : WhalePrompt.WidthDip) : GuideTheme.CardWidth);
             MaxHeight = Math.Min(work.Height, session ? (compactBubble ? 260 : 320) : GuideTheme.CardMaxHeight);

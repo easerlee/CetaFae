@@ -67,6 +67,10 @@ static class CardChecks
         var bubbleFollowup = New(); bubbleFollowup.SetCloud(true); bubbleFollowup.SetStatus("生成控件位置已核对。所有操作由你手动完成。");
         bubbleFollowup.SetPoint(true); bubbleFollowup.SetFollowupAvailable(true);
         yield return ("20 Context bubble with follow-up", bubbleFollowup);
+        var ready = New(); ready.SetCloud(true); ready.SetNotice("已准备好。以后直接拖动小鲸鱼到要了解的窗口即可；无需再次开启。设置的隐私页可撤回同意。");
+        yield return ("21 Dismissible ready notice", ready);
+        var failed = New(); failed.SetNotice(string.Concat(Enumerable.Repeat("生成失败提示：请检查连接后重新拖放。此文字仅用于滚动检查。", 18)));
+        yield return ("22 Long dismissible notice", failed);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
@@ -81,6 +85,46 @@ static class CardChecks
 
     internal static void Run(Action<bool, string> check)
     {
+        var notice = New(); notice.SetCloud(true); notice.SetNotice("已准备好。直接拖动小鲸鱼到要了解的窗口即可。");
+        var noticeDismissals = 0; var noticeCancellations = 0; var noticeGrants = 0;
+        notice.Dismissed += () => noticeDismissals++;
+        notice.Cancelled += () => noticeCancellations++;
+        notice.ConsentAccepted += () => noticeGrants++;
+        check(notice.View == GuideCardView.Notice && !notice.HasSession && !notice.HasQuestion &&
+              notice.Actions.Visibility == Visibility.Collapsed && notice.DismissButton.Visibility == Visibility.Visible,
+            "standalone ready notice has a header close action without collapse or clear footer");
+        notice.Collapse(); Click(Find(notice, "清除标记"));
+        check(!notice.IsCollapsed && noticeCancellations == 0,
+            "stale session actions cannot collapse or cancel a transient notice");
+        Click(notice.DismissButton);
+        check(noticeDismissals == 1 && noticeGrants == 0 && notice.FullText.Length == 0 && !notice.HasSession,
+            "notice close clears only presentation and never grants or cancels consent");
+        notice.ShowConsent(); notice.DismissNotice();
+        check(notice.View == GuideCardView.Consent && noticeDismissals == 1,
+            "outside notice dismissal cannot consume the explicit first-use decision");
+        var noticeBounds = new Rect(100, 100, 288, 180);
+        check(GuidePanel.ShouldDismissNotice(false, true, new Point(80, 80), noticeBounds) &&
+              !GuidePanel.ShouldDismissNotice(true, true, new Point(80, 80), noticeBounds) &&
+              !GuidePanel.ShouldDismissNotice(false, true, new Point(120, 120), noticeBounds) &&
+              !GuidePanel.ShouldDismissNotice(false, false, new Point(80, 80), noticeBounds),
+            "outside dismissal requires a new external press, preserving the opening press and internal scrolling");
+        notice.SetStatus("生成会话结果"); notice.ShowQuestion();
+        check(notice.HasSession && notice.HasQuestion && notice.Actions.Visibility == Visibility.Visible &&
+              notice.DismissButton.Visibility == Visibility.Collapsed,
+            "notice-to-session transition restores real guidance actions without a second close action");
+        var screen = new Rect(-1920, 0, 1920, 1080);
+        check(Native.IsFullscreenGeometry(screen, screen, screen), "borderless fullscreen client covers its monitor at negative coordinates");
+        check(!Native.IsFullscreenGeometry(screen, new Rect(-1920, 32, 1920, 1048), screen),
+            "maximized title chrome is not classified as fullscreen even with an auto-hidden taskbar");
+        check(!Native.IsFullscreenGeometry(new Rect(-1920, 0, 1920, 1040), new Rect(-1920, 32, 1920, 1008), screen) &&
+              !Native.IsFullscreenGeometry(Rect.Empty, screen, screen) &&
+              !Native.IsFullscreenGeometry(screen, screen, new Rect(0, 0, 1920, 1080)),
+            "work-area maximization, invalid geometry and a different monitor stay visible");
+        check(BallWindow.ShouldHideForFullscreen(true, false, false) &&
+              !BallWindow.ShouldHideForFullscreen(true, true, false) &&
+              !BallWindow.ShouldHideForFullscreen(true, false, true) &&
+              !BallWindow.ShouldHideForFullscreen(false, false, false),
+            "fullscreen auto-hide exempts active guidance and a pressed or dragged whale");
         var declined = New(); var declinedGrants = 0;
         declined.ConsentAccepted += () => declinedGrants++;
         declined.ShowConsent(); Click(Find(declined, "暂不使用"));
@@ -187,7 +231,8 @@ static class CardChecks
             {
                 Layout(state, width);
                 var actions = state.Actions.Children.Cast<Button>().Where(b => b.Visibility == Visibility.Visible).ToArray();
-                check(actions.Length > 0 && actions.All(button =>
+                var requiredActions = state.View == GuideCardView.Notice ? new[] { state.DismissButton } : actions;
+                check(requiredActions.Length > 0 && requiredActions.All(button =>
                 {
                     var bounds = button.TransformToAncestor(state).TransformBounds(new Rect(button.RenderSize));
                     return bounds.Left >= 0 && bounds.Right <= width + 1 && bounds.Top >= 0 && bounds.Bottom <= state.ActualHeight + 1;

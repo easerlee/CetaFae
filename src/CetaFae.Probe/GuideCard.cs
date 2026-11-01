@@ -7,7 +7,7 @@ using System.Windows.Data;
 
 namespace CetaFae.Probe;
 
-internal enum GuideCardView { Session, Menu, Consent, ReferenceConsent }
+internal enum GuideCardView { Session, Menu, Consent, ReferenceConsent, Notice }
 
 /// <summary>The same fixed-data visual is rendered offscreen and hosted in the live window.</summary>
 internal sealed class GuideCard : Border
@@ -53,6 +53,7 @@ internal sealed class GuideCard : Border
     internal event Action? PresentationChanged;
     internal ScrollViewer BodyScroll { get; }
     internal WrapPanel Actions { get; } = new() { Margin = new Thickness(0, 14, 0, 0) };
+    internal Button DismissButton { get; }
     internal TextBox Answer => _answer;
     internal event Action? ConsentAccepted;
     internal event Action? MenuRequested;
@@ -81,8 +82,19 @@ internal sealed class GuideCard : Border
         header.Children.Add(new TextBlock { Text = "鲸汐说明", FontSize = 14, FontWeight = FontWeights.SemiBold,
             Foreground = GuideTheme.WhaleBlue, Margin = new Thickness(0, 0, 0, 4) });
         header.Children.Add(_caption);
-        DockPanel.SetDock(header, Dock.Top);
-        layout.Children.Add(header);
+        var heading = new DockPanel();
+        DismissButton = Button("×", DismissNotice);
+        DismissButton.FontSize = 22;
+        DismissButton.Padding = new Thickness(5, 0, 5, 0);
+        DismissButton.Margin = new Thickness(8, 0, 0, 0);
+        DismissButton.VerticalAlignment = VerticalAlignment.Top;
+        DismissButton.ToolTip = "关闭提示";
+        System.Windows.Automation.AutomationProperties.SetName(DismissButton, "关闭提示");
+        DockPanel.SetDock(DismissButton, Dock.Right);
+        heading.Children.Add(DismissButton);
+        heading.Children.Add(header);
+        DockPanel.SetDock(heading, Dock.Top);
+        layout.Children.Add(heading);
         _submit = Button("回答", Submit);
         DockPanel.SetDock(_submit, Dock.Right);
         _submit.Margin = new Thickness(8, 0, 0, 0);
@@ -112,7 +124,7 @@ internal sealed class GuideCard : Border
             // A hidden button or stale callback cannot bypass the visible disclosure state.
             if (View == GuideCardView.Consent && !_cloudEnabled) ConsentAccepted?.Invoke();
         });
-        _clear = Button("清除标记", () => Cancelled?.Invoke());
+        _clear = Button("清除标记", () => { if (View == GuideCardView.Session) Cancelled?.Invoke(); });
         _region = Button("选择识别区域", () => { if (HasRegion) RegionRequested?.Invoke(); });
         _exit = Button("退出", () => ExitRequested?.Invoke());
         _back = Button("返回", () =>
@@ -176,9 +188,15 @@ internal sealed class GuideCard : Border
     internal void SetReferenceQuery(string? query) { _referenceQuery = query; _referenceDisclosure.Text = ""; Refresh(); }
     internal void SetReferenceResult(string result) { _referenceResult.Text = result; Refresh(); }
     internal void SetStatus(string text) { _status.Text = text; _hasSession = true; _followupAvailable = false; IsBubble = IsCollapsed = false; View = GuideCardView.Session; Refresh(); }
+    internal void SetNotice(string text) { Reset(); _status.Text = text; View = GuideCardView.Notice; Refresh(); }
+    internal void DismissNotice()
+    {
+        if (View != GuideCardView.Notice) return;
+        Reset(); Dismissed?.Invoke();
+    }
     internal void SetFollowupAvailable(bool available) { _followupAvailable = available; Refresh(); }
     internal void SetPoint(bool visible) { IsBubble = visible && _hasSession && View == GuideCardView.Session; IsCollapsed = false; Refresh(); }
-    internal void Collapse() { IsBubble = false; IsCollapsed = true; Refresh(); }
+    internal void Collapse() { if (View != GuideCardView.Session) return; IsBubble = false; IsCollapsed = true; Refresh(); }
     internal void ShowMenu() { View = GuideCardView.Menu; Refresh(); }
     internal void ShowConsent() { View = GuideCardView.Consent; Refresh(); }
     internal void ShowQuestion() { _questionAvailable = true; Refresh(); }
@@ -200,6 +218,7 @@ internal sealed class GuideCard : Border
     {
         _answer.Focusable = enabled;
         _submit.Focusable = enabled;
+        DismissButton.Focusable = enabled;
         foreach (Button button in Actions.Children) button.Focusable = enabled;
     }
 
@@ -207,12 +226,16 @@ internal sealed class GuideCard : Border
     {
         static void Visible(UIElement element, bool visible) => element.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         var session = View == GuideCardView.Session;
+        var notice = View == GuideCardView.Notice;
         var compact = session && IsCollapsed;
         var bubble = session && IsBubble;
         _caption.Text = bubble ? "就在这里 · 仅指路，未修改" : View == GuideCardView.ReferenceConsent ? "可选 · 单次公共资料查询" : View == GuideCardView.Consent ? "开始前，请了解发送与留存范围" :
-            View == GuideCardView.Menu ? (_cloudEnabled ? "可以求助 · 由你操作目标软件" : "尚未同意 · 请先了解使用说明") : "解释与指路 · 由你操作";
+            View == GuideCardView.Menu ? (_cloudEnabled ? "可以求助 · 由你操作目标软件" : "尚未同意 · 请先了解使用说明") : notice ? "" : "解释与指路 · 由你操作";
+        Visible(_caption, !notice);
+        Visible(DismissButton, notice);
+        Visible(Actions, !notice);
         Visible(_disclosure, View == GuideCardView.Consent);
-        Visible(_status, View == GuideCardView.Session);
+        Visible(_status, session || notice);
         Visible(_referenceDisclosure, View == GuideCardView.ReferenceConsent);
         Visible(_referenceResult, View == GuideCardView.Session && _referenceResult.Text.Length > 0);
         Visible(_reference, session && !compact && !bubble && _cloudEnabled && _referenceQuery is not null);
@@ -225,7 +248,7 @@ internal sealed class GuideCard : Border
         Visible(_clear, session && !compact && !bubble);
         Visible(_menu, false);
         Visible(_exit, View == GuideCardView.Menu);
-        Visible(_back, View != GuideCardView.Session);
+        Visible(_back, !session && !notice);
         _back.Content = View == GuideCardView.Consent && !_cloudEnabled ? "暂不使用" : "返回";
         Visible(_details, session && (bubble || compact));
         _details.Content = compact ? "展开说明  ﹀" : "展开详情";

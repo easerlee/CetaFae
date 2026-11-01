@@ -148,6 +148,45 @@ internal static class Native
     }
 
     [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
+    [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
+    internal static bool MouseButtonDown() =>
+        (GetAsyncKeyState(0x01) & 0x8000) != 0 || (GetAsyncKeyState(0x02) & 0x8000) != 0 ||
+        (GetAsyncKeyState(0x04) & 0x8000) != 0;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MONITORINFO { public int Size; public RECT Monitor, Work; public uint Flags; }
+    [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
+    [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
+    [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr window, out RECT rect);
+    [DllImport("user32.dll")] static extern IntPtr GetShellWindow();
+    [DllImport("user32.dll")] static extern IntPtr GetDesktopWindow();
+
+    internal static bool IsFullscreenGeometry(System.Windows.Rect frame, System.Windows.Rect client, System.Windows.Rect monitor)
+    {
+        static bool Covers(System.Windows.Rect rectangle, System.Windows.Rect area) => !rectangle.IsEmpty &&
+            Math.Abs(rectangle.Left - area.Left) <= 1 && Math.Abs(rectangle.Top - area.Top) <= 1 &&
+            Math.Abs(rectangle.Right - area.Right) <= 1 && Math.Abs(rectangle.Bottom - area.Bottom) <= 1;
+        return !monitor.IsEmpty && monitor.Width > 0 && monitor.Height > 0 && Covers(frame, monitor) && Covers(client, monitor);
+    }
+
+    internal static bool ForegroundFullscreen(IntPtr entry)
+    {
+        var window = GetForegroundWindow();
+        if (window == IntPtr.Zero || window == GetShellWindow() || window == GetDesktopWindow() ||
+            !IsWindowVisible(window) || IsIconic(window) || ProcessId(window) == Environment.ProcessId) return false;
+        var monitor = MonitorFromWindow(window, 0);
+        if (monitor == IntPtr.Zero || monitor != MonitorFromWindow(entry, 0)) return false;
+        var info = new MONITORINFO { Size = Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(monitor, ref info) || info.Monitor.Right <= info.Monitor.Left ||
+            info.Monitor.Bottom <= info.Monitor.Top || !GetClientRect(window, out var client)) return false;
+        var start = new POINT { X = client.Left, Y = client.Top };
+        var end = new POINT { X = client.Right, Y = client.Bottom };
+        if (!ClientToScreen(window, ref start) || !ClientToScreen(window, ref end) || end.X <= start.X || end.Y <= start.Y) return false;
+        var frame = Frame(window);
+        if (frame.Right <= frame.Left || frame.Bottom <= frame.Top || GetForegroundWindow() != window) return false;
+        static System.Windows.Rect Rect(RECT value) => new(value.Left, value.Top, value.Right - value.Left, value.Bottom - value.Top);
+        return IsFullscreenGeometry(Rect(frame), new System.Windows.Rect(start.X, start.Y, end.X - start.X, end.Y - start.Y), Rect(info.Monitor));
+    }
 
     public static string Title(IntPtr hwnd)
     {

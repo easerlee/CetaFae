@@ -34,6 +34,8 @@ public sealed class BallWindow : Window
     readonly WhaleWake _wake = new();
     readonly Border _handle = new() { Width = BallSize, Height = BallSize, Background = Brushes.Transparent };
     readonly DispatcherTimer _animation = new(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(40) };
+    readonly DispatcherTimer _presence = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(500) };
+    bool _fullscreenHidden;
     readonly Stopwatch _motion = new();
     enum Motion { Idle, Jump, Drag, Dock, Return }
     Motion _state;
@@ -45,6 +47,8 @@ public sealed class BallWindow : Window
     bool ReducedMotion => !SystemParameters.ClientAreaAnimation;
 
     public double Scale => _scale;
+    internal bool HasTarget => _target != IntPtr.Zero;
+    internal event Action? FullscreenHidden;
     public IntPtr Handle => _hwnd;
     public Rect InteractionBounds => new(Left, Top, Width, Height);
     internal Rect FeedbackBounds => _target != IntPtr.Zero && Width > WhaleVisual.CanvasSize
@@ -119,6 +123,8 @@ public sealed class BallWindow : Window
         Content = grid;
         _handle.MouseEnter += (_, _) => { if (!_pressed && _target == IntPtr.Zero && _state == Motion.Idle) Animate(Motion.Jump); };
         _animation.Tick += (_, _) => AdvanceMotion();
+        _presence.Tick += (_, _) => UpdateFullscreenPresence();
+        Loaded += (_, _) => _presence.Start();
         _prompt.FocusRequested += () => { Activate(); _prompt.Answer.Focus(); };
         _prompt.Submitted += text => AnswerSubmitted?.Invoke(text);
         _prompt.DismissRequested += () => StopTracking("inline_closed");
@@ -138,11 +144,29 @@ public sealed class BallWindow : Window
             _pressed = false; _dragging = false;
             StopAnimation();
         };
-        Closed += (_, _) => { _animation.Stop(); _whale.Release(); _wake.Close(); _overlay.Close(); };
+        Closed += (_, _) => { _presence.Stop(); _animation.Stop(); _whale.Release(); _wake.Close(); _overlay.Close(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { StopTracking("esc"); e.Handled = true; }
         };
+    }
+
+    internal static bool ShouldHideForFullscreen(bool fullscreen, bool hasTarget, bool pressed) =>
+        fullscreen && !hasTarget && !pressed;
+
+    void UpdateFullscreenPresence()
+    {
+        var hide = ShouldHideForFullscreen(!_pressed && !HasTarget && Native.ForegroundFullscreen(_hwnd), HasTarget, _pressed);
+        if (hide == _fullscreenHidden) return;
+        _fullscreenHidden = hide;
+        if (hide)
+        {
+            if (_state == Motion.Return) PlaceBall(HomePosition(SystemParameters.WorkArea));
+            StopAnimation();
+            FullscreenHidden?.Invoke();
+            Hide();
+        }
+        else Show();
     }
 
     void OnSourceInitialized(object? sender, EventArgs e)
@@ -533,6 +557,7 @@ public sealed class BallWindow : Window
 
     public void Cleanup()
     {
+        _presence.Stop();
         ResetArt();
         if (_target != IntPtr.Zero) StopTracking("exit");
         ProbeLog.Log("exit", ("fg", Native.Hex(Native.GetForegroundWindow())), ("overlayVisible", _overlay.IsVisible));

@@ -43,7 +43,8 @@ public sealed class GuideSession : IDisposable
         _plugins = plugins;
         _model = new GuideModel(options);
         _panel = new GuidePanel(options);
-        _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale);
+        _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget);
+        _ball.FullscreenHidden += OnFullscreenHidden;
         _ball.LocationChanged += OnEntryChanged;
         _ball.SizeChanged += OnEntryChanged;
         _preview = preview;
@@ -83,6 +84,8 @@ public sealed class GuideSession : IDisposable
     {
         _menu.Show();
     }
+
+    void OnFullscreenHidden() => _panel.DismissNotice();
 
     internal bool CloudEnabled => _gate.CloudEnabled;
     internal void EndForSettings() => _ball.StopTracking("settings_opened");
@@ -614,6 +617,7 @@ public sealed class GuideSession : IDisposable
 
     public void Dispose()
     {
+        _ball.FullscreenHidden -= OnFullscreenHidden;
         _ball.LocationChanged -= OnEntryChanged;
         _ball.SizeChanged -= OnEntryChanged;
         _ball.TargetSelected -= OnSelected;

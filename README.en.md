@@ -9,6 +9,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 ## Features
 
 - **Lightweight management**: left-clicking the whale opens no management window. The tray and whale right-click share one menu. One explicit first-use agreement is remembered for the current configuration, with no routine cloud toggle; changed terms or configuration require confirmation again. Startup alone never collects or sends content.
+- **Unobtrusive presence**: dismiss transient notices with their header close button or an outside click. The idle whale hides while another foreground application is fullscreen and returns afterward. Ordinary maximization and active guidance remain available; fullscreen detection uses local window geometry without analyzing content.
 - **Drag to select**: an attached input bar, on-demand explanations, and control highlights keep interaction close to the target. Ending a session restores the whale.
 - **Contextual feedback**: explanations expand below the input bar; validated controls can have a short nearby bubble. Details move to the reader, which changes side to avoid the control or collapses when space is insufficient. It can be reopened. Collapse preserves the session and highlights, while close or clear ends it. Long explanations scroll.
 - **Understand the current window**: visible content and local software identity distinguish the owning application, interface purpose, and uncertainty. Generic vision can attempt unfamiliar software without promising recognition of every window.
