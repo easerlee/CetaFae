@@ -65,7 +65,7 @@ public sealed class OverlayWindow : Window
         Height = 2;
     }
 
-    internal void SetWaterProgress(double progress) => _frame.SetProgress(progress);
+    internal void SetWaterProgress(double progress, bool upward = false) => _frame.SetProgress(progress, upward);
     internal void SetViewport(Size target, Rect region) => _frame.SetViewport(target, region);
 
     internal static DoubleAnimationUsingKeyFrames CreateBlink() => new()
@@ -120,11 +120,12 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
         BeginAnimation(PhaseProperty, wave);
     }
     double _progress;
-    internal void SetProgress(double progress)
+    bool _upward;
+    internal void SetProgress(double progress, bool upward = false)
     {
         var value = Math.Clamp(progress, -1, 1);
-        if (_progress == value) return;
-        _progress = value; InvalidateVisual();
+        if (_progress == value && _upward == upward) return;
+        _progress = value; _upward = upward; InvalidateVisual();
     }
 
     protected override void OnRender(DrawingContext draw)
@@ -141,26 +142,14 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
         else
         {
             if (_targetSize is not null) draw.PushTransform(new TranslateTransform(-_region.X, -_region.Y));
-            if (wash) WindowWash.Draw(draw, _targetSize ?? RenderSize, _progress);
+            if (wash) WindowWash.Draw(draw, _targetSize ?? RenderSize, _progress, _upward);
             else DrawWater(draw, _targetSize ?? RenderSize, Phase, _progress);
             if (_targetSize is not null) draw.Pop();
         }
         draw.Pop();
     }
 
-    static readonly Brush[] WaterBrushes = Enumerable.Range(0, 4).Select(side =>
-    {
-        var blue = ((SolidColorBrush)GuideTheme.WhaleBlue).Color;
-        var brush = new LinearGradientBrush
-        {
-            StartPoint = side switch { 1 => new(1, 0), 2 => new(0, 1), _ => new(0, 0) },
-            EndPoint = side switch { 0 => new(0, 1), 1 => new(0, 0), 2 => new(0, 0), _ => new(1, 0) },
-            GradientStops = { new(blue, 0), new(blue, SolidDepth / WaterDepth),
-                new(Color.FromArgb(90, blue.R, blue.G, blue.B), .4), new(Color.FromArgb(15, blue.R, blue.G, blue.B), .75),
-                new(Color.FromArgb(0, blue.R, blue.G, blue.B), 1) }
-        };
-        brush.Freeze(); return (Brush)brush;
-    }).ToArray();
+    static readonly Brush[] WaterBrushes = Enumerable.Range(0, 4).Select(side => GuideTheme.WaterGradient(side)).ToArray();
 
     internal static void DrawWater(DrawingContext draw, Size size, double phase, double progress)
     {

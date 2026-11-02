@@ -122,8 +122,8 @@ static class CardChecks
             "outside dismissal requires a new external press, preserving the opening press and internal scrolling");
         notice.SetStatus("生成会话结果"); notice.ShowQuestion();
         check(notice.HasSession && notice.HasQuestion && notice.Actions.Visibility == Visibility.Collapsed &&
-              notice.DismissButton.Visibility == Visibility.Visible,
-            "notice-to-session transition retains only the header close action while answering");
+              notice.DismissButton.Visibility == Visibility.Collapsed,
+            "notice-to-session transition removes the standalone close while answering");
         var screen = new Rect(-1920, 0, 1920, 1080);
         check(Native.IsFullscreenGeometry(screen, screen, screen), "borderless fullscreen client covers its monitor at negative coordinates");
         var wideScreen = new Rect(0, 0, 3440, 1440);
@@ -191,8 +191,8 @@ static class CardChecks
         string[] VisibleActions() => minimal.Actions.Children.Cast<Button>()
             .Where(button => button.Visibility == Visibility.Visible).Select(button => (string)button.Content).ToArray();
         check(VisibleActions().Length == 0 && minimal.Actions.Visibility == Visibility.Collapsed &&
-              minimal.DismissButton.Visibility == Visibility.Visible,
-            "ordinary question has only header close and no empty footer");
+              minimal.DismissButton.Visibility == Visibility.Collapsed,
+            "ordinary question has no redundant card close or empty footer");
         check(minimal.Actions.Children.Cast<Button>().All(button => !new[] { "联网核对软件", "确认本次联网", "清除标记", "收起" }.Contains(button.Content)),
             "explanation surface contains no lookup, redundant clear or manual collapse controls");
         minimal.ClearQuestion(); minimal.SetStatus("Generated result"); minimal.SetFollowupAvailable(true);
@@ -206,11 +206,8 @@ static class CardChecks
         minimal.Collapse();
         check(VisibleActions().SequenceEqual(new[] { "展开说明  ﹀" }), "space avoidance retains only reopening");
         Click(Find(minimal, "展开说明  ﹀"));
-        var cancellations = 0;
-        minimal.Cancelled += () => { cancellations++; minimal.Reset(); };
-        Click(minimal.DismissButton);
-        check(cancellations == 1 && !minimal.HasSession && !minimal.HasRegion && minimal.FullText.Length == 0,
-            "session header close uses existing cancellation and clears stale feedback");
+        check(minimal.DismissButton.Visibility == Visibility.Collapsed && minimal.HasSession && minimal.HasRegion,
+            "expanded recovery reader retains its state with termination owned by the input bar");
         var work = new Rect(-1280, 0, 1280, 720);
         var entry = new Rect(-760, 0, 288, 36);
         var control = new Rect(-160, 240, 50, 24);
@@ -251,7 +248,7 @@ static class CardChecks
                 Layout(state, width);
                 var actions = state.Actions.Children.Cast<Button>().Where(b => b.Visibility == Visibility.Visible).ToArray();
                 var requiredActions = state.DismissButton.Visibility == Visibility.Visible ? actions.Append(state.DismissButton).ToArray() : actions;
-                check(requiredActions.Length > 0 && requiredActions.All(button =>
+                check(requiredActions.All(button =>
                 {
                     var bounds = button.TransformToAncestor(state).TransformBounds(new Rect(button.RenderSize));
                     return bounds.Left >= 0 && bounds.Right <= width + 1 && bounds.Top >= 0 && bounds.Bottom <= state.ActualHeight + 1;

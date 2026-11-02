@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Card hierarchy and continuous scan correction (2026-11-02)
+
+Reproduce the v1.21 defects before changing production: no duplicate close in session/bubble, medium text remains at baseline width above the former height limit, shared perimeter/header gradient stops, and the first waiting pass moves upward after the entry descent. Render normal/top-attached short, medium and long generated reading cards with matching fine-grid copies; inspect text and buttons without a desktop handle. Check mirrored gradient/shape pixels, both directional strip bounds, entry/first return/next descent ordering, reduced motion, stop/close/cancel and unchanged prompt close. Render and decode a generated scan sequence for visual review, then run Debug/Release checks and package without visible launches. Real-window fluency and placement require later explicit desktop permission.
+
 ## Slow-service runtime budget (2026-11-02)
 
 For v1.20 first fail a regression asserting that ordinary/default and parsed non-secret preferences allow the observed34-second service response while remaining bounded at60 seconds. Explicit short budgets must remain honored. Run controlled success, explicit cancellation, timeout, ignored-cancellation/late-result rejection, shared-deadline and worker-termination/recovery checks, with no automatic retries. Keep the independent native15-second watchdog and2500ms enriched read unchanged. Preserve the actual34093ms generated response as service evidence; any new generated request must remain independent of private Photoshop pixels. Do not rerun native capture or change real preferences/grants. Package a candidate; its actual Photoshop success, visible waiting/cancellation and new60-second native boundary remain unaccepted until a later authorized test. Earlier15-second failures and3000ms/500ms/90MB gates stay separate.

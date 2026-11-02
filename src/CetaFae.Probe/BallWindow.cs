@@ -239,7 +239,7 @@ public sealed class BallWindow : Window
         else if (_state == Motion.Scan)
         {
             if (!_processing || ReducedMotion) StopAnimation();
-            else _overlay.SetWaterProgress(WindowWash.ScanProgress(seconds), _hwnd, scanning: true);
+            else _overlay.SetWaterProgress(WindowWash.ScanProgress(seconds), _hwnd, scanning: true, upward: WindowWash.ScanUpward(seconds));
         }
         else if (_state == Motion.Return)
         {

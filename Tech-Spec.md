@@ -2,6 +2,10 @@
 
 Updated: 2026-11-02
 
+## Card hierarchy and continuous scan correction (2026-11-02)
+
+Requirements v1.21: keep session termination on the existing input bar; only standalone notices retain a card close action. Reuse the perimeter gradient factory for the header, including its solid-blue start and transparent inner end. Keep 360 DIP baseline width, grow naturally to 520 DIP height before widening, and preserve screen constraints and lossless local pagination. Entry already performs one downward sweep: the waiting cycle must start at the bottom moving upward. Pass explicit direction through the existing narrow-strip overlay and mirror both the shape and gradient for upward motion. Do not allocate a full-window animation surface or change model transport. Verify generated offscreen card layouts and the complete entry-to-waiting sequence, not isolated cosine cycles alone.
+
 ## Slow-service runtime budget (2026-11-02)
 
 Requirements v1.20 changes the default shared processing budget to60 seconds after a generated-only request returned valid identification in34093ms over the configured service route. Keep one deadline across activation, collection, model transport and validation; do not restart it, retry or branch on applications. Existing preferences derive options through GuideOptions.Create, so the new default needs no stored-settings migration or real configuration edit. Explicit shorter diagnostic budgets remain available. Native worker watchdog15 seconds and enriched-collection2500ms remain independent and unchanged. Cancellation, version gates, bounded responses and stale-result isolation remain strict. This changes the operational timeout, not the3000ms/500ms/90MB acceptance targets or earlier failed evidence. A service response proves neither Photoshop capture correctness nor its semantic acceptance. No extra payload, receiver or consent is introduced.

@@ -104,7 +104,7 @@ internal sealed class GuideCard : Border
         DockPanel.SetDock(DismissButton, Dock.Right);
         heading.Children.Add(DismissButton);
         heading.Children.Add(_title);
-        _header = new Border { Background = GuideTheme.CardHeader, Padding = new Thickness(16, 4, 10, 4), Child = heading };
+        _header = new Border { Background = GuideTheme.CardHeader, MinHeight = 36, Padding = new Thickness(16, 6, 16, 6), Child = heading };
         DockPanel.SetDock(_header, Dock.Top);
         layout.Children.Add(_header);
         _submit = Button("回答", Submit);
@@ -296,7 +296,7 @@ internal sealed class GuideCard : Border
         var compact = session && IsCollapsed;
         var bubble = session && IsBubble;
         _title.Text = View == GuideCardView.Consent ? "使用与隐私" : "鲸汐解读";
-        Visible(DismissButton, notice || session && !compact);
+        Visible(DismissButton, notice);
         DismissButton.ToolTip = session ? "结束本次求助" : "关闭提示";
         System.Windows.Automation.AutomationProperties.SetName(DismissButton, session ? "结束本次求助" : "关闭提示");
         Visible(_disclosure, View == GuideCardView.Consent);

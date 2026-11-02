@@ -12,16 +12,22 @@ internal static class WindowWash
     internal const double TotalDuration = WhaleArt.DropDuration + Duration;
     internal static double Progress(double seconds) => seconds <= WhaleArt.DropDuration ? -1 :
         Math.Clamp((seconds - WhaleArt.DropDuration) / Duration, 0, 1);
-    // Smoothly reverse the same narrow strip; no full-window animation surface is allocated.
+    // Entry has already descended: continue at the bottom and return upward first.
     internal static double ScanProgress(double seconds) =>
-        .01 + (SweepEnd - .02) * (.5 - .5 * Math.Cos(Math.Max(0, seconds) * Math.PI / Duration));
+        SweepEnd * (.5 + .5 * Math.Cos(Math.Max(0, seconds) * Math.PI / Duration));
+    internal static bool ScanUpward(double seconds) => Math.Max(0, seconds) % (2 * Duration) < Duration;
     internal static double Front(Size size, double progress) => (size.Height + Band + 24) * progress / SweepEnd - 12;
     internal static double Wave(double u, double progress) =>
         8 * Math.Exp(-Math.Pow((u - .22 - .025 * Math.Sin(progress * Duration * 3)) / .18, 2)) -
         6 * Math.Exp(-Math.Pow((u - .62) / .24, 2)) + 4 * Math.Exp(-Math.Pow((u - .89) / .11, 2));
-    internal static Rect Region(Size size, double progress)
+    internal static Rect Region(Size size, double progress, bool upward = false)
     {
         if (progress <= 0 || progress >= SweepEnd) return Rect.Empty;
+        if (upward)
+        {
+            var mirrored = Region(size, SweepEnd - progress);
+            return mirrored.IsEmpty ? Rect.Empty : new Rect(0, size.Height - mirrored.Bottom, size.Width, mirrored.Height);
+        }
         var front = Front(size, progress);
         var top = Math.Clamp(Math.Floor(front - Band - 12), 0, size.Height);
         var bottom = Math.Clamp(Math.Ceiling(front + 12), 0, size.Height);
@@ -44,9 +50,15 @@ internal static class WindowWash
         brush.Freeze(); return brush;
     }
 
-    internal static void Draw(DrawingContext draw, Size size, double progress)
+    internal static void Draw(DrawingContext draw, Size size, double progress, bool upward = false)
     {
-        if (Region(size, progress).IsEmpty) return;
+        if (Region(size, progress, upward).IsEmpty) return;
+        if (upward)
+        {
+            draw.PushTransform(new ScaleTransform(1, -1, 0, size.Height / 2));
+            Draw(draw, size, SweepEnd - progress);
+            draw.Pop(); return;
+        }
         var front = Front(size, progress);
         var shape = new StreamGeometry();
         using (var path = shape.Open())
