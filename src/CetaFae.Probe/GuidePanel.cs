@@ -13,6 +13,7 @@ public sealed class GuidePanel : Window
     Func<Rect>? _entry;
     Func<double>? _scale;
     Func<bool>? _hasTarget;
+    Func<bool>? _topAttached;
     readonly DispatcherTimer _noticePointer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(50) };
     bool _pointerDown;
     Rect? _control;
@@ -114,6 +115,12 @@ public sealed class GuidePanel : Window
     }
 
     public void SetCloud(bool enabled) => _card.SetCloud(enabled);
+    internal void BeginProcessing()
+    {
+        _presentationRevision++;
+        _control = null; _locatedResult = _avoidanceCollapsed = false;
+        _card.Reset(); Hide();
+    }
     public void SetStatus(string message)
     {
         if (_hasTarget?.Invoke() == false) _card.SetNotice(message); else _card.SetStatus(message);
@@ -129,8 +136,8 @@ public sealed class GuidePanel : Window
                 ("textInViewport", state.TextInViewport), ("viewportReady", state.ViewportReady));
         }));
     }
-    internal void BindEntry(Func<Rect> entry, Func<double> scale, Func<bool> hasTarget)
-    { _entry = entry; _scale = scale; _hasTarget = hasTarget; }
+    internal void BindEntry(Func<Rect> entry, Func<double> scale, Func<bool> hasTarget, Func<bool>? topAttached = null)
+    { _entry = entry; _scale = scale; _hasTarget = hasTarget; _topAttached = topAttached; }
     internal void DismissNotice() => _card.DismissNotice();
     internal void SetPoint(bool visible)
     {
@@ -187,16 +194,16 @@ public sealed class GuidePanel : Window
             var entry = _entry?.Invoke() ?? new Rect(work.Right - 96, work.Bottom - 96, 88, 88);
             var session = _card.View is GuideCardView.Session or GuideCardView.Notice;
             var compactBubble = session && _card.IsBubble;
-            Width = Math.Min(work.Width, session ? (compactBubble ? 258 : WhalePrompt.WidthDip) : GuideTheme.CardWidth);
-            MaxHeight = Math.Min(work.Height, session ? (compactBubble ? 260 : 320) : GuideTheme.CardMaxHeight);
+            var topAttached = _hasTarget?.Invoke() == true && _topAttached?.Invoke() == true;
             _surface.SetBubble(compactBubble);
-            // Child visibility invalidation otherwise waits for the dispatcher, leaving a stale HWND height.
-            _card.InvalidateMeasure();
+            var limit = FeedbackLayout.AvailableWidth(entry, work, topAttached);
+            var size = _surface.Fit(new Size(Math.Min(work.Width, limit), work.Height));
+            Width = size.Width;
+            MaxHeight = Math.Min(work.Height, GuideTheme.CardMaxHeight + (compactBubble ? 20 : 0));
             _surface.InvalidateMeasure();
-            _surface.Measure(new Size(Width, MaxHeight));
-            var size = new Size(Width, Math.Min(MaxHeight, Math.Max(30, _surface.DesiredSize.Height)));
+            _surface.Measure(size);
             Rect? bubble = compactBubble && _control is { } control
-                ? FeedbackLayout.Bubble(control, entry, work, size) : null;
+                ? (topAttached ? FeedbackLayout.Reader(control, entry, work, size, true) : FeedbackLayout.Bubble(control, entry, work, size)) : null;
             if (compactBubble && bubble is null)
             {
                 // A cramped target gets the full attached reader, never an unrelated floating bubble.
@@ -208,7 +215,7 @@ public sealed class GuidePanel : Window
             Rect? reader = null;
             if (bubble is null && session && _locatedResult && _control is { } protectedControl)
             {
-                reader = FeedbackLayout.Reader(protectedControl, entry, work, size);
+                reader = FeedbackLayout.Reader(protectedControl, entry, work, size, topAttached);
                 if (reader is null && !_card.IsCollapsed && !_avoidanceCollapsed)
                 {
                     // Collapse once; an explicit reopen must not fall into an automatic-collapse loop.
@@ -219,7 +226,7 @@ public sealed class GuidePanel : Window
                     return;
                 }
             }
-            var bounds = bubble ?? reader ?? FeedbackLayout.Attached(entry, work, size);
+            var bounds = bubble ?? reader ?? FeedbackLayout.Attached(entry, work, size, topAttached);
             if (bubble is not null && _control is { } aim)
                 _surface.SetBubble(true, new Point(aim.X + aim.Width / 2 - bounds.X, aim.Y + aim.Height / 2 - bounds.Y));
             Left = bounds.Left; Top = bounds.Top; Height = bounds.Height;

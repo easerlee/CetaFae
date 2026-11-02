@@ -27,10 +27,22 @@ internal static class FeedbackChecks
             var scale = 2d;
             panel.BindEntry(() => entry, () => scale, () => true);
             panel.Card.SetStatus("生成窗口说明，全部文字仅用于离屏检查。");
-            check(panel.Left == entry.Left && panel.Top == entry.Bottom + 1 && panel.Width == 288,
-                "live reader uses the input body anchor rather than the whale's transparent canvas");
+            panel.BeginProcessing();
+            check(!panel.IsVisible && !panel.Card.HasSession && panel.Card.FullText.Length == 0 && panel.Handle == IntPtr.Zero,
+                "processing clears stale feedback without showing a card or creating a native handle");
+            panel.Card.SetStatus("生成窗口说明，全部文字仅用于离屏检查。");
+            check(panel.Left == entry.Left && panel.Top == entry.Bottom + 1 && panel.Width == GuideTheme.CardWidth,
+                "live reader uses the input body anchor and shared card width");
             check(!panel.IsVisible && !panel.ShowActivated && panel.AllowsTransparency && panel.Handle == IntPtr.Zero,
                 "feedback placement and rendering need no native handle, visible launch or automatic activation");
+            var topEntry = new Rect(work.Left + (work.Width - WhalePrompt.WidthDip) / 2, work.Top, WhalePrompt.WidthDip, 36);
+            panel.BindEntry(() => topEntry, () => scale, () => true, () => true);
+            panel.Reposition();
+            check(panel.Left >= topEntry.Right + GuideTheme.CardGap && panel.Top == topEntry.Top &&
+                work.Contains(new Rect(panel.Left, panel.Top, panel.Width, panel.Height)),
+                "top-attached feedback sits to the input right with a gap and stays inside the screen");
+            panel.BindEntry(() => entry, () => scale, () => true);
+            panel.Reposition();
             var control = new Rect(work.Right - 120, work.Top + 400, 50, 24);
             panel.SetControl(new Rect(control.X * 2, control.Y * 2, control.Width * 2, control.Height * 2));
             panel.SetPoint(true);
@@ -57,7 +69,7 @@ internal static class FeedbackChecks
             check(FeedbackLayout.Reader(generatedWork, generatedEntry, generatedWork, new Size(288, 180)) is null,
                 "a cramped reader reports unavailable placement instead of pretending the control is visible");
             Click(panel.Card, "展开详情");
-            check(!panel.Card.IsBubble && panel.Width == 288 && panel.Top == entry.Bottom + 1 && panel.Card.FullText.Contains("生成窗口"),
+            check(!panel.Card.IsBubble && panel.Width == GuideTheme.CardWidth && panel.Top == entry.Bottom + 1 && panel.Card.FullText.Contains("生成窗口"),
                 "native details replace the same bubble surface with the attached full explanation");
             panel.Card.Collapse();
             check(panel.Card.IsCollapsed && panel.Height <= 40 && panel.Card.HasSession,
@@ -162,12 +174,12 @@ internal static class FeedbackChecks
                 }
                 var stages = new (string Name, Action Change)[]
                 {
-                    ("processing", () => panel.SetStatus(GuideIdentification.Processing)),
+                    ("processing", panel.BeginProcessing),
                     ("long-result-footer", () => Result(20)),
                     ("collapse", panel.Card.Collapse),
                     ("reopen", () => Click(panel.Card, "展开说明  ﹀")),
                     ("short-result", () => Result(1)),
-                    ("reused-processing", () => { panel.Card.Reset(); panel.Card.SetCloud(true); panel.SetStatus(GuideIdentification.Processing); }),
+                    ("reused-processing", panel.BeginProcessing),
                     ("reused-result-footer", () => Result(6))
                 };
                 foreach (var (name, change) in stages)
@@ -179,8 +191,10 @@ internal static class FeedbackChecks
                     var state = panel.Card.FeedbackState();
                     var actionsFit = panel.Card.Actions.Children.Cast<Button>().Where(button => button.Visibility == Visibility.Visible)
                         .All(button => button.TransformToAncestor(panel.Card).TransformBounds(new Rect(button.RenderSize)).Bottom <= panel.Card.ActualHeight + 1);
-                    var passed = panel.IsVisible && actionsFit && (panel.Card.IsCollapsed ? panel.ActualHeight <= 40 :
-                        state is (true, true, true, true));
+                    var waiting = name is "processing" or "reused-processing";
+                    var passed = waiting ? !panel.IsVisible && !state.TextPresent :
+                        panel.IsVisible && actionsFit && (panel.Card.IsCollapsed ? panel.ActualHeight <= 40 :
+                            state is (true, true, true, true));
                     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { generatedReaderStage = name, passed,
                         height = panel.ActualHeight, viewportHeight = panel.Card.BodyScroll.ViewportHeight, actionsFit }));
                     if (!passed) throw new InvalidOperationException("generated_reader_layout");
@@ -192,7 +206,7 @@ internal static class FeedbackChecks
             { Console.Error.WriteLine("FAIL: generated reader fixture " + ex.GetType().Name); }
             finally { panel.Close(); app.Shutdown(); }
         };
-        panel.SetStatus(GuideIdentification.Processing);
+        panel.SetStatus("生成布局检查即将开始。");
         app.Run();
         return result;
     }
@@ -213,16 +227,16 @@ internal static class FeedbackChecks
         var board = new DrawingVisual();
         using (var sheet = board.RenderOpen())
         {
-            sheet.DrawRectangle(GuideTheme.Surface, null, new Rect(0, 0, 1340, 2200));
+            sheet.DrawRectangle(GuideTheme.Surface, null, new Rect(0, 0, 2300, 2640));
             var names = new[] { "Attached question / ordinary window", "Control bubble / maximized window", "Expanded long explanation", "Privacy refusal / home whale", "Region confirmation / attached", "Collapsed / marker retained", "Expanded reader / avoids highlighted control" };
             for (var i = 0; i < names.Length; i++)
             {
                 var scene = new DrawingVisual();
                 using (var draw = scene.RenderOpen())
                 {
-                    var work = new Rect(0, 0, 640, 500);
+                    var work = new Rect(0, 0, 1120, 600);
                     var top = i is 1 or 5;
-                    var target = top ? work : new Rect(16, 110, 608, 380);
+                    var target = top ? work : new Rect(16, 110, 1088, 480);
                     draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(229, 240, 248)), null, work);
                     draw.DrawRoundedRectangle(Brushes.White, new Pen(GuideTheme.Muted, .5), target, 8, 8);
                     draw.DrawRectangle(new SolidColorBrush(Color.FromRgb(235, 239, 243)), null, new Rect(target.X, target.Y, target.Width, 32));
@@ -243,13 +257,13 @@ internal static class FeedbackChecks
                     if (i != 3)
                     {
                         var prompt = new WhalePrompt(); prompt.SetTopAttached(top); prompt.SetQuestion(i is 0 or 4);
-                        if (i is 1 or 2 or 5) prompt.SetResult();
+                        if (i is 1 or 2 or 5 or 6) prompt.SetResult();
                         var host = new Grid(); host.Children.Add(prompt);
                         draw.DrawImage(RenderElement(host, 288, 88), new Rect(promptPosition, new Size(288, 88)));
                     }
                     else
                     {
-                        entry = new Rect(544, 404, 88, 88);
+                        entry = new Rect(1024, 504, 88, 88);
                         var whale = new WhaleVisual(); whale.SetPose(new WhalePose(109), -1);
                         draw.DrawImage(RenderElement(whale, 88, 88), entry); whale.Release();
                     }
@@ -257,7 +271,7 @@ internal static class FeedbackChecks
                     card.SetStatus(i switch
                     {
                         0 => "这是下载设置页面，可以选择保存位置和下载相关选项。你想在这里处理什么？",
-                        2 => string.Concat(Enumerable.Repeat("生成说明：这里只解释界面并指出位置，不会替你修改软件。完整长文可以滚动阅读，操作按钮始终保留。", 14)),
+                        2 => string.Concat(Enumerable.Repeat("生成说明：这里只解释界面并指出位置，不会替你修改软件。长文自动加宽，空间不足时可以翻页完整阅读。", 12)),
                         3 => GuideSession.FailureMessage(new InvalidDataException("sensitive_content")),
                         4 => "没有可靠的自动识别范围。请点击选择识别区域，在所选窗口内框住相关文字和控件；无需重新回答，确认前不会发本阶段的新请求。",
                         6 => "生成目标控件位于输入条下方。说明已换边，保留控件与输入操作空间。",
@@ -267,11 +281,9 @@ internal static class FeedbackChecks
                     if (i == 1) card.SetPoint(true);
                     if (i == 5) card.Collapse();
                     var surface = new FeedbackSurface(card); surface.SetBubble(i == 1);
-                    var width = i == 1 ? 258 : 288;
-                    surface.Measure(new Size(width, i == 1 ? 260 : 320));
-                    var size = new Size(width, Math.Min(i == 1 ? 260 : 320, surface.DesiredSize.Height));
-                    var bounds = i == 1 ? FeedbackLayout.Bubble(control, entry, work, size)!.Value :
-                        i == 6 ? FeedbackLayout.Reader(control, entry, work, size)!.Value : FeedbackLayout.Attached(entry, work, size);
+                    var size = surface.Fit(new Size(FeedbackLayout.AvailableWidth(entry, work, top), work.Height));
+                    var bounds = i == 1 ? FeedbackLayout.Reader(control, entry, work, size, top)!.Value :
+                        i == 6 ? FeedbackLayout.Reader(control, entry, work, size, top)!.Value : FeedbackLayout.Attached(entry, work, size, top);
                     if (i is 1 or 5 or 6)
                     {
                         var highlight = control; highlight.Inflate(6, 6);
@@ -280,23 +292,23 @@ internal static class FeedbackChecks
                     if (i == 1) surface.SetBubble(true, new Point(control.X + control.Width / 2 - bounds.X, control.Y + control.Height / 2 - bounds.Y));
                     draw.DrawImage(RenderElement(surface, size.Width, size.Height), bounds);
                 }
-                var image = new RenderTargetBitmap(640, 500, 96, 96, PixelFormats.Pbgra32); image.Render(scene);
+                var image = new RenderTargetBitmap(1120, 600, 96, 96, PixelFormats.Pbgra32); image.Render(scene);
                 Save(image, $"feedback-state-{i + 1}.png");
-                var x = 20 + i % 2 * 660; var y = 40 + i / 2 * 550;
+                var x = 20 + i % 2 * 1140; var y = 40 + i / 2 * 650;
                 sheet.DrawText(Text(names[i], 14, GuideTheme.Ink), new Point(x, y - 25));
-                sheet.DrawImage(image, new Rect(x, y, 640, 500));
+                sheet.DrawImage(image, new Rect(x, y, 1120, 600));
             }
         }
-        var clean = new RenderTargetBitmap(1340, 2200, 96, 96, PixelFormats.Pbgra32); clean.Render(board); Save(clean, "feedback-native-clean.png");
+        var clean = new RenderTargetBitmap(2300, 2640, 96, 96, PixelFormats.Pbgra32); clean.Render(board); Save(clean, "feedback-native-clean.png");
         var grid = new DrawingVisual();
         using (var draw = grid.RenderOpen())
         {
-            draw.DrawImage(clean, new Rect(0, 0, 1340, 2200));
+            draw.DrawImage(clean, new Rect(0, 0, 2300, 2640));
             var pen = new Pen(new SolidColorBrush(Color.FromArgb(45, 40, 100, 155)), .5);
-            for (var x = 0; x < 1340; x += 20) draw.DrawLine(pen, new Point(x, 0), new Point(x, 2200));
-            for (var y = 0; y < 2200; y += 20) draw.DrawLine(pen, new Point(0, y), new Point(1340, y));
+            for (var x = 0; x < 2300; x += 20) draw.DrawLine(pen, new Point(x, 0), new Point(x, 2640));
+            for (var y = 0; y < 2640; y += 20) draw.DrawLine(pen, new Point(0, y), new Point(2300, y));
         }
-        var gridded = new RenderTargetBitmap(1340, 2200, 96, 96, PixelFormats.Pbgra32); gridded.Render(grid); Save(gridded, "feedback-native-grid.png");
+        var gridded = new RenderTargetBitmap(2300, 2640, 96, 96, PixelFormats.Pbgra32); gridded.Render(grid); Save(gridded, "feedback-native-grid.png");
         Console.WriteLine("Generated native feedback states and matching clean/grid board; no desktop window, capture or network.");
     }
 

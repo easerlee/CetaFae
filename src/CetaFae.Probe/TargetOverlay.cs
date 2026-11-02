@@ -39,9 +39,9 @@ internal sealed class TargetOverlay
         SetWaterProgress(SystemParameters.ClientAreaAnimation ? -1 : 0);
         foreach (var edge in _edges) edge.Show();
     }
-    internal void SetWaterProgress(double progress, IntPtr prompt = default)
+    internal void SetWaterProgress(double progress, IntPtr prompt = default, bool scanning = false)
     {
-        foreach (var edge in _edges) edge.SetWaterProgress(progress >= 1 ? 0 : progress);
+        foreach (var edge in _edges) edge.SetWaterProgress(scanning || progress >= 1 ? 0 : progress);
         var region = Bounds.IsEmpty ? Rect.Empty : WindowWash.Region(Bounds.Size, progress);
         if (region.IsEmpty) { if (_wash.IsVisible) _wash.HideAndReset(); return; }
         _wash.Left = Bounds.Left; _wash.Top = Bounds.Top + region.Top;

@@ -24,6 +24,14 @@ internal sealed class FeedbackSurface : Grid
         _pointer.InvalidateVisual();
     }
 
+    internal Size Fit(Size available)
+    {
+        var margin = _card.Margin;
+        var size = _card.Fit(new Size(Math.Max(1, available.Width - margin.Left - margin.Right),
+            Math.Max(1, available.Height - margin.Top - margin.Bottom)));
+        return new Size(size.Width + margin.Left + margin.Right, size.Height + margin.Top + margin.Bottom);
+    }
+
     sealed class Pointer : FrameworkElement
     {
         internal Point Aim;

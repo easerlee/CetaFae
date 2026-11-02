@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Adaptive reading card and processing scan (2026-11-02)
+
+Verify the five v1.19 requirements with production WPF components offscreen: no visible feedback/native handle while waiting; correct stop paths; same baseline card width; blue/white header without captions; width growth at height cap; overflow pagination reconstructs every text element with no scrollbar and no extra request; narrow/negative-coordinate/top-right/control-safe placement; ordinary/maximized layouts, reuse, keyboard/close and cleanup. Render clean/grid boards and scan up/down frames and inspect before packaging. Debug/Release suites required. No native launch/replacement/capture without separate consent; live fluency and mouse behavior remain pending.
+
 ## Minimal explanation-card actions (2026-11-02)
 
 For v1.18 verify an ordinary question has no footer actions, a completed result offers only eligible follow-up, required-selection feedback offers the region action, and a control bubble offers details without manual collapse/clear/lookup. Session close must fire cancellation once; notice close must not cancel another session. Automatic avoidance collapse/reopen must retain text/input and make the restore action reachable. Render ordinary, waiting, result, bubble, compact, notice and long-content states with production dimensions; inspect text/action bounds and screenshots offscreen, without native window creation. Public reference implementation checks remain isolated and do not imply a product entry or background request. No model/desktop repeat is required for removing these controls.

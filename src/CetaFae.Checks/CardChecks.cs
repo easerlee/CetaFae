@@ -87,8 +87,9 @@ static class CardChecks
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
     {
-        card.Measure(new Size(width, GuideTheme.CardMaxHeight));
-        card.Arrange(new Rect(0, 0, width, Math.Min(card.DesiredSize.Height, GuideTheme.CardMaxHeight)));
+        var size = card.Fit(new Size(width, GuideTheme.CardMaxHeight));
+        card.Measure(size);
+        card.Arrange(new Rect(size));
         card.UpdateLayout();
     }
 
@@ -262,15 +263,12 @@ static class CardChecks
         }
         var longCard = States().Single(s => s.Name.StartsWith("08", StringComparison.Ordinal)).Card;
         Layout(longCard);
-        check(longCard.BodyScroll.ExtentHeight > longCard.BodyScroll.ViewportHeight,
-            "long generated text scrolls while the footer remains outside its viewport");
-        longCard.BodyScroll.ScrollToBottom();
+        check(longCard.PageCount > 1 && longCard.BodyScroll.VerticalScrollBarVisibility == ScrollBarVisibility.Disabled,
+            "bounded long text uses local pages rather than scrollbars");
+        longCard.SetStatus("新的生成说明应当从第一行开始阅读。");
         Layout(longCard);
-        check(longCard.BodyScroll.VerticalOffset > 0, "reused reader fixture begins below the start of a long result");
-        longCard.SetStatus(string.Concat(Enumerable.Repeat("新的生成说明应当从第一行开始阅读。", 40)));
-        Layout(longCard);
-        check(longCard.BodyScroll.VerticalOffset == 0,
-            "a fresh result resets the reused reader to the beginning instead of retaining old scroll position");
+        check(longCard.PageIndex == 0 && longCard.PageCount == 1 && longCard.DisplayedText == longCard.FullText,
+            "new results reset pages instead of retaining old text or position");
         foreach (var width in new[] { WhalePrompt.WidthDip, GuideTheme.CardWidth })
         {
             longCard.Reset(); longCard.SetNotice("这次等得有点久，还没看明白。"); Layout(longCard, width);

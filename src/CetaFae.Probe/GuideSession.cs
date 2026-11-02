@@ -41,7 +41,7 @@ public sealed class GuideSession : IDisposable
         _plugins = plugins;
         _model = new GuideModel(options);
         _panel = new GuidePanel(options);
-        _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget);
+        _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget, () => _ball.TopAttached);
         _ball.FullscreenHidden += OnFullscreenHidden;
         _ball.LocationChanged += OnEntryChanged;
         _ball.SizeChanged += OnEntryChanged;
@@ -335,7 +335,8 @@ public sealed class GuideSession : IDisposable
             if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
             if (previous is null && followup is null) _ball.BeginDock();
             _panel.SetControl(null);
-            _panel.SetStatus("正在读取所选窗口…");
+            _panel.BeginProcessing();
+            _ball.SetProcessing(true);
             var activated = await ActivateSelectedAsync(window, version, token);
             if (!_gate.Accepts(version)) return;
             if (!activated) throw new InvalidDataException("target_activation_failed");
@@ -370,7 +371,7 @@ public sealed class GuideSession : IDisposable
             _pendingIntent = intent;
             if (_contextCheckPending) OnTargetChanged();
             var observeMs = total.ElapsedMilliseconds;
-            _panel.SetStatus(identifiedProcess is null ? "正在寻找你要了解的位置…" : GuideIdentification.Processing);
+
             stage = ProcessingStage.Payload;
             var payload = GuidePayload.From(observation);
             ProbeLog.Log("guide_request_start", ("observeMs", observeMs),
@@ -413,6 +414,7 @@ public sealed class GuideSession : IDisposable
                 if (_marker.PlaceControl(rect, observation.Frame, _ball.Scale)) _marker.Show();
             }
             _panel.SetControl(bounds);
+            _ball.SetProcessing(false);
             _panel.SetStatus(answer.Explanation);
             _panel.SetPoint(bounds is not null && _marker.IsVisible);
             _ball.SetResult();
@@ -480,6 +482,7 @@ public sealed class GuideSession : IDisposable
         }
         finally
         {
+            if (_gate.Accepts(version)) _ball.SetProcessing(false);
             // Keep the active token available for event-driven revalidation after displaying the answer.
             if (!ReferenceEquals(_request, request)) request.Dispose();
         }
@@ -488,7 +491,7 @@ public sealed class GuideSession : IDisposable
     async Task<bool> ActivateSelectedAsync(IntPtr window, int version, CancellationToken token)
     {
         if (Native.GetForegroundWindow() == window) return true;
-        // Only an explicit drop, answer or confirmed lookup may reactivate its selected target once.
+        // Only an explicit drop or answer may reactivate its selected target once.
         _activationVersion = version;
         _activationSource = Native.GetForegroundWindow();
         try

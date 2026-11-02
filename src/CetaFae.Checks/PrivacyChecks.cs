@@ -36,11 +36,10 @@ static class PrivacyChecks
             check(ActionsVisible(), "personal consent and return remain fixed after disclosure scrolling");
             card.SetStatus(new string('测', 600));
             card.ShowQuestion();
-            card.Measure(new Size(panel.Width, panel.MaxHeight));
-            card.Arrange(new Rect(new Size(panel.Width, panel.MaxHeight)));
-            card.UpdateLayout();
-            check(card.BodyScroll.ExtentHeight > card.BodyScroll.ViewportHeight && card.BodyScroll.ViewportHeight > 0,
-                "long question and result overflow is scrollable rather than clipped");
+            AdaptiveCardChecks.Layout(card, new Size(720, GuideTheme.CardMaxHeight));
+            check(card.BodyScroll.VerticalScrollBarVisibility == ScrollBarVisibility.Disabled &&
+                card.BodyScroll.ExtentHeight <= card.BodyScroll.ViewportHeight + 1 && card.BodyScroll.ViewportHeight > 0,
+                "long questions and results fit adaptive width or complete pages without a scrollbar");
             check(new WindowInteropHelper(panel).Handle == IntPtr.Zero,
                 "disclosure layout check creates no native window");
         }

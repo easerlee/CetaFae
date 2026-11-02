@@ -7,7 +7,10 @@ namespace CetaFae.Probe;
 internal static class GuideTheme
 {
     internal const double CardWidth = 360;
-    internal const double CardMaxHeight = 460;
+    internal const double CardMaxHeight = 360;
+    internal const double CardMaxWidth = 720;
+    internal const double CardGap = 12;
+    internal static readonly Brush CardHeader = Header();
     internal static readonly Brush Accent = Frozen("#087FA6");
     internal static readonly Brush Outline = Frozen("#279FC4");
     internal static readonly Brush WhaleBlue = Frozen("#258FEC");
@@ -16,6 +19,13 @@ internal static class GuideTheme
     internal static readonly Brush Surface = Frozen("#F8FCFF");
     internal static readonly Thickness Padding = new(16);
     internal static readonly CornerRadius Radius = new(12);
+
+    static Brush Header()
+    {
+        var brush = new LinearGradientBrush((Color)ColorConverter.ConvertFromString("#258FEC"),
+            (Color)ColorConverter.ConvertFromString("#67B9F7"), new Point(0, 0), new Point(0, 1));
+        brush.Freeze(); return brush;
+    }
 
     static Brush Frozen(string value)
     {

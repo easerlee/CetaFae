@@ -37,13 +37,17 @@ public sealed class BallWindow : Window
     readonly DispatcherTimer _presence = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(500) };
     bool _fullscreenHidden;
     readonly Stopwatch _motion = new();
-    enum Motion { Idle, Jump, Drag, Dock, Return }
+    enum Motion { Idle, Jump, Drag, Dock, Scan, Return }
     Motion _state;
     Point _returnFrom;
     int _facing = -1;
     double _lastPointerX;
     bool _inline;
     bool _question;
+    bool _processing;
+    internal bool Processing => _processing;
+    internal bool Scanning => _state == Motion.Scan;
+    internal bool TopAttached => _whale.TopAttached;
     bool ReducedMotion => !SystemParameters.ClientAreaAnimation;
 
     public double Scale => _scale;
@@ -204,6 +208,7 @@ public sealed class BallWindow : Window
     void Animate(Motion state)
     {
         _state = state; _motion.Restart();
+        _animation.Interval = TimeSpan.FromMilliseconds(state == Motion.Scan ? 66 : 40);
         if (!ReducedMotion) _animation.Start();
         AdvanceMotion();
     }
@@ -230,6 +235,11 @@ public sealed class BallWindow : Window
             _overlay.SetWaterProgress(ReducedMotion ? 0 : WindowWash.Progress(seconds), _hwnd);
             if (ReducedMotion || seconds >= WhaleArt.DropDuration)
                 FinishMorph(ReducedMotion || seconds >= WindowWash.TotalDuration);
+        }
+        else if (_state == Motion.Scan)
+        {
+            if (!_processing || ReducedMotion) StopAnimation();
+            else _overlay.SetWaterProgress(WindowWash.ScanProgress(seconds), _hwnd, scanning: true);
         }
         else if (_state == Motion.Return)
         {
@@ -282,6 +292,7 @@ public sealed class BallWindow : Window
         {
             _animation.Stop(); _state = Motion.Idle;
             _overlay.SetWaterProgress(0);
+            if (_processing && !ReducedMotion) Animate(Motion.Scan);
         }
         if (_inline) return;
         _inline = true; _whale.Visibility = _handle.Visibility = Visibility.Collapsed;
@@ -297,11 +308,18 @@ public sealed class BallWindow : Window
     }
 
     public void ClearQuestion() { _question = false; _prompt.SetQuestion(false); }
-    public void SetResult() { if (_inline) _prompt.SetResult(); }
+    internal void SetProcessing(bool processing)
+    {
+        _processing = processing;
+        if (!processing) { if (_state == Motion.Scan) StopAnimation(); return; }
+        ClearQuestion();
+        if (_inline && _state != Motion.Dock && !ReducedMotion) Animate(Motion.Scan);
+    }
+    public void SetResult() { SetProcessing(false); if (_inline) _prompt.SetResult(); }
 
     internal void ResetArt()
     {
-        ClearQuestion(); StopAnimation();
+        _processing = false; ClearQuestion(); StopAnimation();
         var center = Left + Width / 2;
         _inline = false; _prompt.Visibility = Visibility.Collapsed;
         _whale.Visibility = _handle.Visibility = Visibility.Visible;

@@ -32,6 +32,11 @@ public static class Program
         if (args.Contains("--legacy-privacy-desktop")) return PrivacyDesktopChecks.Run(legacyOnly: true);
         if (args.Contains("--feedback-desktop")) return FeedbackChecks.RunDesktop();
         Console.WriteLine($"BUILD: {typeof(GuideSession).Module.ModuleVersionId:N}");
+        if (args.Contains("--render-adaptive"))
+        {
+            _ = Dispatcher.CurrentDispatcher;
+            AdaptiveCardChecks.Run(Check); AdaptiveCardChecks.Render(); AdaptiveCardChecks.RenderScan(); return 0;
+        }
         if (args.Contains("--render-settings"))
         {
             _ = Dispatcher.CurrentDispatcher;
@@ -134,6 +139,7 @@ public static class Program
         await TransportChecks.RunAsync(Check);
         TaskChecks.Run(Check);
         CardChecks.Run(Check);
+        AdaptiveCardChecks.Run(Check);
         FeedbackChecks.Run(Check);
         WhaleChecks.Run(Check);
         OverlayChecks.Run(Check);

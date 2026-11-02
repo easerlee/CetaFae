@@ -2,6 +2,10 @@
 
 Updated: 2026-11-02
 
+## Adaptive reading card and processing scan (2026-11-02)
+
+Requirements v1.19: use a 360 DIP baseline card, 360 DIP height cap and up to 720 DIP width. Measure natural wrapped content before increasing width; only at the available width limit paginate locally, preserving full text and page position without a new request. Share this fitting path between live hosting and offscreen fixtures. Blue-to-light-blue header with white Whale reading title and no caption; keep existing necessary actions. Defer feedback during collection/model waiting using explicit BeginProcessing/SetStatus, not message-string detection. The whale owns bounded-band scan animation and stops it on result, failure, target loss or cancellation. Top-attached layouts prefer the input right side with a 12 DIP gap; regular layouts stay joined below. Protect the input/control and respect screen edges. No capture, consent or model contract change.
+
 ## Minimal explanation-card actions (2026-11-02)
 
 Requirements v1.18 removes public-reference UI/session transport from the explanation flow, retaining independent identity/reference data contracts for future explicit capabilities. Remove lookup/disclosure/result controls, redundant clear and manual-collapse actions. Session-card header close invokes the existing cancellation path; notice close only dismisses the notice. Keep conditional follow-up, required region selection and bubble details. Automatic spatial-avoidance collapse/reopen remains local and preserves state. Only offer initial region selection when identification lacks a readable page; task scope failures retain the existing required-selection path. Successful ordinary questions/pointing do not advertise selection. Do not add a settings lookup, new receiver, model call, permission or automatic navigation. Existing disclosure remains unchanged (its conditional lookup guarantees are not exercised); no expanded consent scope. Verify action sets, close/cancellation, region recovery, safe compact reopen, long content and actual offscreen layout before packaging. Do not silently replace the installed version.

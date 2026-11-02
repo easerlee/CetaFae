@@ -12,6 +12,9 @@ internal static class WindowWash
     internal const double TotalDuration = WhaleArt.DropDuration + Duration;
     internal static double Progress(double seconds) => seconds <= WhaleArt.DropDuration ? -1 :
         Math.Clamp((seconds - WhaleArt.DropDuration) / Duration, 0, 1);
+    // Smoothly reverse the same narrow strip; no full-window animation surface is allocated.
+    internal static double ScanProgress(double seconds) =>
+        .01 + (SweepEnd - .02) * (.5 - .5 * Math.Cos(Math.Max(0, seconds) * Math.PI / Duration));
     internal static double Front(Size size, double progress) => (size.Height + Band + 24) * progress / SweepEnd - 12;
     internal static double Wave(double u, double progress) =>
         8 * Math.Exp(-Math.Pow((u - .22 - .025 * Math.Sin(progress * Duration * 3)) / .18, 2)) -
