@@ -1,10 +1,10 @@
 # Selected-Window Guidance: Implementation Specification
 
-Updated: 2026-11-01
+Updated: 2026-11-02
 
-## Recognition requirements refinement — draft awaiting approval (2026-11-02)
+## Recognition requirements refinement — approved for development (2026-11-02)
 
-The user narrowed the immediate deliverable to recognition, then explicitly required requirements analysis and agreement before implementation. This draft refines FR-15/16, FR-02/03/09 and AC-17/18 within the existing safety/platform gates. It is not an approved change to `需求文档.md`, permission to read a target, or an implementation instruction. Do not change production code, run recognition/model probes or package a new binary until this draft is agreed. Reconcile the approved decisions into the requirements baseline first.
+The user approved this scenario-driven refinement and requested development on2026-11-02. Requirements v1.15 section2.0 is the product baseline for FR-15/16, FR-02/03/09 and AC-17/18 within existing safety/platform gates. Implement recognition only and preserve existing guidance/artwork. Coding, headless/generated checks and packaging are authorized; target reads, visible launches and replacement still need their scoped permission. Candidate completion is followed by user acceptance, not an automatic formal release.
 
 ### User scenarios and proposed priority
 
@@ -54,6 +54,18 @@ Do not expose handles, PID, process/file paths, signatures, plugin terms or exce
 - Exercise privacy refusal versus unavailable safety checks; protected versus disappeared targets; worker/IPC versus service failures; quota/authentication/timeout/invalid reply; cancellation and stale results. No case gains content/capture authority from its model text. Do not use an all-refusal implementation to pass ordinary recognition cases.
 - Keep local logic, generated-model semantics, packaged-worker behavior and native presentation as separate evidence. The installed preview.28 worker_failed remains unresolved until reproduced or accurately bounded; the direct534ms success is not its repair evidence. Successful packaging/null-request startup is not successful target collection.
 - After agreement, deliver one recognition candidate with its focused checks and a concise user acceptance sequence covering ordinary, real error and unknown/restricted outcomes. The user performs acceptance after development; no repeated broad manual batches between small edits. A narrowly necessary native diagnostic still needs its specific permission. Existing3000ms/500ms/90MB and privacy/platform gates are unchanged and cannot be declared passed by headless results. Do not promise literal support for every protected or unreadable window.
+
+### Recognition contract and generic privacy compatibility (2026-11-02)
+
+The initial visual result now has exactly `application`, `page`, `state`, `question`, `kind`. Application, purpose and current facts are independently nullable; `question` is nullable and does not manufacture another input step. `attention` requires a readable state/message; a null purpose requires `uncertain`. Retain bounded strings, strict duplicate/unknown/type rejection and credential rejection. Render actual warnings first and preserve independent facts without category filler or an initial control marker. Generated semantic tests and native user acceptance remain separate.
+
+Local collection failure, disappeared target, service timeout, HTTP authentication/rate refusal and unusable response have distinct beginner-facing text. A shared deadline reports its current processing stage, not a guessed model or target fault. Owned-worker error replies add only allowlisted phase/type plus numeric HRESULT, and hard exits log only the exit code. No exception messages, provider output, request/response bodies or automatic retry. Existing15-second processing and3000ms acceptance limits are unchanged.
+
+`GuideLegacyPrivacy` is a host-owned, application-independent metadata adapter for unsupported password flags. It asks Windows' native UIA MSAA bridge for an explicitly supported legacy state of the **same runtime-ID element** inside the selected root. Defaults are disabled; missing/malformed/hidden states refuse, protected states refuse before any name getter. It does not treat NotSupported as proof of no password, identify applications by name, query the desktop root, read values or supply substitute pixels. A bounded4096-node/48-depth raw traversal skips explicitly hidden subtrees before their state/children, binds target/foreground before and after, and releases its private COM references. Each pre/post-capture privacy pass uses fresh metadata; no persistent cache. Existing supported UIA/privacy rules remain in force. No new executable plugin interface is introduced.
+
+The pinned managed UIA API has no registered legacy-state property; Windows' COM API exposes it. Interop slots/IDs follow [Microsoft's SDK header](https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/UIAutomationClient.h). Windows documents the [legacy protection mapping](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-msaa), [protection/visibility flags](https://learn.microsoft.com/en-us/windows/win32/winauto/object-state-constants), and [defaults-disabled property access](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomationelement-getcurrentpropertyvalueex). Provider metadata is not a complete detector of secrets drawn into pixels. Refusal is retained when no reliable metadata is available.
+
+The separately authorized Notepad3 property-only comparison covers68 nodes,66 with explicit legacy states; the other two are structural nodes handled by existing rules. It reads no names, values or images. It establishes adapter/metadata compatibility only, not a full observation, recognition, password refusal fixture or repair of the historical generic `worker_failed`. Those gates stay separate inTest-Plan and验证记录.md.
 
 ## Plain-language window recognition (approved2026-11-01)
 

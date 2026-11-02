@@ -479,7 +479,7 @@ public sealed class GuideSession : IDisposable
                 var ownership = CurrentOwnership();
                 var localIdentity = ownership is null ? null : _context?.Identity;
                 _ball.StopTracking("processing_timeout");
-                var message = "这次等得有点久，还没看明白。\n请稍后再把鲸鱼拖过来试一次；这次没有标出操作位置。";
+                var message = TimeoutMessage(stage == ProcessingStage.Model);
                 _panel.SetStatus(ownership is not null ? GuideIdentification.Unavailable(ownership, message, localIdentity) : message);
             }
             ProbeLog.Log("guide_failure", ("category", cancelled ? "cancelled" : "timeout"), ("stage", stage.ToString()));
@@ -561,7 +561,21 @@ public sealed class GuideSession : IDisposable
     {
         InvalidDataException { Message: "scope_unavailable" } =>
             "还不知道该看哪一部分。\n请重新把鲸鱼拖入窗口，并说明想了解什么；范围确定前不会发送这一步的新内容，也不会改发整个窗口。",
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden } =>
+            "识别服务没有允许这次请求。\n请在“鲸汐设置 → 连接”检查服务是否可用；这不代表你选择的窗口有问题。",
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.TooManyRequests } =>
+            "识别服务暂时无法接受更多请求。\n可能是请求过多或可用额度不足，请稍后再试或查看服务账户。",
+        HttpRequestException { StatusCode: not null } =>
+            "识别服务这次未能完成请求。\n请稍后再试；这不代表你选择的窗口有问题。",
         HttpRequestException => "暂时连接不上识别服务。\n请稍后再试，或在“鲸汐设置”里查看连接状态。",
+        JsonException => "识别服务返回的内容暂时无法使用。\n这次不猜测窗口内容，也不标出操作位置，请稍后再试。",
+        InvalidDataException data when data.Message.StartsWith("identification_", StringComparison.Ordinal) ||
+            data.Message is "model_response_too_large" or "model_response_invalid" or "model_incomplete" or "model_refusal" =>
+            "识别服务返回的内容暂时无法使用。\n这次不猜测窗口内容，也不标出操作位置，请稍后再试。",
+        InvalidDataException { Message: "worker_failed" or "worker_reply" or "worker_reply_too_large" or "worker_request_invalid" } =>
+            "鲸汐这次没能完成窗口读取。\n请保持要了解的窗口可见，稍后再拖一次；这不代表那个软件出了故障。",
+        InvalidDataException { Message: "target_unavailable" } =>
+            "刚才选择的窗口已经无法查看。\n请重新打开或恢复那个窗口，再把鲸鱼拖进去。",
         InvalidDataException { Message: "target_not_foreground" } =>
             "请先点一下要了解的窗口，再把鲸鱼拖进去。\n这次先停止，避免看错窗口。",
         InvalidDataException { Message: "target_activation_failed" } =>
@@ -578,8 +592,12 @@ public sealed class GuideSession : IDisposable
             "这里可能有密码或其他私密信息，鲸汐已停止识别。\n请先隐藏这些内容，再拖一次鲸鱼。",
         InvalidDataException { Message: "privacy_unavailable" } =>
             "还没完成隐私检查，这次先不识别。\n这不代表发现了私密信息。请稍后再试；仍然失败时，请反馈这段提示。",
-        _ => "这次还没看明白，暂时不能给出可靠的说明。\n请稍后把鲸鱼重新拖到这个窗口，再试一次；这次没有标出操作位置。"
+        _ => "鲸汐这次没能完成识别，暂时不能给出可靠的说明。\n请稍后再试；这不代表你选择的软件出了故障，这次没有标出操作位置。"
     };
+
+    internal static string TimeoutMessage(bool waitingForService) => waitingForService
+        ? "识别服务这次没有及时返回结果。\n请稍后再试；这不代表你选择的软件出了故障，这次没有标出操作位置。"
+        : "鲸汐这次读取和核对窗口用时过长，已停止处理。\n请保持窗口可见，稍后再试；这次没有标出操作位置。";
 
     async Task<GuideObservation> ReadContextAsync(GuideObservation previous, CancellationToken token)
     {

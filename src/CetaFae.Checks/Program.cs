@@ -29,6 +29,7 @@ public static class Program
         if (args.Contains("--capture-desktop")) return CaptureChecks.Run();
         if (args.Contains("--scroll-desktop")) return ScrollChecks.Run();
         if (args.Contains("--privacy-desktop")) return PrivacyDesktopChecks.Run();
+        if (args.Contains("--legacy-privacy-desktop")) return PrivacyDesktopChecks.Run(legacyOnly: true);
         if (args.Contains("--feedback-desktop")) return FeedbackChecks.RunDesktop();
         Console.WriteLine($"BUILD: {typeof(GuideSession).Module.ModuleVersionId:N}");
         if (args.Contains("--render-settings"))

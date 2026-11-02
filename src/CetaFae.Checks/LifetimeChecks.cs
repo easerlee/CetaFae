@@ -131,6 +131,13 @@ static class LifetimeChecks
             check(json.RootElement.GetProperty("Observation").ValueKind == JsonValueKind.Null &&
                   json.RootElement.GetProperty("Error").GetString() == "worker_request_invalid" && !reply.Contains("private"),
                 "the production worker rejects malformed input without a window, observation or content echo");
+            check(json.RootElement.GetProperty("Phase").GetString() == "request" &&
+                  json.RootElement.GetProperty("FailureKind").GetString() == "JsonException" &&
+                  json.RootElement.GetProperty("HResult").TryGetInt32(out _),
+                "worker failures retain only a fixed stage, allowlisted exception kind and numeric HRESULT");
+            check(ObservationWorker.SafePhase("generated private provider detail") == "unknown" &&
+                  ObservationWorker.SafeKind("generated private provider detail") == "other",
+                "unknown worker diagnostic strings cannot enter product metadata logs");
         }
 
         // Hold stdin open without any request: the production watchdog must terminate this child without UIA.

@@ -28,8 +28,9 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         WindowRect(window) == frame;
 
     public static GuideObservation Read(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
-        string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null)
+        string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null, Action<string>? stageChanged = null)
     {
+        stageChanged?.Invoke("target");
         var clock = Stopwatch.StartNew();
         ProbeLog.Log("guide_observe_start");
         token.ThrowIfCancellationRequested();
@@ -50,17 +51,21 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
         var rawView = plugin.UsesRawView;
         var rule = intent is null || selection is not null ? null : plugin.ScopeFor(intent);
+        stageChanged?.Invoke("privacy");
         var anchors = EnsureSafeContent(window, token, rule);
         var scope = selection is { } region ? GuideScope.FromUserSelection(frame, region) :
             rule is null ? null : GuideScope.Resolve(frame, rule, anchors);
+        stageChanged?.Invoke("controls");
         var candidates = ReadCandidates(window, token, rawView);
         var uiaMs = clock.ElapsedMilliseconds;
         ProbeLog.Log("guide_uia_complete", ("elapsedMs", uiaMs), ("candidates", candidates.Count));
         token.ThrowIfCancellationRequested();
         Rect? caret = null;
+        stageChanged?.Invoke("capture");
         var png = includeImage ? Capture.ReadTarget(window, scope?.Region, out caret) : null;
         if (includeImage)
         {
+            stageChanged?.Invoke("privacy_after_capture");
             var after = EnsureSafeContent(window, token, rule);
             if (rule is not null && scope is not null && !scope.HasSameAnchor(GuideScope.Resolve(frame, rule, after)))
                 throw new InvalidDataException("target_changed");
@@ -68,11 +73,13 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         ProbeLog.Log("guide_capture_complete", ("elapsedMs", clock.ElapsedMilliseconds - uiaMs),
             ("imageBytes", png?.Length ?? 0));
         if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
+        stageChanged?.Invoke("visual");
         var hash = png is not null && (plugin.Kind == "general" || scope?.UserSelected == true) ? Fingerprint(png) : null;
         var visual = hash is not null ? GuideVisual.Read(png!, scope?.Region ?? frame, caret) : null;
         SoftwareIdentity? identity = null;
         if (identityProvider is not null && intent is null && selection is null && includeImage)
         {
+            stageChanged?.Invoke("identity");
             if (identityProvider.Kind != "identity") throw new InvalidDataException("worker_reply");
             try { identity = SoftwareIdentity.Read(pid, token); }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or UnauthorizedAccessException or InvalidOperationException)
@@ -144,6 +151,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
 
     public static IReadOnlyList<GuideCandidate> ReadCandidates(IntPtr window, CancellationToken token, bool rawView = false)
     {
+        var legacyPrivacy = new GuideLegacyPrivacy(window, token);
         var root = AutomationElement.FromHandle(window) ?? throw new InvalidDataException("uia_unavailable");
         var types = new[] { ControlType.Button, ControlType.ComboBox, ControlType.Hyperlink,
             ControlType.ListItem, ControlType.MenuItem, ControlType.CheckBox, ControlType.RadioButton };
@@ -167,7 +175,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             providerProcesses.Add(c.ProcessId);
             if (!UsableBounds(c.BoundingRectangle, frame)) continue;
             if (IsScrollControl(element, root, token)) { scrollControls++; continue; }
-            var name = ReadVisibleElementName(element, root, window, token);
+            var name = ReadVisibleElementName(element, root, window, token, legacyPrivacy);
             if (string.IsNullOrWhiteSpace(name) || name.Length > 200) continue;
             if (candidates.Count >= 128) throw new InvalidDataException("too_many_candidates");
             var automationId = element.Current.AutomationId;
@@ -186,6 +194,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
     {
         try
         {
+            var legacyPrivacy = new GuideLegacyPrivacy(window, token);
             var root = AutomationElement.FromHandle(window) ?? throw new InvalidDataException("privacy_unavailable");
             var cache = new CacheRequest { TreeFilter = Automation.RawViewCondition };
             cache.Add(AutomationElement.IsOffscreenProperty);
@@ -197,7 +206,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             foreach (var element in elements)
             {
                 token.ThrowIfCancellationRequested();
-                var name = ReadVisibleElementName(element, root, window, token);
+                var name = ReadVisibleElementName(element, root, window, token, legacyPrivacy);
                 var type = element.Cached.ControlType.ProgrammaticName;
                 if (name is not null && rule?.MatchesAnchor(name, type) == true)
                     anchors.Add(new GuideScopeAnchor(name, type, element.Current.BoundingRectangle, element.GetRuntimeId()));
@@ -211,7 +220,8 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         }
     }
 
-    static string? ReadVisibleElementName(AutomationElement element, AutomationElement root, IntPtr window, CancellationToken token)
+    static string? ReadVisibleElementName(AutomationElement element, AutomationElement root, IntPtr window, CancellationToken token,
+        GuideLegacyPrivacy legacyPrivacy)
     {
         token.ThrowIfCancellationRequested();
         var offscreen = element.GetCurrentPropertyValue(AutomationElement.IsOffscreenProperty, true);
@@ -221,7 +231,8 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         var caption = (ReferenceEquals(password, AutomationElement.NotSupported) || ReferenceEquals(offscreen, AutomationElement.NotSupported)) &&
             (role is "ControlType.TitleBar" or "ControlType.MenuBar" or "ControlType.MenuItem" or "ControlType.Button") &&
             IsTitleBarChrome(element, root, window, token);
-        return GuidePrivacy.ReadVisibleName(offscreen, password, () => element.Current.Name, role, caption);
+        return GuidePrivacy.ReadVisibleName(offscreen, password, () => element.Current.Name, role, caption,
+            () => legacyPrivacy.ReadState(element));
     }
 
     static bool IsTitleBarChrome(AutomationElement element, AutomationElement root, IntPtr window, CancellationToken token)

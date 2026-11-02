@@ -71,11 +71,11 @@ static class CardChecks
         yield return ("21 Dismissible ready notice", ready);
         var failed = New(); failed.SetNotice(string.Concat(Enumerable.Repeat("生成失败提示：请检查连接后重新拖放。此文字仅用于滚动检查。", 18)));
         yield return ("22 Long dismissible notice", failed);
-        var normal = New(); normal.SetCloud(true); normal.SetStatus(new GuideIdentification("浏览器设置", "这里可以选择下载文件的保存位置。", "你想调整哪一项？", "regular").ToAnswer("generated-browser").Explanation); normal.ShowQuestion();
+        var normal = New(); normal.SetCloud(true); normal.SetStatus(new GuideIdentification("浏览器设置", "这里可以选择下载文件的保存位置。", "你想调整哪一项？", "regular", "下载前询问保存位置的选项已开启。").ToAnswer("generated-browser").Explanation); normal.ShowQuestion();
         yield return ("23 Ordinary interface", normal);
-        var attention = New(); attention.SetCloud(true); attention.SetStatus(new GuideIdentification(null, "提示文件不存在，暂时打不开。", "是在打开哪个文件时看到的？", "attention").ToAnswer("generated-file-tool").Explanation); attention.ShowQuestion();
+        var attention = New(); attention.SetCloud(true); attention.SetStatus(new GuideIdentification(null, "打开文件时出现的提示。", "是在打开哪个文件时看到的？", "attention", "文件不存在，错误代码0x80070002。").ToAnswer("generated-file-tool").Explanation); attention.ShowQuestion();
         yield return ("24 Error or warning", attention);
-        var partial = New(); partial.SetCloud(true); partial.SetStatus(new GuideIdentification(null, null, "你想了解其中哪一部分？").ToAnswer("generated-unknown").Explanation); partial.ShowQuestion(); partial.SetRegionAvailable(true);
+        var partial = New(); partial.SetCloud(true); partial.SetStatus(new GuideIdentification(null, null, null, "uncertain", "已完成，耗时12秒。").ToAnswer("generated-unknown").Explanation); partial.SetRegionAvailable(true);
         yield return ("25 Uncertain content", partial);
         var protectedWindow = New(); protectedWindow.SetNotice(GuideSession.FailureMessage(new InvalidDataException("elevated_target")));
         yield return ("26 Protected window", protectedWindow);

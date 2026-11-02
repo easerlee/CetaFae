@@ -128,6 +128,23 @@ static class PrivacyChecks
             "an explicit password flag still refuses a caption control");
 
         var unsupported = AutomationElement.NotSupported;
+        foreach (var role in new[] { "ControlType.Edit", "ControlType.Custom", "ControlType.List", "ControlType.StatusBar" })
+        {
+            var legacyNameReads = 0;
+            check(GuidePrivacy.ReadVisibleName(false, unsupported, () => { legacyNameReads++; return "Generated content"; },
+                    role, readLegacyState: () => 0) == "Generated content" && legacyNameReads == 1,
+                "an explicitly supported legacy protection state can resolve unsupported password metadata on the same element");
+            foreach (var state in new object?[] { null, unsupported, false, "0", -1, 0x8000, 0x10000 })
+                Reject(() => GuidePrivacy.ReadVisibleName(false, unsupported, () => throw new Exception("content accessed"),
+                        role, readLegacyState: () => state),
+                    "missing, malformed or hidden legacy states refuse before accessing content", "privacy_unavailable");
+            Reject(() => GuidePrivacy.ReadVisibleName(false, unsupported, () => throw new Exception("content accessed"),
+                    role, readLegacyState: () => 0x20000000),
+                "the legacy protected bit refuses before accessing content", "sensitive_content");
+        }
+        check(GuidePrivacy.ReadVisibleName(true, unsupported, () => throw new Exception("content accessed"),
+                  "ControlType.Custom", readLegacyState: () => throw new Exception("hidden metadata accessed")) is null,
+            "hidden content does not trigger the legacy metadata fallback");
         check(GuidePrivacy.ReadVisibleName(unsupported, false, () => "Generated document", "ControlType.Document") == "Generated document",
             "an explicitly non-password document accepts only the exact unsupported visibility default");
         var documentReads = 0;

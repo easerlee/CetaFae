@@ -24,7 +24,7 @@ internal static class GuidePrivacy
     }
 
     internal static string? ReadVisibleName(object? isOffscreen, object? isPassword, Func<string> readName,
-        string controlType = "", bool inTitleBar = false)
+        string controlType = "", bool inTitleBar = false, Func<object?>? readLegacyState = null)
     {
         if (isOffscreen is true) return null;
         // Password metadata must be checked before invoking even the name getter.
@@ -46,6 +46,16 @@ internal static class GuidePrivacy
             "ControlType.Group" or "ControlType.RadioButton" or "ControlType.CheckBox";
         if (isOffscreen is false && standardPasswordDefault && ReferenceEquals(isPassword, AutomationElement.NotSupported))
             isPassword = false;
+        // The Windows MSAA bridge can supply an explicit protected-state bit for the same element.
+        // An absent state is never its documented zero/default: request it with defaults disabled.
+        if (isOffscreen is false && ReferenceEquals(isPassword, AutomationElement.NotSupported) && readLegacyState is not null)
+        {
+            var state = readLegacyState();
+            if (state is not int flags || flags < 0 || (flags & 0x18000) != 0)
+                throw new InvalidDataException("privacy_unavailable");
+            if ((flags & 0x20000000) != 0) throw new InvalidDataException("sensitive_content");
+            isPassword = false;
+        }
         if (isOffscreen is not false || isPassword is not false) throw new InvalidDataException("privacy_unavailable");
         var name = readName();
         EnsureTextSafe(name);

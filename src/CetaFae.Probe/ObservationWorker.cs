@@ -25,7 +25,7 @@ public static class ObservationWorker
     };
     internal sealed record Request(long Window, bool IncludeImage, GuidePlugin Plugin, string? Intent = null, Rect? Selection = null,
         GuidePlugin? IdentityProvider = null);
-    sealed record Reply(GuideObservation? Observation, string? Error);
+    sealed record Reply(GuideObservation? Observation, string? Error, string? Phase = null, string? FailureKind = null, int? HResult = null);
 
     internal static string SerializeRequest(Request request) => JsonSerializer.Serialize(request, Json);
 
@@ -40,7 +40,12 @@ public static class ObservationWorker
             var start = CreateStartInfo(Environment.ProcessPath!, typeof(ObservationWorker).Assembly.Location);
             var body = await ExchangeAsync(start, SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection, identityProvider)), token);
             var reply = JsonSerializer.Deserialize<Reply>(body, Json) ?? throw new InvalidDataException("worker_reply");
-            if (reply.Error is { } error) throw new InvalidDataException(SafeError(error));
+            if (reply.Error is { } error)
+            {
+                ProbeLog.Log("guide_worker_failure", ("phase", SafePhase(reply.Phase)),
+                    ("kind", SafeKind(reply.FailureKind)), ("hresult", reply.HResult));
+                throw new InvalidDataException(SafeError(error));
+            }
             var observation = reply.Observation ?? throw new InvalidDataException("worker_reply");
             if (observation.Window != window || observation.Candidates is null || observation.Candidates.Count > 128 ||
                 observation.PluginId != plugin.Id || observation.RawView != plugin.UsesRawView ||
@@ -117,7 +122,11 @@ public static class ObservationWorker
             await process.WaitForExitAsync(token);
             var reply = await output;
             token.ThrowIfCancellationRequested();
-            if (process.ExitCode != 0) throw new InvalidDataException("worker_failed");
+            if (process.ExitCode != 0)
+            {
+                ProbeLog.Log("guide_worker_exit", ("exitCode", process.ExitCode));
+                throw new InvalidDataException("worker_failed");
+            }
             return reply;
         }
         catch (Exception) when (token.IsCancellationRequested)
@@ -166,6 +175,7 @@ public static class ObservationWorker
         using var output = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false));
         Console.SetOut(TextWriter.Null);
         Reply reply;
+        var phase = "request";
         try
         {
             var input = ReadBoundedAsync(Console.In, MaxRequestCharacters, CancellationToken.None).GetAwaiter().GetResult();
@@ -180,11 +190,11 @@ public static class ObservationWorker
                 GuidePrivacy.EnsureTextSafe(intent);
             }
             var observation = GuideObservation.Read(new IntPtr(request.Window), request.IncludeImage, request.Plugin, CancellationToken.None,
-                request.Intent, request.Selection, request.IdentityProvider);
+                request.Intent, request.Selection, request.IdentityProvider, stage => phase = stage);
             reply = new Reply(observation, null);
         }
         catch (Exception ex) { reply = new Reply(null, ex is InvalidDataException ? SafeError(ex.Message) :
-            ex is JsonException ? "worker_request_invalid" : "worker_failed"); }
+            ex is JsonException ? "worker_request_invalid" : "worker_failed", SafePhase(phase), SafeKind(ex.GetType().Name), ex.HResult); }
         output.Write(JsonSerializer.Serialize(reply, Json));
     }
 
@@ -192,6 +202,13 @@ public static class ObservationWorker
         "unsupported_target" or "elevated_target" or "target_changed" or "sensitive_content" or
         "privacy_unavailable" or "scope_unavailable" or "capture_target_unavailable" or "capture_dimensions" or
         "capture_unusable" or "worker_request_invalid" ? error : "worker_failed";
+
+    internal static string SafePhase(string? phase) => phase is "request" or "target" or "privacy" or "controls" or
+        "capture" or "privacy_after_capture" or "visual" or "identity" ? phase : "unknown";
+
+    internal static string SafeKind(string? kind) => kind is "InvalidDataException" or "JsonException" or "COMException" or
+        "ElementNotAvailableException" or "InvalidOperationException" or "Win32Exception" or "ArgumentException" or
+        "UnauthorizedAccessException" ? kind : "other";
 
     sealed class HandleConverter : JsonConverter<IntPtr>
     {
