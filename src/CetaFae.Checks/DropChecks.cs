@@ -33,9 +33,9 @@ internal static class DropChecks
         var full = WhaleChecks.RenderFrame(false, 0, 600, 400);
         var pixels = new byte[600 * 400 * 4]; full.CopyPixels(pixels, 2400, 0);
         byte Alpha(int y) => pixels[(y * 600 + 300) * 4 + 3];
-        check(Alpha(0) == 255 && Alpha(14) == 255 && Alpha(20) < 255 && Alpha(20) > Alpha(50) &&
-            Alpha(50) > Alpha(80) && Alpha(110) == 0 && GuideFrameVisual.WaterDepth == 96 && GuideFrameVisual.SolidDepth == 16,
-            "full-size water retains sixteen solid blue DIP before its wider fade and transparent center");
+        check(Alpha(0) == 255 && Alpha(14) == 255 && Alpha(20) < 255 && Alpha(20) > Alpha(30) &&
+            Alpha(30) > Alpha(40) && Alpha(50) == 0 && GuideFrameVisual.WaterDepth == 48 && GuideFrameVisual.SolidDepth == 16,
+            "reference-sized water retains sixteen solid blue DIP then fades to transparent within forty-eight DIP");
         var original = new DrawingVisual();
         using (var draw = original.RenderOpen())
         {

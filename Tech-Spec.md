@@ -2,6 +2,10 @@
 
 Updated: 2026-11-02
 
+## Reference-sized perimeter and reading title (2026-11-02)
+
+Requirements v1.23: the user confirms equal normal/full-window widths and requests a narrower reference-sized treatment. Use48 DIP total depth with16 DIP solid blue; derive CardHeaderHeight from the perimeter constant so they cannot drift. Both use the same absolute alpha gradient; place intermediate fades within the remaining32 DIP rather than clipping the former96 DIP brush. Rename the session/bubble/notice heading to窗口解读, retaining the separate privacy heading. No other layout, idle motion, capture or model change. The supplied reference has an approximately16px solid rim and a much longer faint tail;48 DIP is the chosen main-visible-band interpretation, not an asserted exact reconstruction of every tail pixel.
+
 ## Fixed-distance water and occasional idle motion (2026-11-02)
 
 Requirements v1.22: render the perimeter in side-local coordinates with a fixed 96 DIP absolute gradient, retaining the 16 DIP solid rim. Only shrink geometry when the target cannot contain two strips; never rescale alpha with mesh bounds. Separate the transparent header from the opaque reading-body surface; finish its shared gradient within its own 48 DIP height. Verify actual composited alpha, not only gradient-stop metadata. Reuse WhalePose body rotation with a short eased positive/negative pitch, leaving both water layers stationary. Schedule occasional episodes (20–40 seconds apart) on the existing presence timer, with no animation clock between episodes. Only animate the visible idle whale at home; drag, session, hide and reduced motion interrupt or suppress it. No new capture or transport behavior.

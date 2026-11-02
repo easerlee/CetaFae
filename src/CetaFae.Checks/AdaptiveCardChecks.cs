@@ -35,6 +35,8 @@ internal static class AdaptiveCardChecks
         var text = "这是文本编辑器 Notepad3，正在显示一份待办清单。你想了解哪一部分？";
         var card = Create(text);
         var size = Layout(card, new Size(900, 700));
+        check(card.Header.ActualHeight == GuideFrameVisual.WaterDepth && card.Header.ActualHeight == 48 &&
+            card.Heading.Text == "窗口解读", "reading header and perimeter share the reference depth and plain window-reading title");
         var surface = new RenderTargetBitmap((int)Math.Ceiling(size.Width), (int)Math.Ceiling(size.Height), 96, 96, PixelFormats.Pbgra32);
         surface.Render(card);
         var rgba = new byte[surface.PixelWidth * surface.PixelHeight * 4]; surface.CopyPixels(rgba, surface.PixelWidth * 4, 0);
@@ -57,7 +59,7 @@ internal static class AdaptiveCardChecks
         card.SetStatus(text); size = Layout(card, new Size(900, 700));
         check(size.Width == GuideTheme.CardWidth && size.Height <= GuideTheme.CardMaxHeight,
             "short feedback uses the shared baseline width and height cap");
-        check(card.Heading.Text == "鲸汐解读" && card.Heading.Foreground == Brushes.White && card.Header.Background == GuideTheme.CardHeader &&
+        check(card.Heading.Text == "窗口解读" && card.Heading.Foreground == Brushes.White && card.Header.Background == GuideTheme.CardHeader &&
             !Descendants(card).OfType<TextBlock>().Any(block => block.Text.Contains("解释与指路") || block.Text.Contains("仅指路")),
             "reading header uses white title on the shared blue gradient without explanatory captions");
         card.SetPoint(true); size = Layout(card, new Size(900, 700));
@@ -198,7 +200,7 @@ internal static class AdaptiveCardChecks
                 draw.PushClip(new RectangleGeometry(new Rect(0, 0, 600, 320)));
                 draw.DrawRectangle(Brushes.White, null, new Rect(0, 0, 600, 320));
                 GuideFrameVisual.DrawWater(draw, sizes[i], 0, 0);
-                for (var distance = 16; distance <= 96; distance += 16)
+                for (var distance = 8; distance <= GuideFrameVisual.WaterDepth; distance += 8)
                 {
                     draw.DrawLine(new Pen(GuideTheme.Ink, .5), new Point(230, distance), new Point(250, distance));
                     draw.DrawText(new FormattedText(distance.ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight,

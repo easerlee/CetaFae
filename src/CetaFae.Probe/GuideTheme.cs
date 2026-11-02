@@ -10,7 +10,7 @@ internal static class GuideTheme
     internal const double CardMaxHeight = 520;
     internal const double CardMaxWidth = 720;
     internal const double CardGap = 12;
-    internal const double CardHeaderHeight = 48;
+    internal const double CardHeaderHeight = GuideFrameVisual.WaterDepth;
     internal static readonly Brush Accent = Frozen("#087FA6");
     internal static readonly Brush Outline = Frozen("#279FC4");
     internal static readonly Brush WhaleBlue = Frozen("#258FEC");
@@ -24,12 +24,14 @@ internal static class GuideTheme
     internal static Brush WaterGradient(double depth)
     {
         var blue = ((SolidColorBrush)WhaleBlue).Color;
+        var solid = GuideFrameVisual.SolidDepth / GuideFrameVisual.WaterDepth;
         var brush = new LinearGradientBrush
         {
             MappingMode = BrushMappingMode.Absolute,
             StartPoint = new Point(0, 0), EndPoint = new Point(0, depth),
-            GradientStops = { new(blue, 0), new(blue, GuideFrameVisual.SolidDepth / GuideFrameVisual.WaterDepth),
-                new(Color.FromArgb(90, blue.R, blue.G, blue.B), .4), new(Color.FromArgb(15, blue.R, blue.G, blue.B), .75),
+            GradientStops = { new(blue, 0), new(blue, solid),
+                new(Color.FromArgb(90, blue.R, blue.G, blue.B), solid + (1 - solid) * .28),
+                new(Color.FromArgb(15, blue.R, blue.G, blue.B), solid + (1 - solid) * .7),
                 new(Color.FromArgb(0, blue.R, blue.G, blue.B), 1) }
         };
         brush.Freeze(); return brush;

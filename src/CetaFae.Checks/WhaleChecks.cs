@@ -154,7 +154,7 @@ internal static class WhaleChecks
         check(Alpha(0) == 255 && rgba[160 * 4] == blue.B && rgba[160 * 4 + 1] == blue.G && rgba[160 * 4 + 2] == blue.R,
             "outer water edge uses the exact opaque prompt blue before fading inward");
         var movedPixels = new byte[rgba.Length]; RenderFrame(false, 0, phase: 1.7).CopyPixels(movedPixels, 320 * 4, 0);
-        check(Alpha(1) == Alpha(15) && Alpha(15) > Alpha(32) && Alpha(32) > Alpha(60) && Alpha(60) > 0 && Alpha(90) == 0 &&
+        check(Alpha(1) == Alpha(14) && Alpha(14) > Alpha(24) && Alpha(24) > Alpha(36) && Alpha(36) > 0 && Alpha(50) == 0 &&
             !rgba.SequenceEqual(movedPixels), "soft wide glow fades inward without an inner stroke and ripple phase changes the water shape");
         var work = new Rect(0, 0, 1920, 1040);
         check(BallWindow.ConstrainPosition(new Point(1910, 1030), work, new Size(88, 88)) == new Point(1832, 952) &&

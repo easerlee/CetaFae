@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Reference-sized perimeter and reading title (2026-11-02)
+
+For v1.23 reproduce the old96 DIP depth and old heading failures before changing production. Require48 DIP perimeter/header size,16 DIP solid rim and actual alpha falloff inside48 DIP. Compare normal/full alpha profiles and tiled/full-image channels allowing at most one8-bit rasterization level, with actual errors reported; this is not a geometry/size tolerance. Verify corner alpha against source-over of independent edges, avoiding a neighbor-curvature heuristic that mislabels the steeper fade. Verify窗口解读 on reader/bubble/notice while privacy remains distinct; preserve text, controls and pagination. Inspect shared-scale clean/grid dark/light boards with reference main-band dimensions, then run both configurations and packagepreview.39 without a visible launch. User confirmation of equality refers topreview.38; new narrower native appearance still needs acceptance.
+
 ## Fixed-distance water and occasional idle motion (2026-11-02)
 
 First reproduce v1.22 failures with rendered pixels: compare edge alpha at equal distances on 600×320 and 3440×1392 targets; require fixed depth except tiny targets. Render the actual card onto a transparent bitmap and require the header to end near zero alpha while the body remains opaque. Review matching-scale dark/light backgrounds and fine-grid copies; retain exact tiled-versus-full-frame and corner checks. For idle swimming verify eased endpoints, both pitch directions, stationary water, home-only eligibility, no clock between episodes, and cancellation by press/session/hide/reduced motion. Render and decode a complete generated idle episode; no desktop access is needed. Run Debug/Release regressions and package; actual appearance, desktop responsiveness and formal performance gates remain separate pending authorized native acceptance.

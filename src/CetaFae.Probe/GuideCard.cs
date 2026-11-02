@@ -13,7 +13,7 @@ internal enum GuideCardView { Session, Menu, Consent, Notice }
 /// <summary>The same fixed-data visual is rendered offscreen and hosted in the live window.</summary>
 internal sealed class GuideCard : Border
 {
-    readonly TextBlock _title = new() { Text = "鲸汐解读", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _title = new() { Text = "窗口解读", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 14, LineHeight = 23 };
     readonly TextBlock _disclosure;
     readonly DockPanel _question = new() { Margin = new Thickness(0, 12, 0, 0) };
@@ -300,7 +300,7 @@ internal sealed class GuideCard : Border
         var notice = View == GuideCardView.Notice;
         var compact = session && IsCollapsed;
         var bubble = session && IsBubble;
-        _title.Text = View == GuideCardView.Consent ? "使用与隐私" : "鲸汐解读";
+        _title.Text = View == GuideCardView.Consent ? "使用与隐私" : "窗口解读";
         Visible(DismissButton, notice);
         DismissButton.ToolTip = session ? "结束本次求助" : "关闭提示";
         System.Windows.Automation.AutomationProperties.SetName(DismissButton, session ? "结束本次求助" : "关闭提示");

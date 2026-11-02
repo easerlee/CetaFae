@@ -98,7 +98,7 @@ public sealed class OverlayWindow : Window
 /// <summary>Target-local vector feedback; the center remains transparent and no pixels are collected.</summary>
 internal sealed class GuideFrameVisual(bool control = false, bool wash = false) : FrameworkElement
 {
-    internal const double WaterDepth = 96;
+    internal const double WaterDepth = 48;
     internal const double SolidDepth = 16;
     internal static double Depth(Size size) => Math.Min(WaterDepth, Math.Min(size.Width, size.Height) / 2);
     Size? _targetSize;
