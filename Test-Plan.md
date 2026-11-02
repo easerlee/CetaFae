@@ -1,5 +1,11 @@
 # CetaFae Concentrated Verification Plan
 
+## Recognition scenario/foundation draft (2026-11-02, not yet approved or run)
+
+Tech-Spec's recognition draft pairs the proposed six user scenarios with shared target/evidence/uncertainty/failure/presentation/plugin guarantees. Before implementation, freeze expected first-response facts, any necessary question, completion boundary and prohibited claims for each scenario. Include misleading error quotations, normal paused/completed states, unfamiliar applications with no actionable controls and a consequential choice with insufficient context. Keep these proposed cases separate from executed evidence and the existing baseline.
+
+Pair ordinary paths with relevant failures: stale/reused/changed target and late reply; missing controls versus failed privacy; unusable pixels versus genuinely empty content; owned-worker startup/IPC versus HTTP timeout/authentication/quota/invalid reply; valid content versus zero-height feedback. Validate recovery with a fresh user-initiated request after a bounded failure and no reinstall, secret/content log, automatic retry, broadened capture or stale-result reuse. Safety refusals and explanation-only results must not count as successful exact guidance. Keep collection, model semantics, packaged IPC, native UI and formal performance evidence separate. No new tests, target reads, model requests or executable changes are performed by this draft update.
+
 ## Installed collector blocker and continuation order (2026-11-02)
 
 Tech-Spec's stability-first continuation orders remaining F0–F7 work; this section adds no product scope. Before broader native recognition trials, isolate preview.28's Collection/worker_failed on a generated target. A direct DLL collector success does not verify the installed self-contained worker, IPC serialization/deserialization or the visible session. Compare these boundaries under separate scoped target consent; retain only bounded stage/error/exit metadata, never raw pipes, exception messages, controls or images. A reproduced cause needs a focused regression before repair and the affected packaged-path check afterward. If comparison succeeds, retain the failure as unresolved rather than attributing it to the model or claiming repair.
