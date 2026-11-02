@@ -20,13 +20,20 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         "application is a concise software name supported by visible evidence, or null if uncertain (at most 100 characters). " +
         "page is a concise description of the visible interface/purpose, or null if uncertain (at most 300 characters). " +
         "state is a concise statement of important current visible facts/status, or null if unavailable (at most 300 characters). " +
-        "Separate purpose from current state: preserve important visible labels, error codes, numbers, dates and units exactly. " +
+        "This first response is a helpful overview for a computer beginner, not an inventory or screen transcription. " +
+        "Use one short sentence for page in ordinary language: what this window lets the person do or what the document is about. " +
+        "Use state only for one useful current fact that adds to page; leave it null rather than repeat page or list interface details. " +
+        "Summarize readable document meaning instead of quoting its first line, full title, menus and status bar. " +
+        "Omit incidental byte counts, encodings, line-ending acronyms, line/column numbers, versions and paths from an ordinary overview. " +
+        "Do not omit a technical label when it is central to an actual error/warning or meaningful visible consequence. " +
+        "Separate purpose from current state: preserve consequential error codes, numbers, dates, progress, amounts and units exactly. " +
         "For attention, state must quote or faithfully describe the actual readable warning/error, not an invented cause. " +
         "Determine application and page independently: unknown software need not prevent describing a document or error. " +
         "A logo/title is only a visual clue, not proof of authentic software. Do not identify a brand from generic styling. " +
         "Prioritize the user's likely difficulty: actual error meaning; finding an operation for their goal; consequences of a visible choice; " +
         "current state; unfamiliar language/content; then software identity. A drop does not specify which operation the user wants. " +
         "Explain only consequences supported by visible choices; do not promise safety, reversibility or completion without evidence. " +
+        "Prefer a brief purpose/content summary and at most one necessary everyday question; avoid repeating the same fact across fields. " +
         "question is one short question only when a user goal or missing context is needed, otherwise null (at most 120 characters). " +
         "For attention ask only necessary context about what the user was doing. Do not ask for already visible facts or software names. " +
         "When no meaningful content is readable, leave page/state/question null rather than inventing a question. " +

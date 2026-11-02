@@ -18,6 +18,11 @@ static class IdentificationChecks
     internal static async Task RunAsync(Action<bool, string> check)
     {
         var separated = GuideIdentification.Parse(Known).ToAnswer("generated-editor");
+        var technicalError = GuideIdentification.Parse("""{"application":null,"page":"保存文件时出现的提示。","state":"无法保存：UTF-8 编码失败，错误代码0x8007000D。","question":"是在保存什么内容时出现的？","kind":"attention"}""")
+            .ToAnswer("generated-editor");
+        check(technicalError.Explanation.StartsWith("这里提示：无法保存") && technicalError.Explanation.Contains("UTF-8") &&
+              technicalError.Explanation.Contains("0x8007000D") && technicalError.CandidateId is null,
+            "beginner presentation preserves technical labels and codes when they are the actual visible problem");
         check(separated.Explanation.Contains("2026/10/29") && separated.Explanation.Contains("显示生成文档") &&
               !separated.Explanation.Contains("这是一个操作界面"),
             "recognition preserves current visible state independently of page purpose without a generic category heading");
@@ -228,11 +233,22 @@ static class IdentificationChecks
             "an identification reply after cloud revocation cannot become a valid result");
     }
 
-    internal static async Task RunLiveAsync(Action<bool, string> check, bool productionProbe = false)
+    internal static async Task RunLiveAsync(Action<bool, string> check, bool productionProbe = false, bool plainLanguageOnly = false)
     {
         // Generated pixels only; no native window, real content, executable identity or adapter is read.
         var cases = new (string Id, string Title, string Toolbar, string Text, Func<GuideIdentification, bool> Accept)[]
         {
+            ("novice-editor", "*未命名 - 潮汐笔记（生成软件）", "文件       编辑       查看       帮助",
+                "生成测试：待办事项是整理材料、核对结果。\n\n状态栏：60字节 | Unicode (UTF-8) | CR+LF | Ln 1, Col 29",
+                r => r.Kind == "regular" && r.Page is not null && r.Question is not null &&
+                    (r.Page + r.State).Contains("整理") && (r.Page + r.State).Contains("核对") &&
+                    r.ToAnswer("generated-owner").Explanation.Length <= 180 &&
+                    new[] { "60", "字节", "Unicode", "UTF-8", "CR+LF", "Ln ", "Col ", "标题", "第一行" }
+                        .All(term => !r.ToAnswer("generated-owner").Explanation.Contains(term, StringComparison.OrdinalIgnoreCase))),
+            ("technical-error", "潮汐文件工具（生成软件）", "",
+                "无法保存文件：UTF-8 编码失败。错误代码 0x8007000D。",
+                r => r.Kind == "attention" && r.State?.Contains("UTF-8") == true &&
+                    r.State.Contains("0x8007000D") && r.State.Contains("保存")),
             ("tool", "潮汐画板（生成软件）", "画笔       橡皮       导出", "", r => r.Kind == "regular" && r.Application?.Contains("潮汐画板") == true && r.Page?.Contains("画") == true),
             ("document", "潮汐笔记（生成软件）", "文件       编辑       查看", "生成文档：状态已暂停，截止日期2026/10/29。", r => r.Kind == "regular" && r.Application?.Contains("潮汐笔记") == true && r.Page is not null && r.State?.Contains("暂停") == true && r.State.Contains("2026/10/29")),
             ("error", "潮汐文件工具（生成软件）", "", "无法打开文件：文件不存在。错误代码 0x80070002。", r => r.Kind == "attention" && r.State?.Contains("不存在") == true && r.State.Contains("0x80070002")),
@@ -248,7 +264,8 @@ static class IdentificationChecks
         using var model = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "deepseek-v4.1-flash", timeoutSeconds: 15));
         var width = productionProbe ? 1456 : 960;
         var height = productionProbe ? 962 : 320;
-        foreach (var item in cases.Where(item => !productionProbe || item.Id == "document"))
+        foreach (var item in cases.Where(item => (!productionProbe || item.Id == "document") &&
+                     (!plainLanguageOnly || item.Id is "novice-editor" or "technical-error")))
         {
             var visual = new DrawingVisual();
             using (var draw = visual.RenderOpen())
