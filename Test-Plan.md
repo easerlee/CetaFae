@@ -1,5 +1,11 @@
 # CetaFae Concentrated Verification Plan
 
+## Installed collector blocker and continuation order (2026-11-02)
+
+Tech-Spec's stability-first continuation orders remaining F0–F7 work; this section adds no product scope. Before broader native recognition trials, isolate preview.28's Collection/worker_failed on a generated target. A direct DLL collector success does not verify the installed self-contained worker, IPC serialization/deserialization or the visible session. Compare these boundaries under separate scoped target consent; retain only bounded stage/error/exit metadata, never raw pipes, exception messages, controls or images. A reproduced cause needs a focused regression before repair and the affected packaged-path check afterward. If comparison succeeds, retain the failure as unresolved rather than attributing it to the model or claiming repair.
+
+Continue semantic fixtures and focused local checks for generic understanding, visible errors, single-step guidance, continuation, coordinates and packaging while native evidence is pending. These checks cannot replace target-specific native results. Freeze a single integrated candidate for the remaining native and formal performance cases below; changes reopen their affected cases rather than all earlier artwork or manual20-use batches. No ordinary-user trial, automatic publication, relaxed gate or added control/write capability is authorized by this planning update.
+
 ## Fullscreen frame overscan regression (2026-11-01)
 
 Freeze the authorized game's measured client/monitor0,0,3440,1440 and frame-1,-31,3441,1441 as a failing headless case before correcting frame enclosure. Also cover negative-coordinate translation, clipping at each frame edge, ordinary maximization with title chrome and oversized clients; preserve existing invalid/different-monitor/session/drag exclusions. No game-name branch or expanded content access. After both configurations pass and the candidate is packaged, obtain separate permission before replacing the whale. One focused native check must verify idle hiding in the same game and non-activating restoration on switching away, without model requests, screenshots or changing game settings. Diagnosis alone and historical browser F11 evidence do not accept this changed native path or every game/multi-monitor mode.

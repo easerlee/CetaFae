@@ -1,9 +1,11 @@
 # CetaFae Project Memory
 
-Updated: 2026-11-01
+Updated: 2026-11-02
 
 
 ## Authority and Working Agreement
+
+- On2026-11-02, following discussion of competition with personal agents, the user requested the next development plan. Tech-Spec now prioritizes remaining existing F0–F7 work: installed collector stability first, generic understanding/error explanation, reliable single-step and user-led continuation, platform/packaging readiness, then a frozen concentrated engineering batch. Reuse implemented settings/art/plugins rather than restarting them. The installed-worker comparison remains awaiting its scoped consent; this planning update launches no desktop work or model request. Keep3000ms/500ms/90MB and native gates intact, and distinguish code implementation from acceptance. No general-agent platform, marketplace, account/recharge integration, document execution or ordinary-user trial is added by this plan.
 
 - After explicit permission and the user's preparation/click of a generated-text Notepad on2026-11-01, the isolated MTA helper directly calling GuideObservation.Read with the general/identity plugins completed in534ms,20 candidates/35597 in-memory PNG bytes, without persistence or model requests. This single success does not reproduce or resolve installed preview.28's worker_failed. Next compare the installed self-contained --observe-worker path on the same target only after the requested additional consent; do not conclude that installed IPC is broken from the direct-path success alone.
 
