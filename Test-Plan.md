@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Slow-service runtime budget (2026-11-02)
+
+For v1.20 first fail a regression asserting that ordinary/default and parsed non-secret preferences allow the observed34-second service response while remaining bounded at60 seconds. Explicit short budgets must remain honored. Run controlled success, explicit cancellation, timeout, ignored-cancellation/late-result rejection, shared-deadline and worker-termination/recovery checks, with no automatic retries. Keep the independent native15-second watchdog and2500ms enriched read unchanged. Preserve the actual34093ms generated response as service evidence; any new generated request must remain independent of private Photoshop pixels. Do not rerun native capture or change real preferences/grants. Package a candidate; its actual Photoshop success, visible waiting/cancellation and new60-second native boundary remain unaccepted until a later authorized test. Earlier15-second failures and3000ms/500ms/90MB gates stay separate.
+
 ## Adaptive reading card and processing scan (2026-11-02)
 
 Verify the five v1.19 requirements with production WPF components offscreen: no visible feedback/native handle while waiting; correct stop paths; same baseline card width; blue/white header without captions; width growth at height cap; overflow pagination reconstructs every text element with no scrollbar and no extra request; narrow/negative-coordinate/top-right/control-safe placement; ordinary/maximized layouts, reuse, keyboard/close and cleanup. Render clean/grid boards and scan up/down frames and inspect before packaging. Debug/Release suites required. No native launch/replacement/capture without separate consent; live fluency and mouse behavior remain pending.

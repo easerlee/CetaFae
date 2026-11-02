@@ -38,6 +38,8 @@ Download a Windows x64 preview from [GitHub Releases](https://github.com/easerle
 
 The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-flash`. Supply a compatible model service yourself; CetaFae bundles neither a model nor a proxy. Image understanding requires multimodal input support.
 
+Recognition waits at most 60 seconds per request. End guidance or switch to another window to cancel. A slow response does not establish a fault in the target application; latency and availability depend on the configured service route.
+
 The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page enables or disables shipped plugins; it does not download or install plugins.
 
 The main branch includes a self-contained Windows x64 installer candidate. Review the actual connection disclosure and choose Agree and install once. After installation, drag the whale directly; first launch and subsequent restarts have no second consent prompt and never collect content automatically. Settings retains read-only disclosure and withdrawal. Revocation, changed recipient/model/scope/terms or unusable records require reviewing the agreement in the installer again. The candidate compiles; native installation, cancellation and uninstall acceptance are pending, and it is not a formal distribution release.

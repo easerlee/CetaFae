@@ -2,6 +2,10 @@
 
 Updated: 2026-11-02
 
+## Slow-service runtime budget (2026-11-02)
+
+Requirements v1.20 changes the default shared processing budget to60 seconds after a generated-only request returned valid identification in34093ms over the configured service route. Keep one deadline across activation, collection, model transport and validation; do not restart it, retry or branch on applications. Existing preferences derive options through GuideOptions.Create, so the new default needs no stored-settings migration or real configuration edit. Explicit shorter diagnostic budgets remain available. Native worker watchdog15 seconds and enriched-collection2500ms remain independent and unchanged. Cancellation, version gates, bounded responses and stale-result isolation remain strict. This changes the operational timeout, not the3000ms/500ms/90MB acceptance targets or earlier failed evidence. A service response proves neither Photoshop capture correctness nor its semantic acceptance. No extra payload, receiver or consent is introduced.
+
 ## Adaptive reading card and processing scan (2026-11-02)
 
 Requirements v1.19: use a 360 DIP baseline card, 360 DIP height cap and up to 720 DIP width. Measure natural wrapped content before increasing width; only at the available width limit paginate locally, preserving full text and page position without a new request. Share this fitting path between live hosting and offscreen fixtures. Blue-to-light-blue header with white Whale reading title and no caption; keep existing necessary actions. Defer feedback during collection/model waiting using explicit BeginProcessing/SetStatus, not message-string detection. The whale owns bounded-band scan animation and stops it on result, failure, target loss or cancellation. Top-attached layouts prefer the input right side with a 12 DIP gap; regular layouts stay joined below. Protect the input/control and respect screen edges. No capture, consent or model contract change.

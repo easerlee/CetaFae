@@ -286,6 +286,12 @@ public static class Program
                      "https://example.com/v1?key=secret", "file:///C:/model", "http://127.0.0.1.example.com/v1" })
             Reject(() => GuideOptions.Create(endpoint, "deepseek-v4.1-flash"), "unsafe endpoint rejected");
         var options = GuideOptions.Create("http://127.0.0.1:8787/v1", "deepseek-v4.1-flash");
+        Check(options.Timeout > TimeSpan.FromMilliseconds(34093) && options.Timeout <= TimeSpan.FromSeconds(60),
+            "ordinary recognition allows the observed slow service response with a bounded sixty-second budget");
+        Check(GuidePreferences.Parse(GuidePreferences.Default.Serialize()).Options.Timeout == options.Timeout,
+            "existing non-secret preferences inherit the slow-service budget without settings migration");
+        Check(GuideOptions.Create("http://127.0.0.1:8787/v1", "test", timeoutSeconds: 1).Timeout == TimeSpan.FromSeconds(1),
+            "explicit shorter diagnostics retain their own cancellation budget");
         Check(options.BaseUrl.AbsoluteUri == "http://127.0.0.1:8787/v1/", "loopback endpoint normalized");
         Check(GuideOptions.Create("https://example.com/v1", "test").BaseUrl.Scheme == "https", "TLS endpoint accepted");
 

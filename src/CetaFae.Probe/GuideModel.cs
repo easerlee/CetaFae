@@ -54,7 +54,7 @@ public sealed record GuideAnswer(string Mode, string Explanation, int? Candidate
 
 public sealed record GuideOptions(Uri BaseUrl, string Model, bool IncludeImage, TimeSpan Timeout)
 {
-    public static GuideOptions Create(string baseUrl, string model, bool includeImage = true, int timeoutSeconds = 15)
+    public static GuideOptions Create(string baseUrl, string model, bool includeImage = true, int timeoutSeconds = 60)
     {
         if (!Uri.TryCreate(baseUrl.TrimEnd('/') + "/", UriKind.Absolute, out var uri) ||
             !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query) ||
