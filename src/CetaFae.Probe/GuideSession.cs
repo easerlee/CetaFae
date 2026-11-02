@@ -464,7 +464,7 @@ public sealed class GuideSession : IDisposable
                 if (_marker.PlaceControl(rect, observation.Frame, _ball.Scale)) _marker.Show();
             }
             _panel.SetControl(bounds);
-            _panel.SetStatus(observation.Snapshot ? "根据刚才的画面：\n" + answer.Explanation : answer.Explanation);
+            _panel.SetStatus(answer.Explanation);
             _panel.SetPoint(bounds is not null && _marker.IsVisible);
             _ball.SetResult();
             _panel.SetReferenceQuery(observation.Identity?.ReferenceQuery);

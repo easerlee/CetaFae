@@ -20,7 +20,7 @@ static class IdentificationChecks
         var separated = GuideIdentification.Parse(Known).ToAnswer("generated-editor");
         var technicalError = GuideIdentification.Parse("""{"application":null,"page":"保存文件时出现的提示。","state":"无法保存：UTF-8 编码失败，错误代码0x8007000D。","question":"是在保存什么内容时出现的？","kind":"attention"}""")
             .ToAnswer("generated-editor");
-        check(technicalError.Explanation.StartsWith("这里提示：无法保存") && technicalError.Explanation.Contains("UTF-8") &&
+        check(technicalError.Explanation.StartsWith("保存文件时出现的提示；无法保存") && technicalError.Explanation.Contains("UTF-8") &&
               technicalError.Explanation.Contains("0x8007000D") && technicalError.CandidateId is null,
             "beginner presentation preserves technical labels and codes when they are the actual visible problem");
         check(separated.Explanation.Contains("2026/10/29") && separated.Explanation.Contains("显示生成文档") &&
@@ -31,9 +31,21 @@ static class IdentificationChecks
             "a useful recognition without missing context does not manufacture another question or marker");
         var attention = new GuideIdentification("生成工具", "文件打不开，提示文件不存在。", "是在打开哪个文件时出现的？", "attention")
             .ToAnswer("generated-editor", SoftwareIdentityChecks.Generated);
-        check(attention.Explanation.StartsWith("这里提示：文件打不开") && attention.CandidateId is null &&
+        check(attention.Explanation.StartsWith("文件打不开") && attention.CandidateId is null &&
               !attention.Explanation.Contains("generated-editor") && !attention.Explanation.Contains("Generated Tools"),
             "actual warning feedback leads with visible trouble without process or file metadata");
+        var brief = new GuideIdentification("Notepad3", "文本编辑器 Notepad3，正在显示一份待办清单。",
+            "你想了解或修改哪部分？", "regular").ToAnswer("generated-editor");
+        check(brief.Explanation == "文本编辑器 Notepad3，正在显示一份待办清单。\n你想了解或修改哪部分？" &&
+              brief.Mode == "ask" && brief.CandidateId is null,
+            "first overview leads with software purpose then name and content without a mechanical prefix");
+        var briefState = new GuideIdentification("生成工具", "文本编辑器生成工具，正在显示一份清单。", "想了解哪部分？",
+            "regular", "其中一项已完成。").ToAnswer("generated-editor");
+        check(briefState.Explanation == "文本编辑器生成工具，正在显示一份清单；其中一项已完成。\n想了解哪部分？",
+            "distinct visible state joins the overview without adding another boilerplate sentence");
+        var unknownType = new GuideIdentification("生成工具", null, null, "uncertain").ToAnswer("secret-process");
+        check(unknownType.Explanation == "这是生成工具的窗口，具体用途还不确定。" &&
+              !unknownType.Explanation.Contains("编辑器"), "identity alone does not invent a software category");
         var partial = new GuideIdentification(null, "显示一份任务清单。", "想了解哪一部分？", "regular").ToAnswer("secret-process");
         check(partial.Explanation.Contains("任务清单") && !partial.Explanation.Contains("secret-process"),
             "unknown software does not prevent explaining readable content or expose a process fallback");
@@ -241,8 +253,12 @@ static class IdentificationChecks
             ("novice-editor", "*未命名 - 潮汐笔记（生成软件）", "文件       编辑       查看       帮助",
                 "生成测试：待办事项是整理材料、核对结果。\n\n状态栏：60字节 | Unicode (UTF-8) | CR+LF | Ln 1, Col 29",
                 r => r.Kind == "regular" && r.Page is not null && r.Question is not null &&
+                    r.Application?.Contains("潮汐笔记") == true &&
+                    new[] { "文本编辑", "笔记工具", "文本笔记" }.Any(type => r.Page.IndexOf(type, StringComparison.Ordinal) is var index &&
+                        index >= 0 && index < r.Page.IndexOf("潮汐笔记", StringComparison.Ordinal)) &&
                     (r.Page + r.State).Contains("整理") && (r.Page + r.State).Contains("核对") &&
                     r.ToAnswer("generated-owner").Explanation.Length <= 180 &&
+                    r.ToAnswer("generated-owner").Explanation.Count(c => c is '。' or '！' or '？') <= 2 &&
                     new[] { "60", "字节", "Unicode", "UTF-8", "CR+LF", "Ln ", "Col ", "标题", "第一行" }
                         .All(term => !r.ToAnswer("generated-owner").Explanation.Contains(term, StringComparison.OrdinalIgnoreCase))),
             ("technical-error", "潮汐文件工具（生成软件）", "",

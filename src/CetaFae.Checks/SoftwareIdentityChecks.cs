@@ -41,8 +41,8 @@ static class SoftwareIdentityChecks
             (Generated with { Product = @"C:\private" }).ReferenceQuery is null &&
             (Generated with { Product = "sk-" + new string('a', 48) }).ReferenceQuery is null,
             "public queries use a qualified product label only, never an implicit path/title/process fallback");
-        var answer = new GuideIdentification("Another visual brand", "Generated page", "想处理什么？").ToAnswer("generated", Generated);
-        check(!answer.Explanation.Contains("Generated Editor") && answer.Explanation.Contains("看起来是“Another visual brand”") &&
+        var answer = new GuideIdentification("Another visual brand", "Text editor Another visual brand, showing Generated page", "想处理什么？").ToAnswer("generated", Generated);
+        check(!answer.Explanation.Contains("Generated Editor") && answer.Explanation.StartsWith("Text editor Another visual brand") &&
             answer.Explanation.Contains("Generated page") && !answer.Explanation.Contains("签名"), "main feedback labels visual interpretation without merging or dumping conflicting local metadata");
         check(GuideIdentification.Unavailable("generated", "服务不可用", Generated).Contains("Generated Editor"),
             "a current model-only failure may retain independently collected local metadata");

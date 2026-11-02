@@ -21,7 +21,13 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         "page is a concise description of the visible interface/purpose, or null if uncertain (at most 300 characters). " +
         "state is a concise statement of important current visible facts/status, or null if unavailable (at most 300 characters). " +
         "This first response is a helpful overview for a computer beginner, not an inventory or screen transcription. " +
-        "Use one short sentence for page in ordinary language: what this window lets the person do or what the document is about. " +
+        "For page, lead with the grounded everyday software type/purpose (such as text editor or file manager), " +
+        "then its visibly supported application name when available, then the meaningful current content, in one short clause. " +
+        "If type or name is unclear, omit that unknown part instead of guessing; readable content still matters. " +
+        "Do not begin with 'according to the screenshot', 'looks like', or a separate software-name announcement. " +
+        "Keep page and any distinct state brief enough to form one short sentence, followed by question only when needed; " +
+        "prefer at most two short sentences for the whole user-facing response, including the question. " +
+        "For an actual warning retain the important error and code rather than shortening away facts. " +
         "Use state only for one useful current fact that adds to page; leave it null rather than repeat page or list interface details. " +
         "Summarize readable document meaning instead of quoting its first line, full title, menus and status bar. " +
         "An untitled/unnamed or saved/unsaved document title is incidental UI chrome, not a useful state by itself. " +
@@ -92,17 +98,19 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
     public GuideAnswer ToAnswer(string processName, SoftwareIdentity? identity = null)
     {
         ValidateProcessName(processName);
-        var name = Application is not null ? $"看起来是“{Application}”。\n" : LocalName(identity);
-        var content = Page ?? (State is null
-            ? "还没看清这里显示的内容。你可以框出想了解的部分，再让我看看。"
-            : "当前界面的用途还不确定。");
+        var name = Application ?? SoftwareIdentity.Clean(identity?.Product);
+        var content = Page ?? (name is not null
+            ? $"这是{name}的窗口，具体用途还不确定"
+            : "暂时没看清这里的内容，可以框出想了解的部分再看看");
         var state = State is not null && State != Page ? State : null;
-        var explanation = Kind == "attention"
-            ? "这里提示：" + (state ?? content) + "\n" + name + (state is not null ? content : "")
-            : name + content + (state is not null ? "\n" + state : "");
+        var explanation = state is not null ? Clause(content) + "；" + state : content;
+        if (!explanation.EndsWith('。') && !explanation.EndsWith('！') && !explanation.EndsWith('？') &&
+            !explanation.EndsWith('.') && !explanation.EndsWith('!') && !explanation.EndsWith('?')) explanation += "。";
         if (Question is not null) explanation += "\n" + Question;
         return new(Question is null ? "explain" : "ask", explanation.Trim(), null);
     }
+
+    static string Clause(string text) => text.TrimEnd('。', '！', '？', '!', '?', '；', ';');
 
     static string LocalName(SoftwareIdentity? identity) => SoftwareIdentity.Clean(identity?.Product) is { } name
         ? $"这个软件显示的名称是“{name}”。\n" : "";
