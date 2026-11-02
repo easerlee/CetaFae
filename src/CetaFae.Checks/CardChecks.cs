@@ -21,8 +21,8 @@ static class CardChecks
         yield return ("03 Processing", processing);
         var question = New(); question.SetCloud(true); question.SetStatus("当前是浏览器的下载设置。你希望在此页面处理什么？"); question.ShowQuestion();
         yield return ("04 One clarification", question);
-        var result = New(); result.SetCloud(true); result.SetStatus("你要找的开关位于右侧，当前为开启状态。这里只指出位置，不会修改。"); result.SetRegionAvailable(true);
-        yield return ("05 Result and optional selection", result);
+        var result = New(); result.SetCloud(true); result.SetStatus("你要找的开关位于右侧，当前为开启状态。这里只指出位置，不会修改。"); result.SetFollowupAvailable(true);
+        yield return ("05 Result and follow-up", result);
         var selection = New(); selection.SetCloud(true); selection.SetStatus("没有可靠的自动识别范围。请选择此窗口内将发送的区域，无需重新回答。"); selection.SetRegionAvailable(true);
         yield return ("06 Waiting for region", selection);
         var refusal = New(); refusal.SetCloud(true); refusal.SetStatus(GuideSession.FailureMessage(new InvalidDataException("sensitive_content")));
@@ -37,7 +37,7 @@ static class CardChecks
         yield return ("10 Window identification", identity);
         var unknown = New(); unknown.SetCloud(true);
         unknown.SetStatus(new GuideIdentification(null, null, "你希望了解这个窗口的什么内容？")
-            .ToAnswer("generated-editor").Explanation); unknown.ShowQuestion();
+            .ToAnswer("generated-editor").Explanation); unknown.ShowQuestion(); unknown.SetRegionAvailable(true);
         yield return ("11 Unknown window purpose", unknown);
         var unavailable = New(); unavailable.SetCloud(true);
         unavailable.SetStatus(GuideIdentification.Unavailable("generated-editor", "识别服务不可用，请检查本机模型代理。"));
@@ -45,24 +45,18 @@ static class CardChecks
         var layered = New(); layered.SetCloud(true);
         layered.SetStatus(new GuideIdentification("生成文档工具", "显示生成文档", "你希望处理什么？", "regular")
             .ToAnswer("generated-editor", SoftwareIdentityChecks.Generated).Explanation);
-        layered.ShowQuestion(); layered.SetRegionAvailable(true); layered.SetReferenceQuery(SoftwareIdentityChecks.Generated.ReferenceQuery);
-        yield return ("13 Layered identity and optional lookup", layered);
-        var reference = New(); reference.SetCloud(true); reference.SetStatus("想进一步了解这个软件时，可以查看公开资料。");
-        reference.SetReferenceQuery(SoftwareIdentityChecks.Generated.ReferenceQuery); Click(Find(reference, "联网核对软件"));
-        yield return ("14 Explicit public receiver disclosure", reference);
-        var referenced = New(); referenced.SetCloud(true); referenced.SetStatus("原软件与页面说明保留。");
-        referenced.SetReferenceResult("联网候选（未确认与本机软件相同）：\nGenerated Editor：An example software tool.\n来源：https://en.wikipedia.org/?curid=42\n不代表软件真伪或安全。");
-        yield return ("15 Public reference candidate result", referenced);
+        layered.ShowQuestion();
+        yield return ("13 Layered identity without lookup", layered);
         var bubble = New(); bubble.SetCloud(true); bubble.SetStatus("右侧高亮的是询问保存位置的开关，当前为开启状态。这里只指出位置，没有修改设置。"); bubble.SetPoint(true);
         yield return ("16 Contextual droplet bubble", bubble);
-        var collapsed = New(); collapsed.SetStatus("原说明保留，重新展开不发请求。"); Click(Find(collapsed, "收起"));
+        var collapsed = New(); collapsed.SetStatus("原说明保留，重新展开不发请求。"); collapsed.Collapse();
         yield return ("17 Attached reopen tab", collapsed);
         var error = New(); error.SetCloud(true);
         error.SetStatus(GuideAnswer.Parse("""{"mode":"error","observedText":"无法连接到服务器，错误代码0x80072EE7。","hypotheses":["可能存在地址解析或连接问题，尚未确认。"],"nextCheck":"请确认提示是在执行什么操作时出现，不必提供私人地址。","missingEvidence":"仅凭一条提示不能判断具体根因。","candidateId":null}""", [],
             new CetaFae.Plugins.InterpretationPolicy(["zh-CN"], false, true)).Explanation);
         yield return ("18 Bounded visible-error explanation", error);
         var followup = New(); followup.SetCloud(true); followup.SetStatus("生成结果已就绪。可继续提问当前窗口，所有操作由你手动完成。");
-        followup.SetFollowupAvailable(true); followup.SetRegionAvailable(true);
+        followup.SetFollowupAvailable(true);
         yield return ("19 Explicit follow-up action", followup);
         var bubbleFollowup = New(); bubbleFollowup.SetCloud(true); bubbleFollowup.SetStatus("生成控件位置已核对。所有操作由你手动完成。");
         bubbleFollowup.SetPoint(true); bubbleFollowup.SetFollowupAvailable(true);
@@ -110,7 +104,7 @@ static class CardChecks
         check(notice.View == GuideCardView.Notice && !notice.HasSession && !notice.HasQuestion &&
               notice.Actions.Visibility == Visibility.Collapsed && notice.DismissButton.Visibility == Visibility.Visible,
             "standalone ready notice has a header close action without collapse or clear footer");
-        notice.Collapse(); Click(Find(notice, "清除标记"));
+        notice.Collapse();
         check(!notice.IsCollapsed && noticeCancellations == 0,
             "stale session actions cannot collapse or cancel a transient notice");
         Click(notice.DismissButton);
@@ -126,9 +120,9 @@ static class CardChecks
               !GuidePanel.ShouldDismissNotice(false, false, new Point(80, 80), noticeBounds),
             "outside dismissal requires a new external press, preserving the opening press and internal scrolling");
         notice.SetStatus("生成会话结果"); notice.ShowQuestion();
-        check(notice.HasSession && notice.HasQuestion && notice.Actions.Visibility == Visibility.Visible &&
-              notice.DismissButton.Visibility == Visibility.Collapsed,
-            "notice-to-session transition restores real guidance actions without a second close action");
+        check(notice.HasSession && notice.HasQuestion && notice.Actions.Visibility == Visibility.Collapsed &&
+              notice.DismissButton.Visibility == Visibility.Visible,
+            "notice-to-session transition retains only the header close action while answering");
         var screen = new Rect(-1920, 0, 1920, 1080);
         check(Native.IsFullscreenGeometry(screen, screen, screen), "borderless fullscreen client covers its monitor at negative coordinates");
         var wideScreen = new Rect(0, 0, 3440, 1440);
@@ -173,7 +167,7 @@ static class CardChecks
               Find(card, "使用与隐私说明").Visibility == Visibility.Collapsed,
             "attached session feedback leaves management exclusively in the tray and whale menu");
         card.Answer.Text = "生成回答";
-        Click(Find(card, "收起"));
+        card.Collapse();
         check(card.IsCollapsed && card.FullText == "Generated question" && card.Answer.Text == "生成回答" &&
               submitted == 0 && regions == 0 && card.HasSession, "collapse retains session, explanation and pending answer without dispatching anything");
         Click(Find(card, "展开说明  ﹀"));
@@ -192,27 +186,30 @@ static class CardChecks
         card.Reset();
         check(!card.HasQuestion && !card.HasRegion && !card.HasSession && card.Answer.Text.Length == 0,
             "ending a card removes old answer, region and reusable session state");
-        var queries = new List<string>(); card.ReferenceRequested += queries.Add;
-        card.SetCloud(true); card.SetStatus("Generated current result"); card.ShowQuestion();
-        card.SetReferenceQuery("Generated Editor software");
-        Click(Find(card, "确认本次联网"));
-        check(queries.Count == 0, "a hidden confirmation cannot authorize a public reference request");
-        Click(Find(card, "联网核对软件"));
-        check(queries.Count == 0 && card.View == GuideCardView.ReferenceConsent && !card.HasQuestion,
-            "opening reference disclosure does not send or submit the pending answer");
-        Click(Find(card, "返回"));
-        check(card.HasQuestion && queries.Count == 0, "return cancels the disclosure without losing the current question");
-        Click(Find(card, "联网核对软件")); Click(Find(card, "确认本次联网")); Click(Find(card, "确认本次联网"));
-        check(queries.SequenceEqual(new[] { "Generated Editor software" }) && card.View == GuideCardView.Session,
-            "explicit query confirmation is consumed once and returns to the existing result");
-        card.SetReferenceQuery("Generated Editor software"); Click(Find(card, "联网核对软件")); card.SetCloud(false);
-        Click(Find(card, "确认本次联网"));
-        check(queries.Count == 1, "cloud revocation invalidates a visible reference consent callback");
-        card.SetCloud(true); card.SetReferenceQuery("Generated Editor software"); Click(Find(card, "联网核对软件")); card.Reset();
-        Click(Find(card, "确认本次联网"));
-        check(queries.Count == 1 && !card.HasSession, "reset clears query, confirmation and public result state");
-        check(!card.IsBubble && !card.IsCollapsed && card.FullText.Length == 0,
-            "ending feedback removes compact state and old explanation");
+        var minimal = New(); minimal.SetCloud(true); minimal.SetStatus("Generated question"); minimal.ShowQuestion();
+        string[] VisibleActions() => minimal.Actions.Children.Cast<Button>()
+            .Where(button => button.Visibility == Visibility.Visible).Select(button => (string)button.Content).ToArray();
+        check(VisibleActions().Length == 0 && minimal.Actions.Visibility == Visibility.Collapsed &&
+              minimal.DismissButton.Visibility == Visibility.Visible,
+            "ordinary question has only header close and no empty footer");
+        check(minimal.Actions.Children.Cast<Button>().All(button => !new[] { "联网核对软件", "确认本次联网", "清除标记", "收起" }.Contains(button.Content)),
+            "explanation surface contains no lookup, redundant clear or manual collapse controls");
+        minimal.ClearQuestion(); minimal.SetStatus("Generated result"); minimal.SetFollowupAvailable(true);
+        check(VisibleActions().SequenceEqual(new[] { "继续提问" }), "completed readable result offers only follow-up");
+        minimal.SetPoint(true);
+        check(VisibleActions().SequenceEqual(new[] { "展开详情" }), "control bubble offers only details");
+        Click(Find(minimal, "展开详情"));
+        check(VisibleActions().SequenceEqual(new[] { "继续提问" }), "expanded details recover the eligible follow-up");
+        minimal.SetStatus("Select the required area"); minimal.SetRegionAvailable(true);
+        check(VisibleActions().SequenceEqual(new[] { "选择识别区域" }), "required selection offers one recovery action");
+        minimal.Collapse();
+        check(VisibleActions().SequenceEqual(new[] { "展开说明  ﹀" }), "space avoidance retains only reopening");
+        Click(Find(minimal, "展开说明  ﹀"));
+        var cancellations = 0;
+        minimal.Cancelled += () => { cancellations++; minimal.Reset(); };
+        Click(minimal.DismissButton);
+        check(cancellations == 1 && !minimal.HasSession && !minimal.HasRegion && minimal.FullText.Length == 0,
+            "session header close uses existing cancellation and clears stale feedback");
         var work = new Rect(-1280, 0, 1280, 720);
         var entry = new Rect(-760, 0, 288, 36);
         var control = new Rect(-160, 240, 50, 24);
@@ -252,7 +249,7 @@ static class CardChecks
             {
                 Layout(state, width);
                 var actions = state.Actions.Children.Cast<Button>().Where(b => b.Visibility == Visibility.Visible).ToArray();
-                var requiredActions = state.View == GuideCardView.Notice ? new[] { state.DismissButton } : actions;
+                var requiredActions = state.DismissButton.Visibility == Visibility.Visible ? actions.Append(state.DismissButton).ToArray() : actions;
                 check(requiredActions.Length > 0 && requiredActions.All(button =>
                 {
                     var bounds = button.TransformToAncestor(state).TransformBounds(new Rect(button.RenderSize));
@@ -279,7 +276,7 @@ static class CardChecks
             longCard.Reset(); longCard.SetNotice("这次等得有点久，还没看明白。"); Layout(longCard, width);
             longCard.SetStatus(GuideIdentification.Processing); Layout(longCard, width);
             longCard.SetStatus(new GuideIdentification("生成记事本", "显示待办事项：整理材料、核对结果。", "想了解哪一部分？", "regular").ToAnswer("generated-editor").Explanation);
-            longCard.SetPoint(false); longCard.SetReferenceQuery("Generated Editor software"); longCard.SetRegionAvailable(true);
+            longCard.SetPoint(false); longCard.SetFollowupAvailable(true);
             Layout(longCard, width);
             var state = longCard.FeedbackState();
             check(state.TextPresent && state.TextVisible && state.TextInViewport && state.ViewportReady &&
@@ -293,7 +290,7 @@ static class CardChecks
 
     internal static void Render(bool recognitionOnly = false)
     {
-        var states = (recognitionOnly ? States().Skip(22) : States()).ToArray();
+        var states = (recognitionOnly ? States().Where(state => int.Parse(state.Name[..2], CultureInfo.InvariantCulture) >= 23) : States()).ToArray();
         var height = (int)Math.Ceiling(states.Length / 3d) * 506;
         var visual = new DrawingVisual();
         using (var draw = visual.RenderOpen())

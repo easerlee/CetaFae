@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Minimal explanation-card actions (2026-11-02)
+
+For v1.18 verify an ordinary question has no footer actions, a completed result offers only eligible follow-up, required-selection feedback offers the region action, and a control bubble offers details without manual collapse/clear/lookup. Session close must fire cancellation once; notice close must not cancel another session. Automatic avoidance collapse/reopen must retain text/input and make the restore action reachable. Render ordinary, waiting, result, bubble, compact, notice and long-content states with production dimensions; inspect text/action bounds and screenshots offscreen, without native window creation. Public reference implementation checks remain isolated and do not imply a product entry or background request. No model/desktop repeat is required for removing these controls.
+
 ## Concise recognition copy (2026-11-02)
 
 For v1.17 freeze an ordinary editor overview in category/name/content order, an unknown-name readable window, an identity-only unclear window and an actual coded warning. Require no mechanical captured-view/application-first prefix, no raw process identity, no invented category and preservation of useful state/error facts. Check one body sentence plus an optional question for representative inputs without clipping arbitrary model text. The generated novice-editor response must lead with an everyday editor category before its supported name, preserve task meaning, omit incidental metadata and fit the preferred two-sentence presentation; its technical-error pair must retainUTF-8 and0x8007000D. Controlled/local composition checks are not semantic model acceptance or actual installed-version evidence. Keep all capture and privacy behavior unchanged.

@@ -22,8 +22,6 @@ public sealed class GuideSession : IDisposable
     readonly CloudConsentStore _consent;
     readonly GuideMenu _menu;
     readonly PluginCatalog _plugins;
-    readonly SoftwareReference _references = new();
-    CancellationTokenSource? _referenceRequest;
     CancellationTokenSource? _request;
     GuideObservation? _context;
     int _contextVersion;
@@ -59,7 +57,6 @@ public sealed class GuideSession : IDisposable
         _panel.AnswerSubmitted += OnAnswerSubmitted;
         _ball.AnswerSubmitted += OnAnswerSubmitted;
         _panel.RegionRequested += OnRegionRequested;
-        _panel.ReferenceRequested += OnReferenceRequested;
         _panel.FollowupRequested += OnFollowupRequested;
         _ball.AllowsForeground = IsAllowedForeground;
         _ball.TargetSelected += OnSelected;
@@ -118,8 +115,6 @@ public sealed class GuideSession : IDisposable
     {
         var explain = _context is { } context && Native.GetForegroundWindow() == context.Window &&
             reason is "target_changed" or "target_context_unavailable";
-        _referenceRequest?.Cancel();
-        _panel.SetReferenceQuery(null);
         _activationVersion = null;
         var picker = _picker;
         _picker = null;
@@ -139,53 +134,6 @@ public sealed class GuideSession : IDisposable
         if (explain)
             _panel.SetStatus(FailureMessage(new InvalidDataException(reason)));
         ProbeLog.Log("guide_cancel", ("reason", reason));
-    }
-
-    async void OnReferenceRequested(string query)
-    {
-        if (_preview || !_gate.CloudEnabled || _context is not { } context || !_gate.Accepts(_contextVersion) ||
-            context.Identity?.ReferenceQuery != query || _plugins.IdentityProvider is null) return;
-        var version = _contextVersion;
-        _referenceRequest?.Cancel();
-        using var request = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-        _referenceRequest = request;
-        var token = request.Token;
-        var validating = true;
-        bool Current() => _gate.Accepts(version) && ReferenceEquals(_context, context) &&
-            GuideObservation.IsCurrent(context.Window, context.ProcessId, context.Frame);
-        try
-        {
-            // A deliberately focused answer box may own focus when the user confirms lookup.
-            if (IsInputForeground(Native.GetForegroundWindow()))
-            {
-                if (!Native.IsWindow(context.Window) || Native.ProcessId(context.Window) != context.ProcessId ||
-                    GuideObservation.WindowRect(context.Window) != context.Frame || !Native.IsNonElevated(context.Window))
-                    throw new InvalidDataException("target_changed");
-                var activated = await ActivateSelectedAsync(context.Window, version, token);
-                if (!_gate.Accepts(version)) return;
-                if (!activated) throw new InvalidDataException("target_activation_failed");
-            }
-            context.ValidateContext(await ReadContextAsync(context, token), null);
-            token.ThrowIfCancellationRequested();
-            if (!Current()) return;
-            validating = false;
-            _panel.SetReferenceResult("正在查询公共百科资料；本机信息和画面判断保留。\n资料仅为候选，不代表本机身份认证。");
-            var result = await _references.FindAsync(query, token);
-            validating = true;
-            context.ValidateContext(await ReadContextAsync(context, token), null);
-            token.ThrowIfCancellationRequested();
-            if (Current()) _panel.SetReferenceResult(result);
-        }
-        catch (InvalidDataException ex) when (ex.Message is "target_changed" or "sensitive_content" or "privacy_unavailable")
-        { if (_gate.Accepts(version)) _ball.StopTracking("target_changed"); }
-        catch (Exception ex) when (ex is OperationCanceledException or HttpRequestException or InvalidDataException or JsonException)
-        {
-            if (_gate.Accepts(version) && validating) _ball.StopTracking("target_context_unavailable");
-            else if (Current()) _panel.SetReferenceResult("公共资料查询未完成；本机信息与画面判断保留。可重新拖入后再试，不会自动重发。");
-        }
-        catch (Exception)
-        { if (_gate.Accepts(version)) _ball.StopTracking("reference_failed"); }
-        finally { if (ReferenceEquals(_referenceRequest, request)) _referenceRequest = null; }
     }
 
     async void OnTargetChanged()
@@ -307,7 +255,6 @@ public sealed class GuideSession : IDisposable
         if (_preview || _plugins.GeneralProvider?.InterpretationPolicy?.UserLedFollowup != true ||
             _context is null || !_gate.Accepts(_contextVersion) || !_followup.CanOffer || _picker is not null) return;
         _followup.Begin();
-        _referenceRequest?.Cancel(); _panel.SetReferenceQuery(null); _panel.SetReferenceResult("");
         _request?.Cancel(); _followupVersion = _gate.Begin();
         _context = null; _contextCheckPending = false; _pendingIntent = null; _activeFollowup = null;
         _marker.HideAndReset(); _panel.SetControl(null); _panel.SetRegionAvailable(false); _panel.ClearQuestion();
@@ -347,9 +294,6 @@ public sealed class GuideSession : IDisposable
         GuideFollowupRequest? followup = null)
     {
         if (_preview) return;
-        _referenceRequest?.Cancel();
-        _panel.SetReferenceQuery(null);
-        _panel.SetReferenceResult("");
         if (!_gate.CloudEnabled)
         {
             _ball.StopTracking("consent_required");
@@ -436,10 +380,15 @@ public sealed class GuideSession : IDisposable
                 "用户明确提出的目标：" + intent + "。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。";
             if (followup is not null) task = followup.ModelTask;
             stage = ProcessingStage.Model;
-            var modelAnswer = intent is null
-                ? (await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext)))
-                    .ToAnswer(identifiedProcess!, observation.Identity)
-                : await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
+            GuideIdentification? identification = null;
+            GuideAnswer modelAnswer;
+            if (intent is null)
+            {
+                identification = await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext));
+                modelAnswer = identification.ToAnswer(identifiedProcess!, observation.Identity);
+            }
+            else
+                modelAnswer = await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
                     _plugins.GeneralProvider?.InterpretationPolicy));
             var answer = modelAnswer.ForIntent(intent, allowQuestion: followup is { Clarification: null });
             var modelMs = total.ElapsedMilliseconds - observeMs;
@@ -467,8 +416,7 @@ public sealed class GuideSession : IDisposable
             _panel.SetStatus(answer.Explanation);
             _panel.SetPoint(bounds is not null && _marker.IsVisible);
             _ball.SetResult();
-            _panel.SetReferenceQuery(observation.Identity?.ReferenceQuery);
-            _panel.SetRegionAvailable(true);
+            _panel.SetRegionAvailable(identification is { Page: null });
             if (answer.Mode == "ask")
             {
                 _gate.AwaitClarification(version);
@@ -654,12 +602,9 @@ public sealed class GuideSession : IDisposable
         _panel.AnswerSubmitted -= OnAnswerSubmitted;
         _ball.AnswerSubmitted -= OnAnswerSubmitted;
         _panel.RegionRequested -= OnRegionRequested;
-        _panel.ReferenceRequested -= OnReferenceRequested;
         _panel.FollowupRequested -= OnFollowupRequested;
         _activeFollowup = null;
         _followup.Clear();
-        _referenceRequest?.Cancel();
-        _references.Dispose();
         _picker?.Abort();
         _picker = null;
         _panel.EndSession();

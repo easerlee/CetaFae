@@ -59,7 +59,7 @@ internal static class FeedbackChecks
             Click(panel.Card, "展开详情");
             check(!panel.Card.IsBubble && panel.Width == 288 && panel.Top == entry.Bottom + 1 && panel.Card.FullText.Contains("生成窗口"),
                 "native details replace the same bubble surface with the attached full explanation");
-            Click(panel.Card, "收起");
+            panel.Card.Collapse();
             check(panel.Card.IsCollapsed && panel.Height <= 40 && panel.Card.HasSession,
                 $"native collapse leaves a compact attached reopen tab and keeps the session (collapsed={panel.Card.IsCollapsed}, height={panel.Height}, session={panel.Card.HasSession})");
             entry.Offset(120, 24); panel.Reposition();
@@ -111,7 +111,6 @@ internal static class FeedbackChecks
                 panel.Card.SetStatus(new GuideIdentification("生成文档工具", string.Concat(Enumerable.Repeat("显示生成待办事项：整理材料、核对结果。", round == 0 ? 5 : round == 1 ? 40 : 1)),
                     "你希望在这个窗口里了解什么？", "regular").ToAnswer("generated-editor").Explanation);
                 panel.SetPoint(false);
-                panel.SetReferenceQuery("Generated Editor software");
                 panel.SetRegionAvailable(true);
                 Arrange();
                 var state = panel.Card.FeedbackState();
@@ -159,7 +158,6 @@ internal static class FeedbackChecks
                 {
                     panel.SetStatus(string.Concat(Enumerable.Repeat("生成说明：这里只显示测试文字，不读取任何软件、不联网。", repeat)));
                     panel.SetPoint(false);
-                    panel.SetReferenceQuery("Generated Editor software");
                     panel.SetRegionAvailable(true);
                 }
                 var stages = new (string Name, Action Change)[]
@@ -267,7 +265,7 @@ internal static class FeedbackChecks
                     });
                     if (i == 4) card.SetRegionAvailable(true);
                     if (i == 1) card.SetPoint(true);
-                    if (i == 5) Click(card, "收起");
+                    if (i == 5) card.Collapse();
                     var surface = new FeedbackSurface(card); surface.SetBubble(i == 1);
                     var width = i == 1 ? 258 : 288;
                     surface.Measure(new Size(width, i == 1 ? 260 : 320));

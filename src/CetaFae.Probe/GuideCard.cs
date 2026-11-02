@@ -7,7 +7,7 @@ using System.Windows.Data;
 
 namespace CetaFae.Probe;
 
-internal enum GuideCardView { Session, Menu, Consent, ReferenceConsent, Notice }
+internal enum GuideCardView { Session, Menu, Consent, Notice }
 
 /// <summary>The same fixed-data visual is rendered offscreen and hosted in the live window.</summary>
 internal sealed class GuideCard : Border
@@ -15,8 +15,6 @@ internal sealed class GuideCard : Border
     readonly TextBlock _caption = new() { FontSize = 12, Foreground = GuideTheme.Muted };
     readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 14, LineHeight = 23 };
     readonly TextBlock _disclosure;
-    readonly TextBlock _referenceDisclosure = new() { TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 21 };
-    readonly TextBlock _referenceResult = new() { TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 21, Margin = new Thickness(0, 10, 0, 0) };
     readonly DockPanel _question = new() { Margin = new Thickness(0, 12, 0, 0) };
     readonly TextBox _answer = new() { MaxLength = 300, AcceptsReturn = false, MinWidth = 120,
         Padding = new Thickness(8), VerticalContentAlignment = VerticalAlignment.Center,
@@ -24,17 +22,12 @@ internal sealed class GuideCard : Border
     readonly Button _submit;
     readonly Button _menu;
     readonly Button _cloud;
-    readonly Button _clear;
     readonly Button _region;
     readonly Button _exit;
     readonly Button _back;
-    readonly Button _reference;
-    readonly Button _confirmReference;
     readonly Button _details;
-    readonly Button _collapse;
     readonly Button _followup;
     readonly StackPanel _header;
-    string? _referenceQuery;
     bool _cloudEnabled;
     bool _regionAvailable;
     bool _questionAvailable;
@@ -69,7 +62,6 @@ internal sealed class GuideCard : Border
     internal event Action? Dismissed;
     internal event Action? AnswerFocusRequested;
     internal event Action<string>? AnswerSubmitted;
-    internal event Action<string>? ReferenceRequested;
     internal event Action? FollowupRequested;
 
     internal GuideCard(GuideOptions options)
@@ -89,7 +81,11 @@ internal sealed class GuideCard : Border
             Foreground = GuideTheme.WhaleBlue, Margin = new Thickness(0, 0, 0, 4) });
         header.Children.Add(_caption);
         var heading = new DockPanel();
-        DismissButton = Button("×", DismissNotice);
+        DismissButton = Button("×", () =>
+        {
+            if (View == GuideCardView.Session) Cancelled?.Invoke();
+            else DismissNotice();
+        });
         DismissButton.FontSize = 22;
         DismissButton.Padding = new Thickness(5, 0, 5, 0);
         DismissButton.Margin = new Thickness(8, 0, 0, 0);
@@ -114,8 +110,6 @@ internal sealed class GuideCard : Border
         var body = new StackPanel();
         body.Children.Add(_disclosure);
         body.Children.Add(_status);
-        body.Children.Add(_referenceDisclosure);
-        body.Children.Add(_referenceResult);
         body.Children.Add(_question);
         BodyScroll = new ScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -125,7 +119,6 @@ internal sealed class GuideCard : Border
             if (View != GuideCardView.Menu) return;
             ShowConsent();
         });
-        _clear = Button("清除标记", () => { if (View == GuideCardView.Session) Cancelled?.Invoke(); });
         _region = Button("选择识别区域", () => { if (HasRegion) RegionRequested?.Invoke(); });
         _exit = Button("退出", () => ExitRequested?.Invoke());
         _back = Button("返回", () =>
@@ -133,23 +126,9 @@ internal sealed class GuideCard : Border
             if (_hasSession) { View = GuideCardView.Session; Refresh(); }
             else { Reset(); Dismissed?.Invoke(); }
         });
-        _reference = Button("联网核对软件", () =>
-        {
-            if (View != GuideCardView.Session || IsCollapsed || IsBubble || !_cloudEnabled || _referenceQuery is null) return;
-            _referenceDisclosure.Text = SoftwareReference.Disclosure(_referenceQuery);
-            View = GuideCardView.ReferenceConsent; Refresh();
-        });
-        _confirmReference = Button("确认本次联网", () =>
-        {
-            if (View != GuideCardView.ReferenceConsent || !_cloudEnabled || _referenceQuery is null) return;
-            var query = _referenceQuery;
-            _referenceQuery = null; _referenceDisclosure.Text = "";
-            View = GuideCardView.Session; Refresh(); ReferenceRequested?.Invoke(query);
-        });
         _details = Button("展开详情", () => { IsBubble = IsCollapsed = false; Refresh(); });
-        _collapse = Button("收起", Collapse);
         _followup = Button("继续提问", () => { if (HasFollowup) FollowupRequested?.Invoke(); });
-        foreach (var button in new[] { _details, _followup, _region, _reference, _confirmReference, _cloud, _clear, _collapse, _menu, _exit, _back }) Actions.Children.Add(button);
+        foreach (var button in new[] { _details, _followup, _region, _cloud, _menu, _exit, _back }) Actions.Children.Add(button);
         DockPanel.SetDock(Actions, Dock.Bottom);
         layout.Children.Add(Actions);
         layout.Children.Add(BodyScroll);
@@ -183,11 +162,8 @@ internal sealed class GuideCard : Border
     internal void SetCloud(bool enabled)
     {
         _cloudEnabled = enabled;
-        if (!enabled) { SetReferenceQuery(null); _referenceResult.Text = ""; if (View == GuideCardView.ReferenceConsent) View = GuideCardView.Session; }
         Refresh();
     }
-    internal void SetReferenceQuery(string? query) { _referenceQuery = query; _referenceDisclosure.Text = ""; Refresh(); }
-    internal void SetReferenceResult(string result) { _referenceResult.Text = result; Refresh(); }
     internal void SetStatus(string text) { _status.Text = text; BodyScroll.ScrollToTop(); _hasSession = true; _followupAvailable = false; IsBubble = IsCollapsed = false; View = GuideCardView.Session; Refresh(); }
     internal void SetNotice(string text) { Reset(); _status.Text = text; View = GuideCardView.Notice; Refresh(); }
     internal void DismissNotice()
@@ -208,8 +184,6 @@ internal sealed class GuideCard : Border
         _answer.Clear();
         _status.Text = "";
         BodyScroll.ScrollToTop();
-        _referenceQuery = null;
-        _referenceDisclosure.Text = _referenceResult.Text = "";
         _hasSession = _questionAvailable = _regionAvailable = false;
         _followupAvailable = false;
         IsBubble = IsCollapsed = false;
@@ -231,31 +205,27 @@ internal sealed class GuideCard : Border
         var notice = View == GuideCardView.Notice;
         var compact = session && IsCollapsed;
         var bubble = session && IsBubble;
-        _caption.Text = bubble ? "就在这里 · 仅指路，未修改" : View == GuideCardView.ReferenceConsent ? "可选 · 单次公共资料查询" : View == GuideCardView.Consent ? "开始前，请了解发送与留存范围" :
+        _caption.Text = bubble ? "就在这里 · 仅指路，未修改" : View == GuideCardView.Consent ? "开始前，请了解发送与留存范围" :
             View == GuideCardView.Menu ? (_cloudEnabled ? "可以求助 · 由你操作目标软件" : "尚未同意 · 请先了解使用说明") : notice ? "" : "解释与指路 · 由你操作";
         Visible(_caption, !notice);
-        Visible(DismissButton, notice);
-        Visible(Actions, !notice);
+        Visible(DismissButton, notice || session && !compact);
+        DismissButton.ToolTip = session ? "结束本次求助" : "关闭提示";
+        System.Windows.Automation.AutomationProperties.SetName(DismissButton, session ? "结束本次求助" : "关闭提示");
         Visible(_disclosure, View == GuideCardView.Consent);
         Visible(_status, session || notice);
-        Visible(_referenceDisclosure, View == GuideCardView.ReferenceConsent);
-        Visible(_referenceResult, View == GuideCardView.Session && _referenceResult.Text.Length > 0);
-        Visible(_reference, session && !compact && !bubble && _cloudEnabled && _referenceQuery is not null);
-        Visible(_confirmReference, View == GuideCardView.ReferenceConsent && _cloudEnabled && _referenceQuery is not null);
         Visible(_question, HasQuestion && !compact && !bubble);
-        Visible(_followup, HasFollowup && !compact);
+        Visible(_followup, HasFollowup && !compact && !bubble);
         Visible(_region, HasRegion && !compact && !bubble);
         Visible(_cloud, View == GuideCardView.Menu);
-        Visible(_clear, session && !compact && !bubble);
         Visible(_menu, false);
         Visible(_exit, View == GuideCardView.Menu);
         Visible(_back, !session && !notice);
         _back.Content = View == GuideCardView.Consent ? "关闭说明" : "返回";
         Visible(_details, session && (bubble || compact));
         _details.Content = compact ? "展开说明  ﹀" : "展开详情";
-        Visible(_collapse, session && !compact);
         Visible(_header, !compact);
         Visible(BodyScroll, !compact);
+        Visible(Actions, !notice && Actions.Children.OfType<Button>().Any(button => button.Visibility == Visibility.Visible));
         Actions.Margin = new Thickness(0, compact ? 0 : 10, 0, 0);
         Padding = compact ? new Thickness(10, 0, 10, 0) : GuideTheme.Padding;
         CornerRadius = session ? (bubble ? new CornerRadius(20, 20, 5, 20) : new CornerRadius(0, 0, 19, 19)) : new CornerRadius(16);

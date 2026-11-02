@@ -26,7 +26,6 @@ public sealed class GuidePanel : Window
     public event Action? Cancelled;
     public event Action<string>? AnswerSubmitted;
     public event Action? RegionRequested;
-    public event Action<string>? ReferenceRequested;
     public event Action? FollowupRequested;
     public bool IsAnswering => _card.HasQuestion && IsActive;
     public bool IsSessionInteraction => _card.HasSession && IsActive;
@@ -68,7 +67,6 @@ public sealed class GuidePanel : Window
         _card.Cancelled += () => Cancelled?.Invoke();
         _card.AnswerSubmitted += text => AnswerSubmitted?.Invoke(text);
         _card.RegionRequested += () => RegionRequested?.Invoke();
-        _card.ReferenceRequested += query => ReferenceRequested?.Invoke(query);
         _card.FollowupRequested += () => FollowupRequested?.Invoke();
         _card.ExitRequested += () => Application.Current.Shutdown();
         _card.Dismissed += Hide;
@@ -145,8 +143,6 @@ public sealed class GuidePanel : Window
     public void SetRegionAvailable(bool available) => _card.SetRegionAvailable(available);
     public void SetFollowupAvailable(bool available) => _card.SetFollowupAvailable(available);
     public void ClearQuestion() => _card.ClearQuestion();
-    public void SetReferenceQuery(string? query) => _card.SetReferenceQuery(query);
-    public void SetReferenceResult(string result) => _card.SetReferenceResult(result);
     public void EndSession() { _presentationRevision++; _control = null; _locatedResult = _avoidanceCollapsed = false; _card.Reset(); Hide(); }
 
     internal static string Disclosure(GuideOptions options) =>

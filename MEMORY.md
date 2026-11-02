@@ -2,6 +2,9 @@
 
 Updated: 2026-11-02
 
+- Requirements v1.18 keeps the explanation surface focused on the current help request: header close ends the session, ordinary questions have no auxiliary footer, completed results offer eligible follow-up, and only unreadable initial content or unavailable task scopes offer region selection. Control bubbles offer details; automatic spatial-avoidance collapse/reopen remains. Remove manual collapse and duplicate clear from cards; management stays in tray/whale menus. The public encyclopedia lookup was a sourced candidate search, not authentication or safety verification; its UI/session transport is removed, while isolated identity/reference contracts remain dormant. Do not reintroduce lookup or a settings entry without a new product requirement. Disclosure and actual grants are unchanged. Preview.34 has1430 Debug/Release headless passes and inspected offscreen layouts, not changed-binary desktop acceptance; the running installation was not replaced.
+
+
 
 ## Authority and Working Agreement
 
