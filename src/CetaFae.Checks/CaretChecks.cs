@@ -40,12 +40,63 @@ static class CaretChecks
         check(GuideVisual.Read(plain, new Rect(-100, 30, 160, 100), caret).CaretBounds is null,
             "resized image geometry retains strict comparison");
 
+        var colored = Image(true, stroke: 91);
+        var preceding = Image(true, stroke: 91, column: 24);
+        check(before.Matches(GuideVisual.Read(preceding, region, caret)) &&
+              GuideVisual.Read(preceding, region, caret).Matches(before),
+            "a full-height solid caret at the preceding native column may blink on an exact flat background");
+        check(before.Matches(GuideVisual.Read(colored, region, caret)),
+            "a full-height colored native caret may blink without requiring RGB inversion");
+        check(!noCaret.Matches(GuideVisual.Read(preceding, region, caret)),
+            "solid-line compatibility requires native caret evidence on both observations");
+        check(!before.Matches(GuideVisual.Read(Image(true, stroke: 91, column: 23), region, caret)),
+            "a line two pixels from the native caret cannot grant compatibility");
+        check(!before.Matches(GuideVisual.Read(Image(true, stroke: 91, rows: 20), region, caret)),
+            "a partial-height colored line is a real visual change");
+        check(!before.Matches(GuideVisual.Read(Image(true, stroke: 91, columns: 2), region, caret)),
+            "multi-column colored changes are not treated as a one-pixel caret");
+        check(!before.Matches(GuideVisual.Read(colored, new Rect(-100, 30, 160, 100), caret)),
+            "scaled pixels cannot grant colored-caret reconstruction");
+        check(GuideVisual.Read(Image(alpha: 0), region, caret).Matches(
+                GuideVisual.Read(Image(true, stroke: 91, column: 24, alpha: 0), region, caret)),
+            "unchanged zero capture alpha is preserved rather than assumed opaque");
+        check(!before.Matches(GuideVisual.Read(Image(true, changedByte: 0, stroke: 91, column: 24), region, caret)),
+            "an outside change cannot hide behind a supported colored caret");
+        check(!before.Matches(GuideVisual.Read(Image(true, changedByte: (10 * 80 + 24) * 4, stroke: 91, column: 24), region, caret)),
+            "a nonuniform pixel inside the colored line is not ignored");
+        check(!before.Matches(GuideVisual.Read(Image(true, changedByte: (10 * 80 + 24) * 4 + 3, stroke: 91, column: 24), region, caret)),
+            "solid-line reconstruction never tolerates changed alpha");
+        check(!GuideVisual.Read(colored, region, caret).Matches(GuideVisual.Read(Image(true, stroke: 92), region, caret)),
+            "two different visible line colors are not treated as a blink");
+        check(!before.Matches(GuideVisual.Read(preceding, region, new Rect(-74, 40, 1, 21))),
+            "solid-line reconstruction cannot bypass moved native geometry");
+        var textured = Image(changedByte: (12 * 80 + 23) * 4);
+        check(!GuideVisual.Read(textured, region, caret).Matches(GuideVisual.Read(
+                Image(true, changedByte: (12 * 80 + 23) * 4, stroke: 91, column: 24), region, caret)),
+            "unchanged textured neighboring pixels do not authorize background reconstruction");
+
         var plugin = PluginCatalog.ParsePlugin(GeneralGuideChecks.Package);
         GuideObservation Observation(byte[] png, GuideVisual visual) =>
             new(new IntPtr(1), 1, region, [], png, PluginId: plugin.Id,
                 VisualHash: GuideObservation.Fingerprint(png), Visual: visual);
         var original = Observation(plain, before);
         var current = Observation(blinking, after);
+        var coloredCurrent = Observation(preceding, GuideVisual.Read(preceding, region, caret));
+        var coloredDecoded = JsonSerializer.Deserialize<GuideObservation>(
+            JsonSerializer.Serialize(coloredCurrent, ObservationWorker.Json), ObservationWorker.Json)!;
+        ObservationWorker.ValidateScopeReply(coloredDecoded, plugin, null, null, true);
+        check(coloredDecoded.Visual == coloredCurrent.Visual && original.HasSameVisual(coloredDecoded),
+            "colored-caret evidence round-trips and is recomputed across the real IPC boundary");
+        foreach (var forged in new[] { coloredCurrent.Visual! with { LeadingCaretHash = "forged" },
+                     coloredCurrent.Visual! with { SolidCaretHash = "forged" } })
+        {
+            try { ObservationWorker.ValidateScopeReply(coloredCurrent with { Visual = forged }, plugin, null, null, true); }
+            catch (InvalidDataException) { check(true, "IPC rejects forged reconstructed full-image caret evidence"); continue; }
+            throw new InvalidOperationException("forged colored caret evidence accepted");
+        }
+        check(GuidePayload.From(coloredCurrent).Png!.SequenceEqual(preceding) &&
+              !JsonSerializer.Serialize(GuidePayload.From(coloredCurrent)).Contains("CaretHash", StringComparison.Ordinal),
+            "reconstruction never modifies the model image or sends local caret evidence");
         original.ValidateContext(current, null);
         check(true, "zero-actionable-control context accepts only the verified caret inversion");
         var decoded = JsonSerializer.Deserialize<GuideObservation>(
@@ -66,12 +117,15 @@ static class CaretChecks
         catch (InvalidDataException) { check(true, "caret handling cannot bypass target-frame binding"); return; }
         throw new InvalidOperationException("changed target frame accepted");
 
-        static byte[] Image(bool blink = false, int? changedByte = null)
+        static byte[] Image(bool blink = false, int? changedByte = null, byte stroke = 0, int column = 25, int rows = 21,
+            int columns = 1, byte alpha = 255)
         {
             var pixels = Enumerable.Repeat((byte)255, 80 * 50 * 4).ToArray();
+            for (var alphaByte = 3; alphaByte < pixels.Length; alphaByte += 4) pixels[alphaByte] = alpha;
             if (blink)
-                for (var y = 10; y < 31; y++)
-                    for (var c = 0; c < 3; c++) pixels[(y * 80 + 25) * 4 + c] = 0;
+                for (var y = 10; y < 10 + rows; y++)
+                    for (var x = column; x < column + columns; x++)
+                        for (var c = 0; c < 3; c++) pixels[(y * 80 + x) * 4 + c] = stroke;
             if (changedByte is { } offset) pixels[offset] ^= 127;
             var bitmap = BitmapSource.Create(80, 50, 96, 96, PixelFormats.Bgra32, null, pixels, 80 * 4);
             var encoder = new PngBitmapEncoder();

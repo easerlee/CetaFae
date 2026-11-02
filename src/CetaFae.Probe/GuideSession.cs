@@ -116,6 +116,8 @@ public sealed class GuideSession : IDisposable
 
     void Cancel(string reason)
     {
+        var explain = _context is { } context && Native.GetForegroundWindow() == context.Window &&
+            reason is "target_changed" or "target_context_unavailable";
         _referenceRequest?.Cancel();
         _panel.SetReferenceQuery(null);
         _activationVersion = null;
@@ -134,6 +136,8 @@ public sealed class GuideSession : IDisposable
         _ball.ClearQuestion();
         if (_marker.IsVisible) _marker.HideAndReset();
         _panel.EndSession();
+        if (explain)
+            _panel.SetStatus(FailureMessage(new InvalidDataException(reason)));
         ProbeLog.Log("guide_cancel", ("reason", reason));
     }
 
@@ -559,6 +563,10 @@ public sealed class GuideSession : IDisposable
 
     public static string FailureMessage(Exception ex) => ex switch
     {
+        InvalidDataException { Message: "target_changed" } =>
+            "窗口内容或位置发生了变化，本次识别已停止。\n请把鲸鱼重新拖到要了解的窗口。",
+        InvalidDataException { Message: "target_context_unavailable" } =>
+            "这次没能核对窗口是否保持原样，已停止识别。\n请保持窗口可见，稍后再把鲸鱼拖进去。",
         InvalidDataException { Message: "scope_unavailable" } =>
             "还不知道该看哪一部分。\n请重新把鲸鱼拖入窗口，并说明想了解什么；范围确定前不会发送这一步的新内容，也不会改发整个窗口。",
         HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden } =>

@@ -85,6 +85,10 @@ static class CardChecks
         yield return ("28 Service unavailable", service);
         var recognizing = New(); recognizing.SetCloud(true); recognizing.SetStatus(GuideIdentification.Processing);
         yield return ("29 Recognition in progress", recognizing);
+        var changed = New(); changed.SetNotice(GuideSession.FailureMessage(new InvalidDataException("target_changed")));
+        yield return ("30 Context changed", changed);
+        var recheck = New(); recheck.SetNotice(GuideSession.FailureMessage(new InvalidDataException("target_context_unavailable")));
+        yield return ("31 Context recheck unavailable", recheck);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)

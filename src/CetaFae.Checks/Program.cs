@@ -138,6 +138,12 @@ public static class Program
         OverlayChecks.Run(Check);
         DropChecks.Run(Check);
         PromptChecks.Run(Check);
+        Check(GuideSession.FailureMessage(new InvalidDataException("target_changed"))
+                  .Contains("窗口内容或位置发生了变化", StringComparison.Ordinal),
+            "automatic context cancellation has a plain-language reason rather than a silent return");
+        Check(GuideSession.FailureMessage(new InvalidDataException("target_context_unavailable"))
+                  .Contains("核对窗口", StringComparison.Ordinal),
+            "an unavailable recheck is distinguished from a confirmed content change");
         Check(GuideSession.FailureMessage(new InvalidDataException("target_not_foreground"))
                   .Contains("请先点一下要了解的窗口", StringComparison.Ordinal),
             "foreground rejection gives an actionable target-focus instruction");
