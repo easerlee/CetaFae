@@ -4,7 +4,7 @@ using System.Windows.Automation;
 
 namespace CetaFae.Probe;
 
-/// <summary>Conservative local refusal for recognizable credentials, independent of application plugins.</summary>
+/// <summary>Reject detected credentials; missing accessibility evidence is not proof of safe pixels.</summary>
 internal static class GuidePrivacy
 {
     static readonly Regex CredentialLabel = new(
@@ -21,6 +21,15 @@ internal static class GuidePrivacy
     {
         if (text.Length > 32 * 1024) throw new InvalidDataException("privacy_unavailable");
         if (Credential.IsMatch(text)) throw new InvalidDataException("sensitive_content");
+    }
+
+    internal static bool TryInspect(Action inspect)
+    {
+        try { inspect(); return true; }
+        catch (Exception ex) when (ex is ElementNotAvailableException or InvalidOperationException or
+            System.Runtime.InteropServices.COMException || ex is InvalidDataException
+            { Message: "privacy_unavailable" or "uia_unavailable" or "uia_traversal_limit" or "uia_ancestry_limit" })
+        { return false; }
     }
 
     internal static string? ReadVisibleName(object? isOffscreen, object? isPassword, Func<string> readName,

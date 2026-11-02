@@ -24,7 +24,7 @@ public static class ObservationWorker
         Converters = { new HandleConverter(), new RectangleConverter() }
     };
     internal sealed record Request(long Window, bool IncludeImage, GuidePlugin Plugin, string? Intent = null, Rect? Selection = null,
-        GuidePlugin? IdentityProvider = null);
+        GuidePlugin? IdentityProvider = null, bool VisualOnly = false, uint? ProcessId = null, Rect? Frame = null);
     sealed record Reply(GuideObservation? Observation, string? Error, string? Phase = null, string? FailureKind = null, int? HResult = null);
 
     internal static string SerializeRequest(Request request) => JsonSerializer.Serialize(request, Json);
@@ -37,8 +37,14 @@ public static class ObservationWorker
         await Gate.WaitAsync(token);
         try
         {
+            token.ThrowIfCancellationRequested();
+            var processId = Native.ProcessId(window);
+            var frame = GuideObservation.WindowRect(window);
+            if (!GuideObservation.IsCurrent(window, processId, frame)) throw new InvalidDataException("target_changed");
             var start = CreateStartInfo(Environment.ProcessPath!, typeof(ObservationWorker).Assembly.Location);
-            var body = await ExchangeAsync(start, SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection, identityProvider)), token);
+            var body = await ExchangeWithOptionalAccessibilityAsync((visualOnly, readToken) => ExchangeAsync(start,
+                SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection, identityProvider, visualOnly, processId, frame)), readToken),
+                includeImage && intent is null && selection is null, token);
             var reply = JsonSerializer.Deserialize<Reply>(body, Json) ?? throw new InvalidDataException("worker_reply");
             if (reply.Error is { } error)
             {
@@ -47,7 +53,10 @@ public static class ObservationWorker
                 throw new InvalidDataException(SafeError(error));
             }
             var observation = reply.Observation ?? throw new InvalidDataException("worker_reply");
-            if (observation.Window != window || observation.Candidates is null || observation.Candidates.Count > 128 ||
+            if (observation.Window != window || observation.ProcessId != processId || observation.Frame != frame ||
+                observation.Candidates is null || observation.Candidates.Count > 128 ||
+                observation.Snapshot != (includeImage && intent is null && selection is null) ||
+                observation.Snapshot && observation.Candidates.Count != 0 ||
                 observation.PluginId != plugin.Id || observation.RawView != plugin.UsesRawView ||
                 observation.ScopeIntent != intent || (intent is not null || selection is not null) != (observation.Scope is not null) ||
                 includeImage != (observation.Png is { Length: > 0 }) ||
@@ -73,9 +82,29 @@ public static class ObservationWorker
         return start;
     }
 
+    internal static async Task<string> ExchangeWithOptionalAccessibilityAsync(
+        Func<bool, CancellationToken, Task<string>> exchange, bool allowVisualOnly, CancellationToken token,
+        TimeSpan? accessibilityBudget = null)
+    {
+        if (!allowVisualOnly) return await exchange(false, token);
+        using var limited = CancellationTokenSource.CreateLinkedTokenSource(token);
+        limited.CancelAfter(accessibilityBudget ?? TimeSpan.FromMilliseconds(2500));
+        try { return await exchange(false, limited.Token); }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            // ExchangeAsync has killed and reaped that owned child before this fallback begins.
+            token.ThrowIfCancellationRequested();
+            ProbeLog.Log("guide_accessibility_timeout", ("visualOnly", true));
+            return await exchange(true, token);
+        }
+    }
+
     internal static void ValidateScopeReply(GuideObservation observation, GuidePlugin plugin, string? intent,
         Rect? selection, bool includeImage)
     {
+        if (observation.Snapshot && (!includeImage || intent is not null || selection is not null ||
+            observation.Scope is not null || observation.Candidates.Count != 0 || observation.VisualHash is not null || observation.Visual is not null))
+            throw new InvalidDataException("worker_reply");
         if (selection is { } region)
         {
             if (observation.Scope?.HasSameAnchor(GuideScope.FromUserSelection(observation.Frame, region)) != true)
@@ -84,7 +113,7 @@ public static class ObservationWorker
         else if (observation.Scope is { } scope && (scope.UserSelected || scope.Anchor is null || intent is null ||
                  !scope.HasSameAnchor(GuideScope.Resolve(observation.Frame, plugin.ScopeFor(intent), [scope.Anchor]))))
             throw new InvalidDataException("scope_unavailable");
-        var expected = includeImage && (plugin.Kind == "general" || selection is not null)
+        var expected = !observation.Snapshot && includeImage && (plugin.Kind == "general" || selection is not null)
             ? GuideObservation.Fingerprint(observation.Png ?? throw new InvalidDataException("worker_reply")) : null;
         if (observation.VisualHash != expected) throw new InvalidDataException("target_changed");
         var visual = expected is not null ? GuideVisual.Read(observation.Png!,
@@ -181,6 +210,10 @@ public static class ObservationWorker
             var input = ReadBoundedAsync(Console.In, MaxRequestCharacters, CancellationToken.None).GetAwaiter().GetResult();
             var request = JsonSerializer.Deserialize<Request>(input, Json) ?? throw new InvalidDataException("worker_request_invalid");
             if (request.Plugin is null) throw new InvalidDataException("worker_request_invalid");
+            if (request.ProcessId is null or 0 || request.Frame is not { } requestedFrame || !GuideScope.Valid(requestedFrame))
+                throw new InvalidDataException("worker_request_invalid");
+            if (request.VisualOnly && (!request.IncludeImage || request.Intent is not null || request.Selection is not null))
+                throw new InvalidDataException("worker_request_invalid");
             if (request.IdentityProvider is not null && request.IdentityProvider.Kind != "identity")
                 throw new InvalidDataException("worker_request_invalid");
             if (request.Intent is { } intent)
@@ -190,7 +223,8 @@ public static class ObservationWorker
                 GuidePrivacy.EnsureTextSafe(intent);
             }
             var observation = GuideObservation.Read(new IntPtr(request.Window), request.IncludeImage, request.Plugin, CancellationToken.None,
-                request.Intent, request.Selection, request.IdentityProvider, stage => phase = stage);
+                request.Intent, request.Selection, request.IdentityProvider, stage => phase = stage, accessibility: !request.VisualOnly,
+                expectedProcessId: request.ProcessId, expectedFrame: request.Frame);
             reply = new Reply(observation, null);
         }
         catch (Exception ex) { reply = new Reply(null, ex is InvalidDataException ? SafeError(ex.Message) :
@@ -201,7 +235,7 @@ public static class ObservationWorker
     internal static string SafeError(string error) => error is "target_not_foreground" or "target_unavailable" or
         "unsupported_target" or "elevated_target" or "target_changed" or "sensitive_content" or
         "privacy_unavailable" or "scope_unavailable" or "capture_target_unavailable" or "capture_dimensions" or
-        "capture_unusable" or "worker_request_invalid" ? error : "worker_failed";
+        "capture_unusable" or "capture_protected" or "worker_request_invalid" ? error : "worker_failed";
 
     internal static string SafePhase(string? phase) => phase is "request" or "target" or "privacy" or "controls" or
         "capture" or "privacy_after_capture" or "visual" or "identity" ? phase : "unknown";

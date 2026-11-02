@@ -14,7 +14,7 @@ $project = Join-Path $root 'src/CetaFae.Probe/CetaFae.Probe.csproj'
 $version = ([xml](Get-Content -LiteralPath $project -Raw)).Project.PropertyGroup.Version
 New-Item -ItemType Directory -Force -Path $payload | Out-Null
 dotnet publish $project -c Release -r win-x64 --self-contained true `
-    -p:RuntimeFrameworkVersion=8.0.32 -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true --ignore-failed-sources -o $payload
 if ($LASTEXITCODE -ne 0) { throw 'Self-contained publish failed.' }
 & $Compiler "/DAppVersion=$version" "/DPayloadDir=$payload" "/DOutputDir=$outputPath" "/DChineseMessagesFile=$ChineseMessagesFile" (Join-Path $PSScriptRoot 'CetaFae.iss')

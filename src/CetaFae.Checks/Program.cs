@@ -126,6 +126,7 @@ public static class Program
         PluginChecks.Run(Check);
         GeneralGuideChecks.Run(Check);
         SoftwareIdentityChecks.Run(Check);
+        SnapshotChecks.Run(Check);
         await IdentificationChecks.RunAsync(Check);
         CaretChecks.Run(Check);
         ScopeChecks.Run(Check);
@@ -355,6 +356,7 @@ public static class Program
                     () => IntPtr.Zero, activationCancel.Token); },
                 "activation confirmation can be cancelled without observing content");
 
+        await SnapshotChecks.RunTransportAsync(Check);
         await LifetimeChecks.RunAsync(Check);
 
         var delayedResponse = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -9,7 +9,7 @@ namespace CetaFae.Probe;
 public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
     IReadOnlyList<GuideCandidate> Candidates, byte[]? Png, bool RawView = false, string PluginId = "",
     GuideScope? Scope = null, string? ScopeIntent = null, string? VisualHash = null, GuideVisual? Visual = null,
-    SoftwareIdentity? Identity = null)
+    SoftwareIdentity? Identity = null, bool Snapshot = false, bool PrivacyLimited = false)
 {
     public const string TaskDescription = "用户尚未说明目标。只根据本次所选窗口的可见内容，分别判断所属软件和当前界面用途；" +
         "两者独立判断，缺少依据的部分明确未知，不从普通界面风格猜测软件。即使没有可操作控件，也先用日常语言简短概括用途或内容，" +
@@ -29,7 +29,8 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         WindowRect(window) == frame;
 
     public static GuideObservation Read(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
-        string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null, Action<string>? stageChanged = null)
+        string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null, Action<string>? stageChanged = null,
+        bool accessibility = true, uint? expectedProcessId = null, Rect? expectedFrame = null)
     {
         stageChanged?.Invoke("target");
         var clock = Stopwatch.StartNew();
@@ -44,6 +45,8 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         }
         var pid = Native.ProcessId(window);
         var frame = WindowRect(window);
+        if (expectedProcessId is { } owner && pid != owner || expectedFrame is { } expected && frame != expected)
+            throw new InvalidDataException("target_changed");
         if (!IsCurrent(window, pid, frame) || frame.IsEmpty || frame.Width < 1 || frame.Height < 1)
             throw new InvalidDataException("target_unavailable");
         using var process = Process.GetProcessById((int)pid);
@@ -51,34 +54,40 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             throw new InvalidDataException("unsupported_target");
         if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
         var rawView = plugin.UsesRawView;
+        var snapshot = includeImage && intent is null && selection is null;
         var rule = intent is null || selection is not null ? null : plugin.ScopeFor(intent);
         stageChanged?.Invoke("privacy");
-        var anchors = EnsureSafeContent(window, token, rule);
+        EnsureNoNativePassword(window, token);
+        var privacy = accessibility ? EnsureSafeContent(window, token, rule) :
+            (Anchors: (IReadOnlyList<GuideScopeAnchor>)[], Limited: true);
         var scope = selection is { } region ? GuideScope.FromUserSelection(frame, region) :
-            rule is null ? null : GuideScope.Resolve(frame, rule, anchors);
+            rule is null ? null : GuideScope.Resolve(frame, rule, privacy.Anchors);
         stageChanged?.Invoke("controls");
-        var candidates = ReadCandidates(window, token, rawView);
+        var candidates = snapshot || !accessibility ? [] : ReadOptionalCandidates(() => ReadCandidates(window, token, rawView),
+            () => privacy = (privacy.Anchors, true));
         var uiaMs = clock.ElapsedMilliseconds;
         ProbeLog.Log("guide_uia_complete", ("elapsedMs", uiaMs), ("candidates", candidates.Count));
         token.ThrowIfCancellationRequested();
         Rect? caret = null;
         stageChanged?.Invoke("capture");
-        var png = includeImage ? Capture.ReadTarget(window, scope?.Region, out caret) : null;
+        var png = includeImage ? Capture.ReadTarget(window, scope?.Region, out caret, token) : null;
         if (includeImage)
         {
             stageChanged?.Invoke("privacy_after_capture");
-            var after = EnsureSafeContent(window, token, rule);
-            if (rule is not null && scope is not null && !scope.HasSameAnchor(GuideScope.Resolve(frame, rule, after)))
+            EnsureNoNativePassword(window, token);
+            var after = accessibility ? EnsureSafeContent(window, token, rule) : privacy;
+            privacy = (privacy.Anchors, privacy.Limited || after.Limited);
+            if (rule is not null && scope is not null && !scope.HasSameAnchor(GuideScope.Resolve(frame, rule, after.Anchors)))
                 throw new InvalidDataException("target_changed");
         }
         ProbeLog.Log("guide_capture_complete", ("elapsedMs", clock.ElapsedMilliseconds - uiaMs),
             ("imageBytes", png?.Length ?? 0));
         if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
         stageChanged?.Invoke("visual");
-        var hash = png is not null && (plugin.Kind == "general" || scope?.UserSelected == true) ? Fingerprint(png) : null;
+        var hash = !snapshot && png is not null && (plugin.Kind == "general" || scope?.UserSelected == true) ? Fingerprint(png) : null;
         var visual = hash is not null ? GuideVisual.Read(png!, scope?.Region ?? frame, caret) : null;
         SoftwareIdentity? identity = null;
-        if (identityProvider is not null && intent is null && selection is null && includeImage)
+        if (accessibility && identityProvider is not null && intent is null && selection is null && includeImage)
         {
             stageChanged?.Invoke("identity");
             if (identityProvider.Kind != "identity") throw new InvalidDataException("worker_reply");
@@ -87,7 +96,8 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             { /* Unavailable metadata must not disable independent visual understanding. */ }
         }
         if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
-        return new GuideObservation(window, pid, frame, candidates, png, rawView, plugin.Id, scope, intent, hash, visual, identity);
+        ProbeLog.Log("guide_privacy_check", ("limited", privacy.Limited));
+        return new GuideObservation(window, pid, frame, candidates, png, rawView, plugin.Id, scope, intent, hash, visual, identity, snapshot, privacy.Limited);
     }
 
     public bool HasSameScope(GuideObservation current) => Scope is null ? current.Scope is null : Scope.HasSameAnchor(current.Scope);
@@ -100,12 +110,18 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         if (Window != current.Window || ProcessId != current.ProcessId || Frame != current.Frame ||
             PluginId != current.PluginId || RawView != current.RawView)
             throw new InvalidDataException("target_changed");
-        ValidateContext(current.Candidates, null);
+        if (!Snapshot) ValidateContext(current.Candidates, null);
     }
 
     public Rect? ValidateContext(GuideObservation current, int? id)
     {
         ValidateTargetContext(current);
+        if (Snapshot)
+        {
+            if (id is not null) throw new InvalidDataException("stale_candidate");
+            return null;
+        }
+        if (current.Snapshot) throw new InvalidDataException("target_changed");
         if (ScopeIntent != current.ScopeIntent ||
             !HasSameScope(current) || !HasSameVisual(current)) throw new InvalidDataException("target_changed");
         return ValidateContext(current.Candidates, id);
@@ -191,9 +207,24 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         return candidates;
     }
 
-    static IReadOnlyList<GuideScopeAnchor> EnsureSafeContent(IntPtr window, CancellationToken token, ObservationScopeRule? rule = null)
+    internal static IReadOnlyList<GuideCandidate> ReadOptionalCandidates(Func<IReadOnlyList<GuideCandidate>> read, Action? unavailable = null)
     {
-        try
+        try { return read(); }
+        catch (Exception ex) when (ex is ElementNotAvailableException or InvalidOperationException or
+            System.Runtime.InteropServices.COMException || ex is InvalidDataException
+            { Message: "privacy_unavailable" or "uia_unavailable" or "uia_traversal_limit" or "uia_ancestry_limit" or "too_many_candidates" })
+        {
+            unavailable?.Invoke();
+            ProbeLog.Log("guide_controls_unavailable", ("kind", ObservationWorker.SafeKind(ex.GetType().Name)));
+            return [];
+        }
+    }
+
+    static (IReadOnlyList<GuideScopeAnchor> Anchors, bool Limited) EnsureSafeContent(IntPtr window, CancellationToken token, ObservationScopeRule? rule = null)
+    {
+        var anchors = new List<GuideScopeAnchor>();
+        var limited = false;
+        var available = GuidePrivacy.TryInspect(() =>
         {
             var legacyPrivacy = new GuideLegacyPrivacy(window, token);
             var root = AutomationElement.FromHandle(window) ?? throw new InvalidDataException("privacy_unavailable");
@@ -203,22 +234,37 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             cache.Add(AutomationElement.ControlTypeProperty);
             var elements = new[] { root.GetUpdatedCache(cache) }.Concat(
                 WalkElements(root, cache, token, TreeWalker.RawViewWalker, false));
-            var anchors = new List<GuideScopeAnchor>();
             foreach (var element in elements)
             {
                 token.ThrowIfCancellationRequested();
-                var name = ReadVisibleElementName(element, root, window, token, legacyPrivacy);
-                var type = element.Cached.ControlType.ProgrammaticName;
-                if (name is not null && rule?.MatchesAnchor(name, type) == true)
-                    anchors.Add(new GuideScopeAnchor(name, type, element.Current.BoundingRectangle, element.GetRuntimeId()));
+                // Skip an unreadable field's name but continue checking later visible siblings.
+                if (!GuidePrivacy.TryInspect(() =>
+                {
+                    var name = ReadVisibleElementName(element, root, window, token, legacyPrivacy);
+                    var type = element.Cached.ControlType.ProgrammaticName;
+                    if (name is not null && rule?.MatchesAnchor(name, type) == true)
+                        anchors.Add(new GuideScopeAnchor(name, type, element.Current.BoundingRectangle, element.GetRuntimeId()));
+                })) limited = true;
             }
-            return anchors;
-        }
-        catch (Exception ex) when (ex is ElementNotAvailableException or InvalidOperationException or
-            System.Runtime.InteropServices.COMException || ex is InvalidDataException { Message: "uia_traversal_limit" })
+        });
+        return (anchors, limited || !available);
+    }
+
+    static void EnsureNoNativePassword(IntPtr window, CancellationToken token)
+    {
+        bool Protected(IntPtr handle) => Native.IsWindowVisible(handle) &&
+            (Native.Class(handle).Equals("Edit", StringComparison.OrdinalIgnoreCase) ||
+             Native.Class(handle).StartsWith("RichEdit", StringComparison.OrdinalIgnoreCase)) &&
+            (Native.GetWindowLong(handle, Native.GWL_STYLE) & 0x20) != 0;
+        var found = Protected(window);
+        Native.EnumChildWindows(window, (child, _) =>
         {
-            throw new InvalidDataException("privacy_unavailable");
-        }
+            if (token.IsCancellationRequested || found) return false;
+            if (Native.GetAncestor(child, Native.GA_ROOT) == window) found = Protected(child);
+            return !found;
+        }, IntPtr.Zero);
+        token.ThrowIfCancellationRequested();
+        if (found) throw new InvalidDataException("sensitive_content");
     }
 
     static string? ReadVisibleElementName(AutomationElement element, AutomationElement root, IntPtr window, CancellationToken token,

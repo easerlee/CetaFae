@@ -24,6 +24,9 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         "Use one short sentence for page in ordinary language: what this window lets the person do or what the document is about. " +
         "Use state only for one useful current fact that adds to page; leave it null rather than repeat page or list interface details. " +
         "Summarize readable document meaning instead of quoting its first line, full title, menus and status bar. " +
+        "An untitled/unnamed or saved/unsaved document title is incidental UI chrome, not a useful state by itself. " +
+        "Do not report naming/title facts unless an actual save/overwrite warning makes them relevant. " +
+        "If page already conveys the meaningful content and no further consequential status is visible, state must be null. " +
         "Omit incidental byte counts, encodings, line-ending acronyms, line/column numbers, versions and paths from an ordinary overview. " +
         "Do not omit a technical label when it is central to an actual error/warning or meaningful visible consequence. " +
         "Separate purpose from current state: preserve consequential error codes, numbers, dates, progress, amounts and units exactly. " +

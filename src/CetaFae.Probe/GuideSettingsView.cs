@@ -103,7 +103,7 @@ internal sealed class GuideSettingsView : Border
         _pages[3].Children.Add(Title("从拖动开始"));
         _pages[3].Children.Add(Text("1. 安装时同意使用协议，并准备可用的模型服务。\n2. 此后直接将小鲸鱼拖到要了解的窗口。\n3. 需要时回答问题或框选区域，再阅读说明并自行操作。\n4. 点击对话条内的 × 结束；设置隐私页可撤回同意。"));
         _pages[3].Children.Add(Title("遇到问题"));
-        _pages[3].Children.Add(Text("先在连接页手动检测服务。隐私检查失败不代表检测到了敏感内容；鲸汐会停止这次识别，而不是绕过检查。\n诊断导出仅含产品/运行时版本、云端状态、连接结果类别和插件状态，不包含密钥、地址、路径、截图、控件文字或问答。"));
+        _pages[3].Children.Add(Text("先在连接页手动检测服务。窗口识别以截图为主；软件未提供控件信息时仍可尝试解释。发现密码字段或明显密钥会停止，但自动检查可能漏掉敏感内容，请先隐藏不愿发送的信息。\n诊断导出仅含产品/运行时版本、云端状态、连接结果类别和插件状态，不包含密钥、地址、路径、截图、控件文字或问答。"));
         _pages[3].Children.Add(Text($"版本：{Program.VersionLabel} · 开发预览，尚未完成正式性能及平台验收。"));
         _pages[3].Children.Add(Action("导出安全诊断", () => ExportRequested?.Invoke()));
 

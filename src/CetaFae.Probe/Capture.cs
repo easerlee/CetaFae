@@ -11,8 +11,9 @@ public static class Capture
     /// <summary>Guide capture never reads screen pixels or persists image content.</summary>
     public static byte[] ReadTarget(IntPtr hwnd, Rect? region = null) => ReadTarget(hwnd, region, out _);
 
-    internal static byte[] ReadTarget(IntPtr hwnd, Rect? region, out Rect? caret)
+    internal static byte[] ReadTarget(IntPtr hwnd, Rect? region, out Rect? caret, CancellationToken token = default)
     {
+        token.ThrowIfCancellationRequested();
         caret = null;
         if (!Native.IsWindow(hwnd) || !Native.IsWindowVisible(hwnd) || Native.IsIconic(hwnd))
             throw new InvalidDataException("capture_target_unavailable");
@@ -20,13 +21,51 @@ public static class Capture
         int w = rect.Right - rect.Left, h = rect.Bottom - rect.Top;
         if (w <= 0 || h <= 0 || (long)w * h > 16_000_000)
             throw new InvalidDataException("capture_dimensions");
+        if (Native.GetWindowDisplayAffinity(hwnd, out var affinity) && affinity != 0)
+            throw new InvalidDataException("capture_protected");
         var before = Native.CaretRect(hwnd);
-        var frame = ReadPixels(hwnd, w, h);
+        var captured = WithWindowFallback(() =>
+        {
+            if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 18362))
+                throw new InvalidDataException("capture_backend_unavailable");
+            var modern = WindowCapture.ReadAsync(hwnd, token).GetAwaiter().GetResult();
+            if (!Usable(modern.Image)) throw new InvalidDataException("capture_unusable");
+            ProbeLog.Log("guide_capture_backend", ("backend", "window_graphics"));
+            return modern;
+        }, () =>
+        {
+            token.ThrowIfCancellationRequested();
+            var frame = ReadPixels(hwnd, w, h);
+            if (!frame.Ok || frame.NonBlackPct <= 1) throw new InvalidDataException("capture_unusable");
+            var image = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, frame.Pixels, w * 4);
+            ProbeLog.Log("guide_capture_backend", ("backend", "print_window"));
+            return new WindowCapture.Frame(image, new Rect(rect.Left, rect.Top, w, h));
+        });
         var after = Native.CaretRect(hwnd);
         if (before is not null && before == after) caret = before;
-        if (!frame.Ok || frame.NonBlackPct <= 1) throw new InvalidDataException("capture_unusable");
-        var img = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, frame.Pixels, w * 4);
-        return EncodeRegion(img, new Rect(rect.Left, rect.Top, w, h), region ?? GuideObservation.WindowRect(hwnd));
+        token.ThrowIfCancellationRequested();
+        return EncodeRegion(captured.Image, captured.Bounds, region ?? GuideObservation.WindowRect(hwnd));
+    }
+
+    internal static T WithWindowFallback<T>(Func<T> modern, Func<T> legacy)
+    {
+        try { return modern(); }
+        catch (Exception ex) when (ex is UnauthorizedAccessException || ex.HResult == unchecked((int)0x80070005))
+        { throw new InvalidDataException("capture_protected"); }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or TypeLoadException or
+            EntryPointNotFoundException or PlatformNotSupportedException || ex is InvalidDataException
+            { Message: "capture_backend_unavailable" or "capture_dimensions" or "capture_unusable" })
+        { return legacy(); }
+    }
+
+    static bool Usable(BitmapSource image)
+    {
+        var pixels = new byte[checked(image.PixelWidth * image.PixelHeight * 4)];
+        image.CopyPixels(pixels, image.PixelWidth * 4, 0);
+        var nonBlack = 0;
+        for (var i = 0; i < pixels.Length; i += 4)
+            if (pixels[i] + pixels[i + 1] + pixels[i + 2] > 24) nonBlack++;
+        return nonBlack * 100.0 / (image.PixelWidth * image.PixelHeight) > 1;
     }
 
     internal static byte[] EncodeRegion(BitmapSource img, Rect sourceFrame, Rect region)

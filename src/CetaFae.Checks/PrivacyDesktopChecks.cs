@@ -76,7 +76,7 @@ static class PrivacyDesktopChecks
                             " frameUnchanged=" + (GuideObservation.WindowRect(handle) == initialFrame));
                         throw;
                     }
-                    if (observation.Png is not { Length: > 0 } || !observation.Candidates.Any(c => c.Name == "Generated ordinary action"))
+                    if (observation.Png is not { Length: > 0 } || !observation.Snapshot || observation.Candidates.Count != 0)
                         throw new InvalidOperationException("fixture_observation_incomplete");
                     Console.WriteLine("PASS: " + name);
                 }

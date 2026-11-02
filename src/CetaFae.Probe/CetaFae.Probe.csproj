@@ -2,12 +2,14 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <WindowsSdkPackageVersion>10.0.19041.56</WindowsSdkPackageVersion>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CetaFae.Probe</AssemblyName>
-    <Version>0.2.0-preview.31</Version>
+    <Version>0.2.0-preview.32</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>CetaFae</Product>
     <Description>Whale interaction and selected-window guidance preview</Description>

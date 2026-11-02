@@ -5,6 +5,7 @@ namespace CetaFae.Probe;
 
 internal static class Native
 {
+    internal const int GWL_STYLE = -16;
     public const int GWL_EXSTYLE = -20;
     public const int WS_EX_TRANSPARENT = 0x00000020;
     public const int WS_EX_TOOLWINDOW = 0x00000080;
@@ -59,7 +60,10 @@ internal static class Native
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
+    internal delegate bool EnumChildCallback(IntPtr window, IntPtr parameter);
+    [DllImport("user32.dll")] internal static extern bool EnumChildWindows(IntPtr window, EnumChildCallback callback, IntPtr parameter);
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hwnd);
+    [DllImport("user32.dll")] internal static extern bool GetWindowDisplayAffinity(IntPtr window, out uint affinity);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
     // Reorder only our existing prompt; never steal foreground while a new wash surface is shown.

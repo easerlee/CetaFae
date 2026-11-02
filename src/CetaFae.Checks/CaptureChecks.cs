@@ -33,9 +33,24 @@ static class CaptureChecks
             {
                 await Settle();
                 CheckColor(Capture.ReadTarget(handle), initial, "unobscured fixture pixels");
+                var modernChecks = 0;
+                if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 18362))
+                {
+                    var direct = await WindowCapture.ReadAsync(handle, CancellationToken.None);
+                    CheckColor(Capture.EncodeRegion(direct.Image, direct.Bounds, GuideObservation.WindowRect(handle)), initial,
+                        "HWND compositor backend returns the generated target directly");
+                    modernChecks++;
+                }
                 cover.Show();
                 await Settle();
                 CheckColor(Capture.ReadTarget(handle), initial, "occluder pixels excluded");
+                if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 18362))
+                {
+                    var direct = await WindowCapture.ReadAsync(handle, CancellationToken.None);
+                    CheckColor(Capture.EncodeRegion(direct.Image, direct.Bounds, GuideObservation.WindowRect(handle)), initial,
+                        "HWND compositor backend excludes another generated window covering the target");
+                    modernChecks++;
+                }
                 target.Background = new SolidColorBrush(changed);
                 await Settle();
                 CheckColor(Capture.ReadTarget(handle), changed, "covered content update is fresh");
@@ -60,7 +75,7 @@ static class CaptureChecks
                 Reject(() => Capture.ReadTarget(handle), "capture_unusable", "black target rejected");
                 target.Close();
                 Reject(() => Capture.ReadTarget(handle), "capture_target_unavailable", "closed target rejected");
-                Console.WriteLine("RESULT: 8 desktop capture checks passed; generated fixture only; no files or network.");
+                Console.WriteLine($"RESULT: {8 + modernChecks} desktop capture checks passed; generated fixture only; no files or network.");
                 result = 0;
             }
             catch (Exception ex)

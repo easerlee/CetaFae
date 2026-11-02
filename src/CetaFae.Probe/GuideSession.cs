@@ -191,6 +191,16 @@ public sealed class GuideSession : IDisposable
     async void OnTargetChanged()
     {
         _contextCheckPending = true;
+        if (_context is { Snapshot: true } snapshot)
+        {
+            // A first explanation describes the captured view, not a live control position.
+            if (!Native.IsWindow(snapshot.Window) || !Native.IsWindowVisible(snapshot.Window) ||
+                Native.IsIconic(snapshot.Window) || Native.ProcessId(snapshot.Window) != snapshot.ProcessId ||
+                GuideObservation.WindowRect(snapshot.Window) != snapshot.Frame)
+                _ball.StopTracking("target_changed");
+            _contextCheckPending = false;
+            return;
+        }
         if (_followup.WaitingForUser && _followup.Target is { } armed)
         {
             // Geometry/lifetime checks are allowed while armed, but do not inspect changed content.
@@ -454,7 +464,7 @@ public sealed class GuideSession : IDisposable
                 if (_marker.PlaceControl(rect, observation.Frame, _ball.Scale)) _marker.Show();
             }
             _panel.SetControl(bounds);
-            _panel.SetStatus(answer.Explanation);
+            _panel.SetStatus(observation.Snapshot ? "根据刚才的画面：\n" + answer.Explanation : answer.Explanation);
             _panel.SetPoint(bounds is not null && _marker.IsVisible);
             _ball.SetResult();
             _panel.SetReferenceQuery(observation.Identity?.ReferenceQuery);
@@ -563,6 +573,8 @@ public sealed class GuideSession : IDisposable
 
     public static string FailureMessage(Exception ex) => ex switch
     {
+        InvalidDataException { Message: "capture_protected" } =>
+            "这个窗口不允许获取画面，本次没有识别。\n你可以用文字描述想了解的提示。",
         InvalidDataException { Message: "target_changed" } =>
             "窗口内容或位置发生了变化，本次识别已停止。\n请把鲸鱼重新拖到要了解的窗口。",
         InvalidDataException { Message: "target_context_unavailable" } =>
@@ -616,6 +628,8 @@ public sealed class GuideSession : IDisposable
             using var process = Process.GetProcessById((int)previous.ProcessId);
             if (process.StartTime.ToUniversalTime().Ticks != identity.StartedAt) throw new InvalidDataException("target_changed");
         }
+        token.ThrowIfCancellationRequested();
+        if (previous.Snapshot) return previous;
         GuideObservation current;
         try { current = await ObservationWorker.ReadAsync(previous.Window, previous.VisualHash is not null, _plugins.Get(previous.PluginId), token,
             previous.ScopeIntent, previous.Scope?.UserSelected == true ? previous.Scope.Region : null); }
