@@ -65,6 +65,14 @@ internal sealed class WhaleArt
     }
     internal static bool IsImmersed(int frame) => frame is >= 0 and < 320 && Contact.Value[frame];
 
+    internal const double IdleSwimDuration = 3.2;
+    internal static WhalePose IdlePose(double seconds)
+    {
+        var t = Math.Clamp(seconds / IdleSwimDuration, 0, 1);
+        var envelope = Math.Pow(Math.Sin(Math.PI * t), 2);
+        return new WhalePose(109, Angle: 6 * envelope * Math.Sin(2 * Math.PI * t));
+    }
+
     internal BitmapSource Frame(string layer, int frame)
     {
         if (layer is not ("water-rear" or "whale-visible" or "water-front" or "spout" or "drop-whale") ||

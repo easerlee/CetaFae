@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Fixed-distance water and occasional idle motion (2026-11-02)
+
+First reproduce v1.22 failures with rendered pixels: compare edge alpha at equal distances on 600×320 and 3440×1392 targets; require fixed depth except tiny targets. Render the actual card onto a transparent bitmap and require the header to end near zero alpha while the body remains opaque. Review matching-scale dark/light backgrounds and fine-grid copies; retain exact tiled-versus-full-frame and corner checks. For idle swimming verify eased endpoints, both pitch directions, stationary water, home-only eligibility, no clock between episodes, and cancellation by press/session/hide/reduced motion. Render and decode a complete generated idle episode; no desktop access is needed. Run Debug/Release regressions and package; actual appearance, desktop responsiveness and formal performance gates remain separate pending authorized native acceptance.
+
 ## Card hierarchy and continuous scan correction (2026-11-02)
 
 Reproduce the v1.21 defects before changing production: no duplicate close in session/bubble, medium text remains at baseline width above the former height limit, shared perimeter/header gradient stops, and the first waiting pass moves upward after the entry descent. Render normal/top-attached short, medium and long generated reading cards with matching fine-grid copies; inspect text and buttons without a desktop handle. Check mirrored gradient/shape pixels, both directional strip bounds, entry/first return/next descent ordering, reduced motion, stop/close/cancel and unchanged prompt close. Render and decode a generated scan sequence for visual review, then run Debug/Release checks and package without visible launches. Real-window fluency and placement require later explicit desktop permission.

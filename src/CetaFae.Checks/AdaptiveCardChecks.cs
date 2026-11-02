@@ -35,6 +35,14 @@ internal static class AdaptiveCardChecks
         var text = "这是文本编辑器 Notepad3，正在显示一份待办清单。你想了解哪一部分？";
         var card = Create(text);
         var size = Layout(card, new Size(900, 700));
+        var surface = new RenderTargetBitmap((int)Math.Ceiling(size.Width), (int)Math.Ceiling(size.Height), 96, 96, PixelFormats.Pbgra32);
+        surface.Render(card);
+        var rgba = new byte[surface.PixelWidth * surface.PixelHeight * 4]; surface.CopyPixels(rgba, surface.PixelWidth * 4, 0);
+        var headerBounds = card.Header.TransformToAncestor(card).TransformBounds(new Rect(card.Header.RenderSize));
+        int Alpha(int y) => rgba[(y * surface.PixelWidth + surface.PixelWidth - 24) * 4 + 3];
+        check(Alpha((int)headerBounds.Top + 1) == 255 && Alpha((int)headerBounds.Bottom - 1) < 5 &&
+            Alpha((int)headerBounds.Bottom + 10) == 255,
+            "actual card header fades to transparent pixels while the separate reading body stays opaque");
         check(card.DismissButton.Visibility == Visibility.Collapsed,
             "session reader has no duplicate close beside the input bar close");
         var gradient = (LinearGradientBrush)card.Header.Background;
@@ -172,6 +180,51 @@ internal static class AdaptiveCardChecks
             for (var y = 0; y < height; y += 20) draw.DrawLine(pen, new Point(0, y), new Point(width, y));
         }
         var gridded = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); gridded.Render(grid); Save(gridded, "adaptive-card-grid.png");
+        RenderTransparency();
+    }
+    static void RenderTransparency()
+    {
+        var visual = new DrawingVisual();
+        using (var draw = visual.RenderOpen())
+        {
+            draw.DrawRectangle(GuideTheme.Surface, null, new Rect(0, 0, 1280, 760));
+            var sizes = new[] { new Size(600, 320), new Size(3440, 1392) };
+            for (var i = 0; i < 2; i++)
+            {
+                var origin = new Point(20 + i * 630, 50);
+                draw.DrawText(new FormattedText(i == 0 ? "Normal 600 x 320 / 1 DIP = 1 px" : "Maximized 3440 x 1392 / unscaled corner crop",
+                    CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 14, GuideTheme.Ink, 1), new Point(origin.X, 20));
+                draw.PushTransform(new TranslateTransform(origin.X, origin.Y));
+                draw.PushClip(new RectangleGeometry(new Rect(0, 0, 600, 320)));
+                draw.DrawRectangle(Brushes.White, null, new Rect(0, 0, 600, 320));
+                GuideFrameVisual.DrawWater(draw, sizes[i], 0, 0);
+                for (var distance = 16; distance <= 96; distance += 16)
+                {
+                    draw.DrawLine(new Pen(GuideTheme.Ink, .5), new Point(230, distance), new Point(250, distance));
+                    draw.DrawText(new FormattedText(distance.ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                        new Typeface("Segoe UI"), 10, GuideTheme.Ink, 1), new Point(255, distance - 6));
+                }
+                draw.Pop(); draw.Pop();
+                var background = new Rect(origin.X, 410, 600, 320);
+                draw.DrawRectangle(i == 0 ? Brushes.White : GuideTheme.Ink, null, background);
+                for (var x = 0; x < 600; x += 24) for (var y = 0; y < 320; y += 24)
+                    if ((x / 24 + y / 24) % 2 == 0)
+                        draw.DrawRectangle(new SolidColorBrush(Color.FromArgb(28, 100, 170, 220)), null, new Rect(origin.X + x, 410 + y, 24, 24));
+                var card = Create("这是文本编辑器 Notepad3，正在显示一份待办清单。你想了解哪一部分？");
+                var size = Layout(card, new Size(600, 320));
+                var bitmap = new RenderTargetBitmap((int)Math.Ceiling(size.Width), (int)Math.Ceiling(size.Height), 96, 96, PixelFormats.Pbgra32); bitmap.Render(card);
+                draw.DrawImage(bitmap, new Rect(origin.X + 110, 450, size.Width, size.Height));
+            }
+        }
+        var clean = new RenderTargetBitmap(1280, 760, 96, 96, PixelFormats.Pbgra32); clean.Render(visual); Save(clean, "water-header-clean.png");
+        var grid = new DrawingVisual();
+        using (var draw = grid.RenderOpen())
+        {
+            draw.DrawImage(clean, new Rect(0, 0, 1280, 760)); var pen = new Pen(new SolidColorBrush(Color.FromArgb(45, 90, 90, 90)), .5);
+            for (var x = 0; x < 1280; x += 10) draw.DrawLine(pen, new Point(x, 0), new Point(x, 760));
+            for (var y = 0; y < 760; y += 10) draw.DrawLine(pen, new Point(0, y), new Point(1280, y));
+        }
+        var gridded = new RenderTargetBitmap(1280, 760, 96, 96, PixelFormats.Pbgra32); gridded.Render(grid); Save(gridded, "water-header-grid.png");
     }
     internal static void RenderScan()
     {

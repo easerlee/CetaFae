@@ -13,6 +13,40 @@ internal static class WhaleChecks
 {
     internal static void Run(Action<bool, string> check)
     {
+        var idlePoses = Enumerable.Range(0, 81).Select(i => WhaleArt.IdlePose(i * WhaleArt.IdleSwimDuration / 80)).ToArray();
+        check(Math.Abs(idlePoses[0].Angle) < .0001 && Math.Abs(idlePoses[^1].Angle) < .0001 &&
+            idlePoses.Min(pose => pose.Angle) < -3 && idlePoses.Max(pose => pose.Angle) > 3 &&
+            idlePoses.All(pose => Math.Abs(pose.Angle) <= 6 && pose.Frame == 109 && pose.WaterScale == 1 && pose.Y == 0),
+            "idle body pitches in both directions and eases back to rest without moving water or changing atlas frames");
+        check(BallWindow.CanIdleSwim(true, true, false, false) && !BallWindow.CanIdleSwim(false, true, false, false) &&
+            !BallWindow.CanIdleSwim(true, false, false, false) && !BallWindow.CanIdleSwim(true, true, true, false) &&
+            !BallWindow.CanIdleSwim(true, true, false, true),
+            "idle swim is limited to the visible home whale without interaction or reduced motion");
+        byte[] IdlePixels(double seconds)
+        {
+            var image = IdleFrame(seconds); var bytes = new byte[88 * 88 * 4]; image.CopyPixels(bytes, 88 * 4, 0); return bytes;
+        }
+        var restingPixels = IdlePixels(0); var pitchedPixels = IdlePixels(.8);
+        check(restingPixels.SequenceEqual(IdlePixels(WhaleArt.IdleSwimDuration)) && !restingPixels.SequenceEqual(pitchedPixels) &&
+            restingPixels.Skip(68 * 88 * 4).SequenceEqual(pitchedPixels.Skip(68 * 88 * 4)),
+            "rendered idle motion changes the body while the lower water pixels and episode endpoints remain identical");
+        var idleBall = new BallWindow();
+        try
+        {
+            idleBall.BeginIdleSwim(); idleBall.AdvanceMotion(.8);
+            check(SystemParameters.ClientAreaAnimation ? idleBall.IdleSwimming && idleBall.ArtAnimating && idleBall.CurrentPose.Angle > 0 : !idleBall.ArtAnimating,
+                "occasional swim uses the existing animation clock only for an episode");
+            idleBall.AdvanceMotion(WhaleArt.IdleSwimDuration);
+            check(!idleBall.IdleSwimming && !idleBall.ArtAnimating && idleBall.CurrentPose == new WhalePose(109),
+                "completed swim returns to the exact resting pose with no animation clock between episodes");
+            idleBall.BeginIdleSwim(); idleBall.StopTracking("cancelled");
+            check(!idleBall.IdleSwimming && !idleBall.ArtAnimating && idleBall.CurrentPose == new WhalePose(109),
+                "interaction cancellation interrupts idle motion and clears its clock");
+            idleBall.BeginDockMotion(); idleBall.BeginIdleSwim();
+            check(!idleBall.IdleSwimming && new WindowInteropHelper(idleBall).Handle == IntPtr.Zero,
+                "idle motion cannot replace an active docking transition or create a desktop window");
+        }
+        finally { idleBall.Close(); }
         var art = new WhaleArt();
         var pixels = new byte[96 * 96 * 4];
         var nonempty = 0;
@@ -120,7 +154,7 @@ internal static class WhaleChecks
         check(Alpha(0) == 255 && rgba[160 * 4] == blue.B && rgba[160 * 4 + 1] == blue.G && rgba[160 * 4 + 2] == blue.R,
             "outer water edge uses the exact opaque prompt blue before fading inward");
         var movedPixels = new byte[rgba.Length]; RenderFrame(false, 0, phase: 1.7).CopyPixels(movedPixels, 320 * 4, 0);
-        check(Alpha(1) == Alpha(6) && Alpha(6) > Alpha(12) && Alpha(12) > Alpha(24) && Alpha(24) > 0 && Alpha(60) == 0 &&
+        check(Alpha(1) == Alpha(15) && Alpha(15) > Alpha(32) && Alpha(32) > Alpha(60) && Alpha(60) > 0 && Alpha(90) == 0 &&
             !rgba.SequenceEqual(movedPixels), "soft wide glow fades inward without an inner stroke and ripple phase changes the water shape");
         var work = new Rect(0, 0, 1920, 1040);
         check(BallWindow.ConstrainPosition(new Point(1910, 1030), work, new Size(88, 88)) == new Point(1832, 952) &&
@@ -203,6 +237,51 @@ internal static class WhaleChecks
         using var output = File.Create(file); encoder.Save(output);
         Console.WriteLine("Offscreen whale states: " + file + "; no native window, capture or network");
         RenderFeedback();
+        RenderIdle();
+    }
+
+    static void RenderIdle()
+    {
+        var directory = Path.GetFullPath(".artifacts/checks/idle-swim-sequence"); Directory.CreateDirectory(directory);
+        var sheet = new DrawingVisual();
+        using (var draw = sheet.RenderOpen())
+        {
+            draw.DrawRectangle(GuideTheme.Surface, null, new Rect(0, 0, 1080, 320));
+            var times = new[] { 0d, .8, 1.6, 2.4, 3.2 };
+            for (var i = 0; i < times.Length; i++)
+            {
+                draw.DrawText(new FormattedText($"Idle / {times[i]:F1}s", CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                    new Typeface("Segoe UI"), 14, GuideTheme.Ink, 1), new Point(i * 216 + 16, 20));
+                draw.DrawImage(IdleFrame(times[i]), new Rect(i * 216 + 16, 64, 176, 176));
+                draw.DrawLine(new Pen(GuideTheme.Outline, .5), new Point(i * 216 + 16, 190), new Point(i * 216 + 192, 190));
+            }
+        }
+        var clean = new RenderTargetBitmap(1080, 320, 96, 96, PixelFormats.Pbgra32); clean.Render(sheet);
+        Save(clean, Path.GetFullPath(".artifacts/checks/idle-swim-clean.png"));
+        var grid = new DrawingVisual();
+        using (var draw = grid.RenderOpen())
+        {
+            draw.DrawImage(clean, new Rect(0, 0, 1080, 320));
+            var pen = new Pen(new SolidColorBrush(Color.FromArgb(55, 40, 90, 150)), .5);
+            for (var x = 0; x < 1080; x += 8) draw.DrawLine(pen, new Point(x, 0), new Point(x, 320));
+            for (var y = 0; y < 320; y += 8) draw.DrawLine(pen, new Point(0, y), new Point(1080, y));
+        }
+        var gridded = new RenderTargetBitmap(1080, 320, 96, 96, PixelFormats.Pbgra32); gridded.Render(grid);
+        Save(gridded, Path.GetFullPath(".artifacts/checks/idle-swim-grid.png"));
+        for (var i = 0; i <= 80; i++) Save(IdleFrame(i / 25d), Path.Combine(directory, $"frame-{i:000}.png"));
+    }
+
+    static RenderTargetBitmap IdleFrame(double seconds)
+    {
+        var whale = new WhaleVisual(); whale.SetPose(WhaleArt.IdlePose(seconds));
+        whale.Measure(new Size(88, 88)); whale.Arrange(new Rect(0, 0, 88, 88));
+        var image = new RenderTargetBitmap(88, 88, 96, 96, PixelFormats.Pbgra32); image.Render(whale); whale.Release(); return image;
+    }
+
+    static void Save(BitmapSource source, string path)
+    {
+        var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(source));
+        using var output = File.Create(path); png.Save(output);
     }
 
     internal static RenderTargetBitmap RenderFrame(bool control, double progress, int width = 320, int height = 180, double phase = 0)

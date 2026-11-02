@@ -29,6 +29,7 @@ internal sealed class GuideCard : Border
     readonly Button _details;
     readonly Button _followup;
     readonly Border _header;
+    readonly Border _content;
     readonly StackPanel _body = new();
     readonly StackPanel _pagination = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Visibility = Visibility.Collapsed };
     readonly TextBlock _pageLabel = new() { VerticalAlignment = VerticalAlignment.Center, Foreground = GuideTheme.Muted, FontSize = 12 };
@@ -78,7 +79,7 @@ internal sealed class GuideCard : Border
 
     internal GuideCard(GuideOptions options)
     {
-        Background = GuideTheme.Surface;
+        Background = Brushes.Transparent;
         BorderBrush = GuideTheme.WhaleBlue;
         BorderThickness = new Thickness(2);
         CornerRadius = new CornerRadius(0, 0, 19, 19);
@@ -104,7 +105,8 @@ internal sealed class GuideCard : Border
         DockPanel.SetDock(DismissButton, Dock.Right);
         heading.Children.Add(DismissButton);
         heading.Children.Add(_title);
-        _header = new Border { Background = GuideTheme.CardHeader, MinHeight = 36, Padding = new Thickness(16, 6, 16, 6), Child = heading };
+        _title.VerticalAlignment = VerticalAlignment.Top;
+        _header = new Border { Background = GuideTheme.CardHeader, Height = GuideTheme.CardHeaderHeight, Padding = new Thickness(16, 6, 16, 6), Child = heading };
         DockPanel.SetDock(_header, Dock.Top);
         layout.Children.Add(_header);
         _submit = Button("回答", Submit);
@@ -145,10 +147,13 @@ internal sealed class GuideCard : Border
         next.ToolTip = "下一页";
         _pagination.Children.Add(previous); _pagination.Children.Add(_pageLabel); _pagination.Children.Add(next);
         _pagination.Margin = new Thickness(12, 0, 10, 6);
-        DockPanel.SetDock(_pagination, Dock.Bottom); layout.Children.Add(_pagination);
+        var content = new DockPanel();
+        DockPanel.SetDock(_pagination, Dock.Bottom); content.Children.Add(_pagination);
         DockPanel.SetDock(Actions, Dock.Bottom);
-        layout.Children.Add(Actions);
-        layout.Children.Add(BodyScroll);
+        content.Children.Add(Actions);
+        content.Children.Add(BodyScroll);
+        _content = new Border { Background = GuideTheme.Surface, Child = content };
+        layout.Children.Add(_content);
         Child = layout;
         Refresh();
     }
@@ -318,6 +323,7 @@ internal sealed class GuideCard : Border
         Padding = new Thickness(0);
         CornerRadius = session ? (bubble ? new CornerRadius(20, 20, 5, 20) : new CornerRadius(0, 0, 19, 19)) : new CornerRadius(16);
         _header.CornerRadius = session && !bubble ? new CornerRadius(0) : new CornerRadius(14, 14, 0, 0);
+        _content.CornerRadius = compact ? new CornerRadius(17) : new CornerRadius(0, 0, CornerRadius.BottomRight - 2, CornerRadius.BottomLeft - 2);
         _status.MaxHeight = double.PositiveInfinity;
         _status.TextTrimming = TextTrimming.None;
         _status.FontSize = 14;

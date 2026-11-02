@@ -37,7 +37,9 @@ public sealed class BallWindow : Window
     readonly DispatcherTimer _presence = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(500) };
     bool _fullscreenHidden;
     readonly Stopwatch _motion = new();
-    enum Motion { Idle, Jump, Drag, Dock, Scan, Return }
+    readonly Stopwatch _idle = Stopwatch.StartNew();
+    double _idleDelay = Random.Shared.Next(20, 41);
+    enum Motion { Idle, Swim, Jump, Drag, Dock, Scan, Return }
     Motion _state;
     Point _returnFrom;
     int _facing = -1;
@@ -47,6 +49,8 @@ public sealed class BallWindow : Window
     bool _processing;
     internal bool Processing => _processing;
     internal bool Scanning => _state == Motion.Scan;
+    internal bool IdleSwimming => _state == Motion.Swim;
+    internal WhalePose CurrentPose => _whale.Pose;
     internal bool TopAttached => _whale.TopAttached;
     bool ReducedMotion => !SystemParameters.ClientAreaAnimation;
 
@@ -127,7 +131,7 @@ public sealed class BallWindow : Window
         Content = grid;
         _handle.MouseEnter += (_, _) => { if (!_pressed && _target == IntPtr.Zero && _state == Motion.Idle) Animate(Motion.Jump); };
         _animation.Tick += (_, _) => AdvanceMotion();
-        _presence.Tick += (_, _) => UpdateFullscreenPresence();
+        _presence.Tick += (_, _) => { UpdateFullscreenPresence(); UpdateIdleSwim(); };
         Loaded += (_, _) => _presence.Start();
         _prompt.FocusRequested += () => { Activate(); _prompt.Answer.Focus(); };
         _prompt.Submitted += text => AnswerSubmitted?.Invoke(text);
@@ -157,6 +161,29 @@ public sealed class BallWindow : Window
 
     internal static bool ShouldHideForFullscreen(bool fullscreen, bool hasTarget, bool pressed) =>
         fullscreen && !hasTarget && !pressed;
+
+    internal static bool CanIdleSwim(bool visible, bool atHome, bool busy, bool reducedMotion) =>
+        visible && atHome && !busy && !reducedMotion;
+
+    void UpdateIdleSwim()
+    {
+        var home = HomePosition(SystemParameters.WorkArea);
+        var eligible = CanIdleSwim(IsVisible && !_fullscreenHidden,
+            Math.Abs(Left - home.X) < 2 && Math.Abs(Top - home.Y) < 2,
+            _pressed || HasTarget || _inline || _state is not (Motion.Idle or Motion.Swim), ReducedMotion);
+        if (!eligible)
+        {
+            if (_state == Motion.Swim) StopAnimation();
+            _idle.Restart(); return;
+        }
+        if (_state == Motion.Idle && _idle.Elapsed.TotalSeconds >= _idleDelay) BeginIdleSwim();
+    }
+
+    internal void BeginIdleSwim()
+    {
+        if (_state != Motion.Idle || _pressed || HasTarget || _inline || _fullscreenHidden || ReducedMotion) return;
+        Animate(Motion.Swim);
+    }
 
     void UpdateFullscreenPresence()
     {
@@ -217,7 +244,12 @@ public sealed class BallWindow : Window
 
     internal void AdvanceMotion(double seconds)
     {
-        if (_state == Motion.Drag)
+        if (_state == Motion.Swim)
+        {
+            if (ReducedMotion || seconds >= WhaleArt.IdleSwimDuration) StopAnimation();
+            else _whale.SetPose(WhaleArt.IdlePose(seconds), _facing);
+        }
+        else if (_state == Motion.Drag)
         {
             _whale.SetPose(new WhalePose(ReducedMotion ? 109 : 140 + (int)(seconds * 25) % 100), _facing);
             if (!ReducedMotion) _wake.Advance(seconds);
@@ -261,6 +293,7 @@ public sealed class BallWindow : Window
     void StopAnimation()
     {
         _animation.Stop(); _state = Motion.Idle;
+        _idle.Restart(); _idleDelay = Random.Shared.Next(20, 41);
         _wake.Reset();
         _whale.SetPose(new WhalePose(109), _facing);
         _overlay.SetWaterProgress(0);
@@ -338,7 +371,7 @@ public sealed class BallWindow : Window
         var pointer = Native.Cursor();
         _pressPoint = new Point(pointer.X, pointer.Y);
         _pressed = true;
-        if (_state == Motion.Return) StopAnimation();
+        if (_state is Motion.Return or Motion.Swim) StopAnimation();
         CaptureMouse();
         e.Handled = true;
     }

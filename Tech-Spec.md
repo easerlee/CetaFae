@@ -2,6 +2,10 @@
 
 Updated: 2026-11-02
 
+## Fixed-distance water and occasional idle motion (2026-11-02)
+
+Requirements v1.22: render the perimeter in side-local coordinates with a fixed 96 DIP absolute gradient, retaining the 16 DIP solid rim. Only shrink geometry when the target cannot contain two strips; never rescale alpha with mesh bounds. Separate the transparent header from the opaque reading-body surface; finish its shared gradient within its own 48 DIP height. Verify actual composited alpha, not only gradient-stop metadata. Reuse WhalePose body rotation with a short eased positive/negative pitch, leaving both water layers stationary. Schedule occasional episodes (20–40 seconds apart) on the existing presence timer, with no animation clock between episodes. Only animate the visible idle whale at home; drag, session, hide and reduced motion interrupt or suppress it. No new capture or transport behavior.
+
 ## Card hierarchy and continuous scan correction (2026-11-02)
 
 Requirements v1.21: keep session termination on the existing input bar; only standalone notices retain a card close action. Reuse the perimeter gradient factory for the header, including its solid-blue start and transparent inner end. Keep 360 DIP baseline width, grow naturally to 520 DIP height before widening, and preserve screen constraints and lossless local pagination. Entry already performs one downward sweep: the waiting cycle must start at the bottom moving upward. Pass explicit direction through the existing narrow-strip overlay and mirror both the shape and gradient for upward motion. Do not allocate a full-window animation surface or change model transport. Verify generated offscreen card layouts and the complete entry-to-waiting sequence, not isolated cosine cycles alone.

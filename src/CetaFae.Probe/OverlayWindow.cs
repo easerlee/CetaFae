@@ -100,7 +100,7 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
 {
     internal const double WaterDepth = 96;
     internal const double SolidDepth = 16;
-    internal static double Depth(Size size) => Math.Min(WaterDepth, Math.Min(size.Width, size.Height) / 4);
+    internal static double Depth(Size size) => Math.Min(WaterDepth, Math.Min(size.Width, size.Height) / 2);
     Size? _targetSize;
     Rect _region;
     internal void SetViewport(Size target, Rect region)
@@ -149,7 +149,7 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
         draw.Pop();
     }
 
-    static readonly Brush[] WaterBrushes = Enumerable.Range(0, 4).Select(side => GuideTheme.WaterGradient(side)).ToArray();
+    static readonly Brush WaterBrush = GuideTheme.WaterGradient(WaterDepth);
 
     internal static void DrawWater(DrawingContext draw, Size size, double phase, double progress)
     {
@@ -165,11 +165,12 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
                 2 => new Vector(-1, 0), _ => new Vector(0, -1) };
             var normal = new Vector(-tangent.Y, tangent.X);
             var length = side % 2 == 0 ? size.Width : size.Height;
+            draw.PushTransform(new MatrixTransform(tangent.X, tangent.Y, normal.X, normal.Y, origin.X, origin.Y));
             var mesh = new StreamGeometry();
             using (var path = mesh.Open())
             {
-                path.BeginFigure(origin, true, true);
-                path.LineTo(origin + tangent * length, true, false);
+                path.BeginFigure(new Point(), true, true);
+                path.LineTo(new Point(length, 0), true, false);
                 var steps = Math.Max(1, (int)Math.Ceiling(length / 32));
                 for (var i = steps; i >= 0; i--)
                 {
@@ -177,10 +178,10 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
                     var t = (double)i / steps; var x = length * t;
                     var ripple = Math.Min(7, depth / 3) * Math.Pow(Math.Sin(t * Math.PI), 2) *
                         (.5 + .5 * Math.Sin(x / 160 * Math.PI * 2 + phase));
-                    path.LineTo(origin + tangent * x + normal * (depth - ripple), true, false);
+                    path.LineTo(new Point(x, depth - ripple), true, false);
                 }
             }
-            mesh.Freeze(); draw.DrawGeometry(WaterBrushes[side], null, mesh);
+            mesh.Freeze(); draw.DrawGeometry(WaterBrush, null, mesh); draw.Pop();
         }
         if (revealing) draw.Pop();
     }

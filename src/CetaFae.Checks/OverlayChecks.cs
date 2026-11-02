@@ -11,6 +11,17 @@ internal static class OverlayChecks
 {
     internal static void Run(Action<bool, string> check)
     {
+        check(GuideFrameVisual.Depth(new Size(600, 320)) == GuideFrameVisual.WaterDepth &&
+            GuideFrameVisual.Depth(new Size(3440, 1392)) == GuideFrameVisual.WaterDepth,
+            "normal and maximized targets retain the same fixed perimeter depth");
+        var profiles = new[] { new Size(600, 320), new Size(3440, 1392) }.Select(size =>
+        {
+            var pixels = Render(size, new Rect(size), 1.7); var width = (int)size.Width; var height = (int)size.Height;
+            return Enumerable.Range(0, 88).SelectMany(d => new[] {
+                pixels[(d * width + width / 2) * 4 + 3], pixels[((height - 1 - d) * width + width / 2) * 4 + 3],
+                pixels[(height / 2 * width + d) * 4 + 3], pixels[(height / 2 * width + width - 1 - d) * 4 + 3] }).ToArray();
+        }).ToArray();
+        check(profiles[0].SequenceEqual(profiles[1]), "equal edge distances have identical alpha on normal and maximized targets");
         var cornerSize = new Size(600, 400);
         var cornerPixels = Render(cornerSize, new Rect(cornerSize), 0);
         int Alpha(int x, int y) => cornerPixels[(y * 600 + x) * 4 + 3];
