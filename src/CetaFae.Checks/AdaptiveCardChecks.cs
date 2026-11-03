@@ -33,6 +33,19 @@ internal static class AdaptiveCardChecks
     internal static void Run(Action<bool, string> check)
     {
         var text = "这是文本编辑器 Notepad3，正在显示一份待办清单。你想了解哪一部分？";
+        foreach (var topAttached in new[] { false, true })
+        {
+            var panel = new GuidePanel(Options);
+            var workArea = SystemParameters.WorkArea;
+            var prompt = new Rect(workArea.Left + 12, workArea.Top + 12, 240, 32);
+            panel.BindEntry(() => prompt, () => 1, () => true, () => topAttached);
+            panel.Card.SetStatus(text);
+            check(panel.Width == prompt.Width, "a short attached card uses exactly the prompt width");
+            panel.Card.SetStatus(string.Concat(Enumerable.Repeat("整理材料，核对结果。", 140)));
+            check(panel.Width > prompt.Width && panel.Height <= GuideTheme.CardMaxHeight,
+                "an attached card widens only to fit content above the height cap");
+            panel.Close();
+        }
         var card = Create(text);
         var size = Layout(card, new Size(900, 700));
         check(card.Header.ActualHeight == GuideFrameVisual.WaterDepth && card.Header.ActualHeight == 48 &&

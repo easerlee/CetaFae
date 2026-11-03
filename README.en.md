@@ -4,7 +4,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.0**. CetaFae explains the selected window and shows where to act. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.1**. CetaFae explains the selected window and shows where to act. You operate the target application. Release acceptance is pending.
 
 ## Features
 
@@ -46,7 +46,7 @@ The main branch builds a self-contained Windows x64 installer. It displays the s
 
 Drag onto the target, describe your goal when asked, and select a region if requested. Read the guidance and operate the target yourself, or end the session. Changed recipient, model, sending scope or terms require confirmation again.
 
-To continue, first choose Continue asking in the result, then act manually and submit your next question. Content reads pause while this input is armed. After switching away, return and ask a new question without another drop; previous results do not return. Close the prompt or drag the whale away to end the binding. Closing the target or withdrawing consent also ends it. Changes to the disclosed sending scope or terms invalidate saved consent.
+To continue, first choose Continue asking in the result, then act manually and submit your next question. Content reads pause while this input is armed. A request that has already been sent keeps running when you switch windows. CetaFae shows the result when you return to the original window and the result passes validation. Close the prompt or drag the whale away to end the binding. Closing the target or withdrawing consent also ends it. Changes to the disclosed sending scope or terms invalidate saved consent.
 
 ### Run from source
 

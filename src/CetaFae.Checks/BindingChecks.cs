@@ -29,6 +29,25 @@ internal static class BindingChecks
         binding.Begin(target, 99); binding.Confirm(); binding.Clear();
         check(binding.Update(true, true, true) == BindingChange.None && !binding.Confirmed && !binding.Suspended,
             "explicit close or drag clears identity and cannot be undone by a queued foreground event");
+        var firstReturn = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondReturn = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task? waiting = firstReturn.Task;
+        var refreshes = 0;
+        var response = GuideSession.WaitForPresentationAsync(() =>
+        {
+            if (++refreshes == 2) waiting = secondReturn.Task;
+            if (refreshes == 3) waiting = null;
+        }, () => true, () => waiting, CancellationToken.None);
+        check(!response.IsCompleted, "a completed model response remains hidden while the target is away");
+        firstReturn.SetResult();
+        secondReturn.SetResult();
+        check(await response == true && refreshes == 3,
+            "a rapid return and second focus loss both recheck presence before displaying a response");
+        using var cancelledView = new CancellationTokenSource();
+        var neverReturned = new TaskCompletionSource();
+        var abandoned = GuideSession.WaitForPresentationAsync(() => { }, () => true, () => neverReturned.Task, cancelledView.Token);
+        cancelledView.Cancel();
+        check(await abandoned is null, "closing or replacing the binding discards a response without waiting for target focus");
         var attempts = 0;
         check(await GuideSession.ActivateOnceAsync(target, () => attempts++, () => target, CancellationToken.None) && attempts == 0,
             "an already foreground drop needs no activation request");

@@ -18,11 +18,11 @@ static class IdentificationChecks
     internal static async Task RunAsync(Action<bool, string> check)
     {
         var separated = GuideIdentification.Parse(Known).ToAnswer("generated-editor");
-        var technicalError = GuideIdentification.Parse("""{"application":null,"page":"保存文件时出现的提示。","state":"无法保存：UTF-8 编码失败，错误代码0x8007000D。","question":"是在保存什么内容时出现的？","kind":"attention"}""")
+        var technicalError = GuideIdentification.Parse("""{"application":null,"page":"保存文件时出现的提示。","state":"没能保存这份文件","question":"是在保存什么内容时出现的？","kind":"attention"}""")
             .ToAnswer("generated-editor");
-        check(technicalError.Explanation.StartsWith("保存文件时出现的提示；无法保存") && technicalError.Explanation.Contains("UTF-8") &&
-              technicalError.Explanation.Contains("0x8007000D") && technicalError.CandidateId is null,
-            "beginner presentation preserves technical labels and codes when they are the actual visible problem");
+        check(technicalError.Explanation == "这个软件没能保存这份文件。\n是在保存什么内容时出现的？" &&
+              technicalError.CandidateId is null,
+            "beginner presentation uses a plain problem summary and one question when the software name is unknown");
         check(separated.Explanation.Contains("2026/10/29") && separated.Explanation.Contains("显示生成文档") &&
               !separated.Explanation.Contains("这是一个操作界面"),
             "recognition preserves current visible state independently of page purpose without a generic category heading");
@@ -263,11 +263,11 @@ static class IdentificationChecks
                         .All(term => !r.ToAnswer("generated-owner").Explanation.Contains(term, StringComparison.OrdinalIgnoreCase))),
             ("technical-error", "潮汐文件工具（生成软件）", "",
                 "无法保存文件：UTF-8 编码失败。错误代码 0x8007000D。",
-                r => r.Kind == "attention" && r.State?.Contains("UTF-8") == true &&
-                    r.State.Contains("0x8007000D") && r.State.Contains("保存")),
+                r => r.Kind == "attention" && r.State?.Contains("保存") == true &&
+                    !r.State.Contains("UTF-8") && !r.State.Contains("0x8007000D")),
             ("tool", "潮汐画板（生成软件）", "画笔       橡皮       导出", "", r => r.Kind == "regular" && r.Application?.Contains("潮汐画板") == true && r.Page?.Contains("画") == true),
             ("document", "潮汐笔记（生成软件）", "文件       编辑       查看", "生成文档：状态已暂停，截止日期2026/10/29。", r => r.Kind == "regular" && r.Application?.Contains("潮汐笔记") == true && r.Page is not null && r.State?.Contains("暂停") == true && r.State.Contains("2026/10/29")),
-            ("error", "潮汐文件工具（生成软件）", "", "无法打开文件：文件不存在。错误代码 0x80070002。", r => r.Kind == "attention" && r.State?.Contains("不存在") == true && r.State.Contains("0x80070002")),
+            ("error", "潮汐文件工具（生成软件）", "", "无法打开文件：文件不存在。错误代码 0x80070002。", r => r.Kind == "attention" && r.State?.Contains("文件") == true && !r.State.Contains("0x80070002")),
             ("paused-settings", "设置", "Windows 更新", "更新已暂停，直到2026/10/29为止。继续更新", r => r.Kind == "regular" && r.Page is not null && r.State?.Contains("暂停") == true && r.State.Contains("2026/10/29")),
             ("warning", "提示", "", "请注意：此操作将覆盖已有文件。是否继续？", r => r.Kind == "attention" && r.State?.Contains("覆盖") == true),
             ("quoted-error", "潮汐笔记（生成软件）", "文件       编辑       查看", "培训文档：错误提示示例：无法打开文件。以上为教学引用，并非当前软件报错。", r => r.Kind == "regular" && r.Page is not null),

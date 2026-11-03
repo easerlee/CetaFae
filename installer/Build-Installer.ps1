@@ -12,10 +12,11 @@ if (-not $outputPath.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [Stri
 $payload = Join-Path $outputPath 'payload'
 $project = Join-Path $root 'src/CetaFae.Probe/CetaFae.Probe.csproj'
 $version = ([xml](Get-Content -LiteralPath $project -Raw)).Project.PropertyGroup.Version
+$fileVersion = ($version -split '[-+]', 2)[0]
 New-Item -ItemType Directory -Force -Path $payload | Out-Null
 dotnet publish $project -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true --ignore-failed-sources -o $payload
 if ($LASTEXITCODE -ne 0) { throw 'Self-contained publish failed.' }
-& $Compiler "/DAppVersion=$version" "/DPayloadDir=$payload" "/DOutputDir=$outputPath" "/DChineseMessagesFile=$ChineseMessagesFile" (Join-Path $PSScriptRoot 'CetaFae.iss')
+& $Compiler "/DAppVersion=$version" "/DAppFileVersion=$fileVersion" "/DPayloadDir=$payload" "/DOutputDir=$outputPath" "/DChineseMessagesFile=$ChineseMessagesFile" (Join-Path $PSScriptRoot 'CetaFae.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }

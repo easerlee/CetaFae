@@ -10,12 +10,16 @@
 #ifndef AppVersion
   #error Supply /DAppVersion
 #endif
+#ifndef AppFileVersion
+  #error Supply /DAppFileVersion with the numeric version
+#endif
 
 [Setup]
 AppId={{57C7F34B-4F1C-49F1-93EE-995F8B12DB6D}
 AppName=鲸汐 CetaFae
 AppVersion={#AppVersion}
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppFileVersion}
+VersionInfoTextVersion={#AppVersion}
 AppPublisher=CetaFae contributors
 AppPublisherURL=https://github.com/easerlee/CetaFae
 DefaultDirName={localappdata}\Programs\CetaFae

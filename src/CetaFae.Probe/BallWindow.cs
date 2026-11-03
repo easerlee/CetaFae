@@ -358,6 +358,11 @@ public sealed class BallWindow : Window
         if (_inline && _state != Motion.Dock && !ReducedMotion) Animate(Motion.Scan);
     }
     public void SetResult() { SetProcessing(false); if (_inline) _prompt.SetResult(); }
+    internal void ResumeProcessing()
+    {
+        FinishMorph(complete: true);
+        SetProcessing(true);
+    }
 
     internal bool IsBoundForeground(IntPtr window, uint processId) =>
         window != IntPtr.Zero && _target == window && processId != 0 &&
@@ -648,7 +653,7 @@ public sealed class BallWindow : Window
         ShowQuestion();
     }
 
-    void UpdateBoundPresence()
+    internal void UpdateBoundPresence()
     {
         if (!HasTarget) return;
         var foreground = Native.GetForegroundWindow();
@@ -666,7 +671,7 @@ public sealed class BallWindow : Window
         }
         else if (change == BindingChange.Resumed)
         {
-            SnapToEdge(_target);
+            UpdateOverlay(-1);
             Show();
             BindingResumed?.Invoke();
             ProbeLog.Log("binding_resumed");

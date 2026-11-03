@@ -26,6 +26,10 @@ public sealed class GuideSession : IDisposable
     GuideObservation? _context;
     int _contextVersion;
     int? _activationVersion;
+    int? _initialCollectionVersion;
+    int? _modelVersion;
+    bool _retryInitialOnResume;
+    TaskCompletionSource? _foregroundReturn;
     IntPtr _activationSource;
     bool _checkingContext;
     bool _contextCheckPending;
@@ -88,7 +92,7 @@ public sealed class GuideSession : IDisposable
     void OnFullscreenHidden() => _panel.DismissNotice();
 
     internal bool CloudEnabled => _gate.CloudEnabled;
-    internal void EndForSettings() => OnBindingSuspended();
+    internal void EndForSettings() => ResetRecognition();
     internal void RevokeForConfiguration()
     {
         _ball.StopTracking("configuration_changed");
@@ -129,6 +133,9 @@ public sealed class GuideSession : IDisposable
     {
         _boundQuestionReady = false;
         _activationVersion = null;
+        _initialCollectionVersion = _modelVersion = null;
+        _retryInitialOnResume = false;
+        _foregroundReturn = null;
         var picker = _picker;
         _picker = null;
         picker?.Abort();
@@ -146,9 +153,57 @@ public sealed class GuideSession : IDisposable
         _panel.EndSession();
     }
 
-    void OnBindingSuspended() => ResetRecognition();
+    void OnBindingSuspended()
+    {
+        if (_modelVersion is { } sent && _gate.Accepts(sent))
+        {
+            _foregroundReturn ??= new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _panel.Hide();
+            _marker.HideAndReset();
+            return;
+        }
+        var retry = _initialCollectionVersion is { } collecting && _gate.Accepts(collecting);
+        ResetRecognition();
+        _retryInitialOnResume = retry;
+    }
 
-    void OnBindingResumed() => ReadyBoundQuestion("已回到这个窗口。你想了解什么？");
+    async void OnBindingResumed()
+    {
+        if (_foregroundReturn is { } waiting)
+        {
+            _foregroundReturn = null;
+            _ball.ConfirmBinding();
+            _ball.ResumeProcessing();
+            waiting.TrySetResult();
+        }
+        else if (_retryInitialOnResume)
+        {
+            _retryInitialOnResume = false;
+            await RecognizeAsync(_ball.BoundTarget, null, null);
+        }
+        else ReadyBoundQuestion("已回到这个窗口。你想了解什么？");
+    }
+
+    Task<bool?> WaitForPresentationAsync(int version, CancellationToken requestToken) =>
+        WaitForPresentationAsync(_ball.UpdateBoundPresence, () => _gate.Accepts(version),
+            () => _foregroundReturn?.Task, requestToken);
+
+    internal static async Task<bool?> WaitForPresentationAsync(Action refreshPresence, Func<bool> accepts,
+        Func<Task?> foregroundReturn, CancellationToken requestToken)
+    {
+        if (!accepts() || requestToken.IsCancellationRequested) return null;
+        var deferred = false;
+        refreshPresence();
+        while (accepts() && foregroundReturn() is { } waiting)
+        {
+            deferred = true;
+            try { await waiting.WaitAsync(requestToken); }
+            catch (OperationCanceledException) { return null; }
+            if (!accepts() || requestToken.IsCancellationRequested) return null;
+            refreshPresence();
+        }
+        return accepts() && !requestToken.IsCancellationRequested ? deferred : null;
+    }
     void OnGuidanceCleared() => ReadyBoundQuestion("本次识别已停止。你想了解什么？");
 
     void ReadyBoundQuestion(string message)
@@ -364,7 +419,8 @@ public sealed class GuideSession : IDisposable
         _request?.Dispose();
         var request = new CancellationTokenSource();
         _request = request;
-        using var deadline = new GuideDeadline(_options.Timeout, request.Token);
+        var requestToken = request.Token;
+        using var deadline = new GuideDeadline(_options.Timeout, requestToken);
         var token = deadline.Token;
         var version = _gate.Begin();
         _boundQuestionReady = false;
@@ -398,6 +454,8 @@ public sealed class GuideSession : IDisposable
             var activated = await ActivateSelectedAsync(window, version, token);
             if (!_gate.Accepts(version)) return;
             if (!activated) throw new InvalidDataException("target_activation_failed");
+            if (intent is null && previous is null && selection is null && followup is null)
+                _initialCollectionVersion = version;
             _ball.ConfirmBinding();
             if (!_gate.Accepts(version)) return;
             if (previous is null && followup is null) _ball.BeginDock();
@@ -429,6 +487,8 @@ public sealed class GuideSession : IDisposable
                 intent is null && selection is null ? _plugins.IdentityProvider : null));
             if (!_gate.Accepts(version)) return;
             stage = ProcessingStage.TargetValidation;
+            _ball.UpdateBoundPresence();
+            if (!_gate.Accepts(version)) return;
             previous?.ValidateTargetContext(observation);
             if (intent is null)
             {
@@ -445,39 +505,53 @@ public sealed class GuideSession : IDisposable
 
             stage = ProcessingStage.Payload;
             var payload = GuidePayload.From(observation);
+            observation = observation with { Png = null };
             ProbeLog.Log("guide_request_start", ("observeMs", observeMs),
                 ("candidates", payload.Candidates.Count), ("image", _options.IncludeImage),
                 ("scoped", observation.Scope is not null), ("imageBytes", payload.Png?.Length ?? 0));
             var task = intent is null ? GuideObservation.TaskDescription :
                 "用户明确提出的目标：" + intent + "。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。";
             if (followup is not null) task = followup.ModelTask;
+            if (!_gate.Accepts(version)) return;
             stage = ProcessingStage.Model;
+            _initialCollectionVersion = null;
+            _modelVersion = version;
             GuideIdentification? identification = null;
             GuideAnswer modelAnswer;
             var policy = _plugins.GeneralProvider?.InterpretationPolicy;
-            if (intent is null)
+            try
             {
-                identification = await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext, policy));
-                modelAnswer = identification.ToAnswer(identifiedProcess!, observation.Identity);
+                if (intent is null)
+                {
+                    identification = await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext, policy));
+                    modelAnswer = identification.ToAnswer(identifiedProcess!, observation.Identity);
+                }
+                else
+                    modelAnswer = await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
+                        policy));
             }
-            else
-                modelAnswer = await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
-                    policy));
+            finally { payload = payload with { Png = null }; }
             var answer = identification?.NextCheck is not null ? modelAnswer :
                 modelAnswer.ForIntent(intent, allowQuestion: followup is { Clarification: null });
             var modelMs = total.ElapsedMilliseconds - observeMs;
             ProbeLog.Log("guide_response_received", ("modelMs", modelMs), ("mode", answer.Mode),
                 ("clarificationLimited", intent is not null && modelAnswer.Mode == "ask" && answer.Mode != "ask"));
-            if (!_gate.Accepts(version)) return;
+            var remaining = _options.Timeout - total.Elapsed;
+            var deferred = await WaitForPresentationAsync(version, requestToken);
+            if (deferred is null) return;
+            _modelVersion = null;
+            if (remaining <= TimeSpan.Zero) throw new OperationCanceledException();
+            using var resumedDeadline = deferred.Value ? new GuideDeadline(remaining, requestToken) : null;
+            var resultToken = resumedDeadline?.Token ?? token;
             if (targetProcess.HasExited) throw new InvalidDataException("target_changed");
             stage = ProcessingStage.ResultValidation;
             if (!GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
-            var bounds = observation.ValidateContext(await ReadContextAsync(observation, token), answer.CandidateId);
+            var bounds = observation.ValidateContext(await ReadContextAsync(observation, resultToken), answer.CandidateId);
             if (answer.CandidateId is { } candidateId &&
                 !plugin.AllowsPoint(intent, observation.Candidates.Single(c => c.Id == candidateId).Name))
                 throw new InvalidDataException("stale_candidate");
-            token.ThrowIfCancellationRequested();
+            resultToken.ThrowIfCancellationRequested();
             if (!_gate.Accepts(version)) return;
             if (!GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
@@ -503,7 +577,7 @@ public sealed class GuideSession : IDisposable
                 _panel.SetFollowupAvailable(_followup.CanOffer);
                 _activeFollowup = null;
             }
-            token.ThrowIfCancellationRequested();
+            resultToken.ThrowIfCancellationRequested();
             ProbeLog.Log("guide_result", ("mode", answer.Mode), ("candidates", observation.Candidates.Count),
                 ("observeMs", observeMs), ("modelMs", modelMs), ("totalMs", total.ElapsedMilliseconds),
                 ("withinThreeSeconds", total.ElapsedMilliseconds <= 3000), ("image", _options.IncludeImage));
@@ -511,7 +585,7 @@ public sealed class GuideSession : IDisposable
         catch (OperationCanceledException)
         {
             var cancelled = request.IsCancellationRequested;
-            if (_gate.Accepts(version))
+            if (await WaitForPresentationAsync(version, requestToken) is not null)
             {
                 var ownership = CurrentOwnership();
                 var localIdentity = ownership is null ? null : _context?.Identity;
@@ -523,6 +597,7 @@ public sealed class GuideSession : IDisposable
         }
         catch (Exception ex)
         {
+            if (await WaitForPresentationAsync(version, requestToken) is null) return;
             if (ex is InvalidDataException { Message: "scope_unavailable" } && previous is not null && _gate.Accepts(version))
             {
                 _context = previous with { Png = null };
@@ -554,6 +629,8 @@ public sealed class GuideSession : IDisposable
         }
         finally
         {
+            if (_initialCollectionVersion == version) _initialCollectionVersion = null;
+            if (_modelVersion == version) _modelVersion = null;
             if (_gate.Accepts(version)) _ball.SetProcessing(false);
             // Keep the active token available for event-driven revalidation after displaying the answer.
             if (!ReferenceEquals(_request, request)) request.Dispose();

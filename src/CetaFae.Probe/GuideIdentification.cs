@@ -29,16 +29,15 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         "Do not begin with 'according to the screenshot', 'looks like', or a separate software-name announcement. " +
         "Keep page and any distinct state brief enough to form one short sentence, followed by question only when needed; " +
         "prefer at most two short sentences for the whole user-facing response, including the question. " +
-        "For an actual warning retain the important error and code rather than shortening away facts. " +
+        "For an actual warning summarize the practical problem in everyday language. " +
         "Use state only for one useful current fact that adds to page; leave it null rather than repeat page or list interface details. " +
         "Summarize readable document meaning instead of quoting its first line, full title, menus and status bar. " +
         "An untitled/unnamed or saved/unsaved document title is incidental UI chrome, not a useful state by itself. " +
         "Do not report naming/title facts unless an actual save/overwrite warning makes them relevant. " +
         "If page already conveys the meaningful content and no further consequential status is visible, state must be null. " +
         "Omit incidental byte counts, encodings, line-ending acronyms, line/column numbers, versions and paths from an ordinary overview. " +
-        "Do not omit a technical label when it is central to an actual error/warning or meaningful visible consequence. " +
-        "Separate purpose from current state: preserve consequential error codes, numbers, dates, progress, amounts and units exactly. " +
-        "For attention, state must quote or faithfully describe the actual readable warning/error, not an invented cause. " +
+        "For ordinary windows preserve consequential numbers, dates, progress, amounts and units exactly. " +
+        "For attention, state is a short plain Chinese predicate such as 找不到要打开的文件. Do not include a subject, quote the message, use jargon, or show error codes. " +
         "Determine application and page independently: unknown software need not prevent describing a document or error. " +
         "A logo/title is only a visual clue, not proof of authentic software. Do not identify a brand from generic styling. " +
         "Prioritize the user's likely difficulty: actual error meaning; finding an operation for their goal; consequences of a visible choice; " +
@@ -47,8 +46,8 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         "Prefer a brief purpose/content summary and at most one necessary everyday question; avoid repeating the same fact across fields. " +
         "question is one short question only when a user goal or missing context is needed, otherwise null (at most 120 characters). " +
         "For attention ask only necessary context about what the user was doing. Never ask a generic 'what do you want to do in this window'. " +
-        "Describe the dialog type in page and put its error fact/code in state without repeating those details across fields. " +
-        "A real dialog marked as a simulation/test is still an error interface to explain as a simulation; do not confuse it with a document quoting an error. " +
+        "For attention put the visible software name in application if known, and the practical problem in state. Page is internal context for an attention result. " +
+        "A dialog marked as a test can still illustrate a visible error; do not confuse it with a document quoting an error. " +
         "Do not ask for already visible facts or software names. " +
         "When no meaningful content is readable, leave page/state/question null rather than inventing a question. " +
         "Use everyday Chinese for computer beginners without line breaks, process names, handles, PID, signatures or package identifiers. " +
@@ -109,6 +108,12 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
     {
         ValidateProcessName(processName);
         var name = Application ?? SoftwareIdentity.Clean(identity?.Product);
+        if (Kind == "attention" && State is { } problem)
+        {
+            var next = Question ?? NextCheck ?? GuideError.ContextQuestion;
+            return new(NextCheck is null ? "ask" : "explain",
+                GuideError.PlainSummary((name ?? "这个软件") + problem, next), null);
+        }
         var content = Page ?? (name is not null
             ? $"这是{name}的窗口，具体用途还不确定"
             : "暂时没看清这里的内容，可以框出想了解的部分再看看");
@@ -116,8 +121,8 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         var explanation = state is not null ? Clause(content) + "；" + state : content;
         if (!explanation.EndsWith('。') && !explanation.EndsWith('！') && !explanation.EndsWith('？') &&
             !explanation.EndsWith('.') && !explanation.EndsWith('!') && !explanation.EndsWith('?')) explanation += "。";
-        var question = Question ?? (Kind == "attention" && NextCheck is null ? GuideError.ContextQuestion : null);
-        if ((question ?? NextCheck) is { } guidance) explanation += "\n" + guidance;
+        var question = Question;
+        if (question is not null) explanation += "\n" + question;
         return new(question is null ? "explain" : "ask", explanation.Trim(), null);
     }
 

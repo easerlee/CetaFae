@@ -161,7 +161,7 @@ public sealed class GuidePanel : Window
             : "当前为纯文字模式。目标未明时发送所选窗口控件文字。目标明确后，仅发送可可靠确定或由你框选范围内的控件文字及用户输入的回答，不含图片。范围不明时等待你框选。\n") +
         "接收地址可能是代理，代理可能继续转发。鲸汐尚未核实代理与模型服务商的实际留存期限及处理地点。现阶段仅用于开发验证，正式发布前仍须核实。请先隐藏不愿发送的内容。鲸汐尽力检查密码字段和明显密钥，发现时停止识别。部分软件提供的检查信息有限，检查可能遗漏敏感内容。鲸汐不会读取密码框的值。\n\n" +
         "二、何时读取与本机处理\n" +
-        "拖放鲸鱼、提交回答或确认选区时，鲸汐读取所选窗口。显示指路位置期间，鲸汐在本机复核窗口变化。切换窗口会停止当前请求并清除旧内容，返回后由你重新提问才读取。连续指导最多8步，可发送原始目标、本轮问题及步骤编号，旧模型回答不随请求发送。启动本身不读取窗口。\n" +
+        "拖放鲸鱼、提交回答或确认选区时，鲸汐读取所选窗口。显示指路位置期间，鲸汐在本机复核窗口变化。切换窗口时，已送出的识别会继续，返回所选窗口后才显示结果；如果首次读取中途被打断，返回时继续这次识别。鲸汐不会读取你切去的窗口。连续指导最多8步，可发送原始目标、本轮问题及步骤编号，旧模型回答不随请求发送。启动本身不读取窗口。\n" +
         "为核对所选软件，鲸汐可在本机读取产品名、描述、版本、公司、离线签名和包身份。程序路径只用于本机读取。上述归属字段以及窗口标题不作为独立元数据发送给模型，但画面本身可能显示软件名或标题。若使用可选的联网核对，鲸汐会先展示产品名称查询词和公共百科接收方，再由你单独确认发送。\n\n" +
         "三、保存期限与撤回\n" +
         "客户端不保存画面、控件原文和问答。会话结束时清除显示与可复用引用。元数据日志默认保留7天，按小时清理，清理失败时可能延迟。\n" +
@@ -198,7 +198,7 @@ public sealed class GuidePanel : Window
             var topAttached = _hasTarget?.Invoke() == true && _topAttached?.Invoke() == true;
             _surface.SetBubble(compactBubble);
             var limit = FeedbackLayout.AvailableWidth(entry, work, topAttached);
-            var preferredWidth = session && _hasTarget?.Invoke() == true ? Math.Clamp(entry.Width * 1.15, 280, 360) : (double?)null;
+            var preferredWidth = _card.View == GuideCardView.Session && _hasTarget?.Invoke() == true ? entry.Width : (double?)null;
             var size = _surface.Fit(new Size(Math.Min(work.Width, limit), work.Height), preferredWidth);
             Width = size.Width;
             MaxHeight = Math.Min(work.Height, GuideTheme.CardMaxHeight + (compactBubble ? 20 : 0));
