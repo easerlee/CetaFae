@@ -151,7 +151,8 @@ internal static class DropChecks
             var edge = WhaleChecks.RenderFrame(false, progress, 600, 320);
             var edgePixels = new byte[all.Length]; edge.CopyPixels(edgePixels, 2400, 0);
             check(alpha.Max() is > 0 and <= 64 &&
-                Math.Abs(edgePixels[3] - 255 * progress / WindowWash.SweepEnd) <= 2 &&
+                edgePixels[3] == 0 &&
+                Math.Abs(edgePixels[300 * 4 + 3] - 255 * progress / WindowWash.SweepEnd) <= 2 &&
                 edgePixels[(160 * 600 + 300) * 4 + 3] == 0,
                 "the translucent sweep and perimeter fade run together while the target center stays clear");
             var strip = new GuideFrameVisual(wash: true); strip.SetViewport(size, region); strip.SetProgress(progress);
@@ -165,7 +166,8 @@ internal static class DropChecks
         }
         var fading = WhaleChecks.RenderFrame(false, .92, 600, 320);
         var fadingPixels = new byte[600 * 320 * 4]; fading.CopyPixels(fadingPixels, 2400, 0);
-        check(WindowWash.Region(new Size(600, 320), .92).IsEmpty && fadingPixels[3] == 255,
+        check(WindowWash.Region(new Size(600, 320), .92).IsEmpty &&
+            fadingPixels[3] == 0 && fadingPixels[300 * 4 + 3] == 255,
             "the perimeter is fully revealed when the sweep exits without a second wash surface");
         var work = new Rect(-1920, -100, 1920, 1040); var start = new Point(-1700, 70);
         var travel = Enumerable.Range(0, 16).Select(i => BallWindow.ReturnPosition(start, work, i * .04)).ToArray();

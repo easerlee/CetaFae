@@ -9,7 +9,7 @@ namespace CetaFae.Probe;
 public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
     IReadOnlyList<GuideCandidate> Candidates, byte[]? Png, bool RawView = false, string PluginId = "",
     GuideScope? Scope = null, string? ScopeIntent = null, string? VisualHash = null, GuideVisual? Visual = null,
-    SoftwareIdentity? Identity = null, bool Snapshot = false, bool PrivacyLimited = false)
+    SoftwareIdentity? Identity = null, bool Snapshot = false, bool PrivacyLimited = false, ushort? PageAnchors = null)
 {
     public const string TaskDescription = "用户尚未说明目标。只根据本次所选窗口的可见内容，分别判断所属软件和当前界面用途；" +
         "两者独立判断，缺少依据的部分明确未知，不从普通界面风格猜测软件。即使没有可操作控件，也先用日常语言简短概括用途或内容，" +
@@ -30,7 +30,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
 
     public static GuideObservation Read(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
         string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null, Action<string>? stageChanged = null,
-        bool accessibility = true, uint? expectedProcessId = null, Rect? expectedFrame = null)
+        bool accessibility = true, uint? expectedProcessId = null, Rect? expectedFrame = null, bool pageCheck = false)
     {
         stageChanged?.Invoke("target");
         var clock = Stopwatch.StartNew();
@@ -56,15 +56,22 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         var rawView = plugin.UsesRawView;
         var snapshot = includeImage && intent is null && selection is null;
         var rule = intent is null || selection is not null ? null : plugin.ScopeFor(intent);
+        var pageRules = (snapshot || pageCheck) && plugin.ObservationScopes.Count > 0 ? plugin.ObservationScopes : null;
         stageChanged?.Invoke("privacy");
         EnsureNoNativePassword(window, token);
-        var privacy = accessibility ? EnsureSafeContent(window, token, rule) :
-            (Anchors: (IReadOnlyList<GuideScopeAnchor>)[], Limited: true);
+        var privacy = accessibility ? EnsureSafeContent(window, token, rule, pageRules) :
+            (Anchors: (IReadOnlyList<GuideScopeAnchor>)[], Limited: true, PageAnchors: (ushort?)null);
+        if (pageCheck)
+        {
+            if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
+            return new GuideObservation(window, pid, frame, [], null, rawView, plugin.Id,
+                PrivacyLimited: privacy.Limited, PageAnchors: privacy.PageAnchors);
+        }
         var scope = selection is { } region ? GuideScope.FromUserSelection(frame, region) :
             rule is null ? null : GuideScope.Resolve(frame, rule, privacy.Anchors);
         stageChanged?.Invoke("controls");
         var candidates = snapshot || !accessibility ? [] : ReadOptionalCandidates(() => ReadCandidates(window, token, rawView),
-            () => privacy = (privacy.Anchors, true));
+            () => privacy.Limited = true);
         var uiaMs = clock.ElapsedMilliseconds;
         ProbeLog.Log("guide_uia_complete", ("elapsedMs", uiaMs), ("candidates", candidates.Count));
         token.ThrowIfCancellationRequested();
@@ -75,8 +82,10 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         {
             stageChanged?.Invoke("privacy_after_capture");
             EnsureNoNativePassword(window, token);
-            var after = accessibility ? EnsureSafeContent(window, token, rule) : privacy;
-            privacy = (privacy.Anchors, privacy.Limited || after.Limited);
+            var after = accessibility ? EnsureSafeContent(window, token, rule, pageRules) : privacy;
+            if (PagesDiffer(privacy.PageAnchors, after.PageAnchors)) throw new InvalidDataException("target_changed");
+            if (after.PageAnchors is null) privacy.PageAnchors = null;
+            privacy.Limited |= after.Limited;
             if (rule is not null && scope is not null && !scope.HasSameAnchor(GuideScope.Resolve(frame, rule, after.Anchors)))
                 throw new InvalidDataException("target_changed");
         }
@@ -104,10 +113,13 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         }
         if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
         ProbeLog.Log("guide_privacy_check", ("limited", privacy.Limited));
-        return new GuideObservation(window, pid, frame, candidates, png, rawView, plugin.Id, scope, intent, hash, visual, identity, snapshot, privacy.Limited);
+        return new GuideObservation(window, pid, frame, candidates, png, rawView, plugin.Id, scope, intent, hash, visual,
+            identity, snapshot, privacy.Limited, privacy.PageAnchors);
     }
 
     public bool HasSameScope(GuideObservation current) => Scope is null ? current.Scope is null : Scope.HasSameAnchor(current.Scope);
+    internal bool HasSamePage(GuideObservation current) => !PagesDiffer(PageAnchors, current.PageAnchors);
+    static bool PagesDiffer(ushort? previous, ushort? current) => previous.HasValue && current.HasValue && previous != current;
     public bool HasSameVisual(GuideObservation current) => VisualHash is null || VisualHash == current.VisualHash ||
         Visual is not null && current.Visual is not null && Visual.Matches(current.Visual);
     internal static string Fingerprint(byte[] png) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(png));
@@ -125,6 +137,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         ValidateTargetContext(current);
         if (Snapshot)
         {
+            if (!HasSamePage(current)) throw new InvalidDataException("target_changed");
             if (id is not null) throw new InvalidDataException("stale_candidate");
             return null;
         }
@@ -227,10 +240,13 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         }
     }
 
-    static (IReadOnlyList<GuideScopeAnchor> Anchors, bool Limited) EnsureSafeContent(IntPtr window, CancellationToken token, ObservationScopeRule? rule = null)
+    static (IReadOnlyList<GuideScopeAnchor> Anchors, bool Limited, ushort? PageAnchors) EnsureSafeContent(
+        IntPtr window, CancellationToken token, ObservationScopeRule? rule, IReadOnlyList<ObservationScopeRule>? pageRules)
     {
         var anchors = new List<GuideScopeAnchor>();
         var limited = false;
+        var pageUncertain = false;
+        ushort pageAnchors = 0;
         var available = GuidePrivacy.TryInspect(() =>
         {
             var legacyPrivacy = new GuideLegacyPrivacy(window, token);
@@ -244,17 +260,25 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             foreach (var element in elements)
             {
                 token.ThrowIfCancellationRequested();
+                string? type = null;
                 // Skip an unreadable field's name but continue checking later visible siblings.
                 if (!GuidePrivacy.TryInspect(() =>
                 {
+                    type = element.Cached.ControlType.ProgrammaticName;
                     var name = ReadVisibleElementName(element, root, window, token, legacyPrivacy);
-                    var type = element.Cached.ControlType.ProgrammaticName;
                     if (name is not null && rule?.MatchesAnchor(name, type) == true)
                         anchors.Add(new GuideScopeAnchor(name, type, element.Current.BoundingRectangle, element.GetRuntimeId()));
-                })) limited = true;
+                    if (name is not null && pageRules is not null)
+                        for (var index = 0; index < pageRules.Count; index++)
+                            if (pageRules[index].MatchesAnchor(name, type)) pageAnchors |= (ushort)(1 << index);
+                }))
+                {
+                    limited = true;
+                    pageUncertain |= pageRules?.Any(page => type is null || page.AnchorControlTypes.Contains(type, StringComparer.Ordinal)) == true;
+                }
             }
         });
-        return (anchors, limited || !available);
+        return (anchors, limited || !available, pageUncertain || !available || pageRules is null ? null : pageAnchors);
     }
 
     static void EnsureNoNativePassword(IntPtr window, CancellationToken token)

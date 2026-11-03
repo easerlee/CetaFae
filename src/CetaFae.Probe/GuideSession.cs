@@ -244,13 +244,19 @@ public sealed class GuideSession : IDisposable
         _contextCheckPending = true;
         if (_context is { Snapshot: true } snapshot)
         {
-            // A first explanation describes the captured view, not a live control position.
+            // A snapshot can track declared page anchors without re-reading its image.
             if (!Native.IsWindow(snapshot.Window) || !Native.IsWindowVisible(snapshot.Window) ||
                 Native.IsIconic(snapshot.Window) || Native.ProcessId(snapshot.Window) != snapshot.ProcessId ||
                 GuideObservation.WindowRect(snapshot.Window) != snapshot.Frame)
+            {
                 ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
-            _contextCheckPending = false;
-            return;
+                return;
+            }
+            if (snapshot.PageAnchors is null || _modelVersion == _contextVersion)
+            {
+                _contextCheckPending = false;
+                return;
+            }
         }
         if (_followup.WaitingForUser && _followup.Target is { } armed)
         {
@@ -289,11 +295,17 @@ public sealed class GuideSession : IDisposable
                     if (_gate.Accepts(version) && !GuideObservation.HasSameContext(context.Candidates, current.Candidates))
                         GuideObservation.LogContextDifference(context.Candidates, current.Candidates);
                     if (_gate.CancelIfContextChanged(version, context.Candidates, current.Candidates) ||
-                        _gate.Accepts(version) && (!context.HasSameScope(current) || !context.HasSameVisual(current)))
+                        _gate.Accepts(version) && (!context.HasSamePage(current) ||
+                            !context.HasSameScope(current) || !context.HasSameVisual(current)))
                         ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
                     else if (_gate.Accepts(version)) ProbeLog.Log("guide_context_unchanged");
                 }
                 catch (OperationCanceledException) when (!_gate.Accepts(version)) { }
+                catch (InvalidDataException ex) when (context.Snapshot && ex.Message == "sensitive_content")
+                {
+                    if (_gate.Accepts(version) && !_ball.BindingSuspended)
+                        ShowRecognitionFailure(context.Window, context.ProcessId, ex.Message, FailureMessage(ex));
+                }
                 catch (Exception)
                 {
                     if (_gate.Accepts(version) && _picker is null && !IsInputForeground(Native.GetForegroundWindow()))
@@ -751,7 +763,21 @@ public sealed class GuideSession : IDisposable
             if (process.StartTime.ToUniversalTime().Ticks != identity.StartedAt) throw new InvalidDataException("target_changed");
         }
         token.ThrowIfCancellationRequested();
-        if (previous.Snapshot) return previous;
+        if (previous.Snapshot)
+        {
+            if (previous.PageAnchors is null) return previous;
+            using var budget = CancellationTokenSource.CreateLinkedTokenSource(token);
+            budget.CancelAfter(TimeSpan.FromMilliseconds(1200));
+            try
+            {
+                var page = await ObservationWorker.ReadAsync(previous.Window, false, _plugins.Get(previous.PluginId),
+                    budget.Token, pageCheck: true);
+                previous.ValidateTargetContext(page);
+                return previous with { PageAnchors = page.PageAnchors };
+            }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested) { return previous; }
+            catch (InvalidDataException ex) when (ex.Message is "worker_failed" or "privacy_unavailable") { return previous; }
+        }
         GuideObservation current;
         try { current = await ObservationWorker.ReadAsync(previous.Window, previous.VisualHash is not null, _plugins.Get(previous.PluginId), token,
             previous.ScopeIntent, previous.Scope?.UserSelected == true ? previous.Scope.Region : null); }

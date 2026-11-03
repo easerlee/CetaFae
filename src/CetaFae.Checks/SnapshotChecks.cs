@@ -25,6 +25,12 @@ static class SnapshotChecks
             check(rejected, name);
         }
         Reject(() => snapshot.ValidateContext(changed, 1), "snapshot recognition cannot authorize a control marker");
+        var downloads = snapshot with { PageAnchors = 1 };
+        Reject(() => downloads.ValidateContext(snapshot with { PageAnchors = 0 }, null),
+            "a confirmed same-window page switch invalidates the captured explanation");
+        check(downloads.ValidateContext(changed with { PageAnchors = 1 }, null) is null &&
+              downloads.ValidateContext(snapshot, null) is null,
+            "unchanged page anchors and unavailable page evidence do not discard a captured explanation");
         foreach (var wrong in new[] { snapshot with { Window = new IntPtr(124) }, snapshot with { ProcessId = 457 },
                      snapshot with { Frame = new Rect(1, 0, 900, 600) }, snapshot with { PluginId = "other" },
                      snapshot with { RawView = true } })
@@ -93,6 +99,16 @@ static class SnapshotChecks
         var roundtrip = JsonSerializer.Deserialize<GuideObservation>(JsonSerializer.Serialize(bound, ObservationWorker.Json), ObservationWorker.Json)!;
         check(roundtrip.Snapshot && roundtrip.PrivacyLimited, "snapshot and limited-check evidence survive owned-worker IPC");
         ObservationWorker.ValidateScopeReply(roundtrip, plugin, null, null, true);
+        var page = bound with { Snapshot = false, PrivacyLimited = false, PageAnchors = 1 };
+        var pageRoundtrip = JsonSerializer.Deserialize<GuideObservation>(JsonSerializer.Serialize(page, ObservationWorker.Json), ObservationWorker.Json)!;
+        ObservationWorker.ValidateScopeReply(pageRoundtrip, plugin, null, null, false, pageCheck: true);
+        check(pageRoundtrip.PageAnchors == 1, "page presence survives owned-worker IPC");
+        foreach (var forged in new[] { page with { Candidates = [candidate] }, page with { Png = [1] },
+                     page with { PageAnchors = ushort.MaxValue }, page with { VisualHash = "unexpected" } })
+            Reject(() => ObservationWorker.ValidateScopeReply(forged, plugin, null, null, false, pageCheck: true),
+                "a page check cannot return content or invent known page evidence");
+        Reject(() => ObservationWorker.ValidateScopeReply(page, plugin, null, null, false),
+            "a strict guidance read cannot claim snapshot page evidence");
         foreach (var forged in new[] { bound with { Candidates = [candidate] }, bound with { VisualHash = "invented" },
                      bound with { Scope = GuideScope.FromUserSelection(frame, new Rect(10, 10, 30, 30)) } })
             Reject(() => ObservationWorker.ValidateScopeReply(forged, plugin, null, null, true),

@@ -24,7 +24,7 @@ public static class ObservationWorker
         Converters = { new HandleConverter(), new RectangleConverter() }
     };
     internal sealed record Request(long Window, bool IncludeImage, GuidePlugin Plugin, string? Intent = null, Rect? Selection = null,
-        GuidePlugin? IdentityProvider = null, bool VisualOnly = false, uint? ProcessId = null, Rect? Frame = null);
+        GuidePlugin? IdentityProvider = null, bool VisualOnly = false, uint? ProcessId = null, Rect? Frame = null, bool PageCheck = false);
     sealed record Reply(GuideObservation? Observation, string? Error, string? Phase = null, string? FailureKind = null, int? HResult = null);
 
     internal static string SerializeRequest(Request request) => JsonSerializer.Serialize(request, Json);
@@ -32,7 +32,7 @@ public static class ObservationWorker
     [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000",
         Justification = "An empty assembly location intentionally selects the bundled apphost instead of dotnet.")]
     public static async Task<GuideObservation> ReadAsync(IntPtr window, bool includeImage, GuidePlugin plugin, CancellationToken token,
-        string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null)
+        string? intent = null, Rect? selection = null, GuidePlugin? identityProvider = null, bool pageCheck = false)
     {
         await Gate.WaitAsync(token);
         try
@@ -43,7 +43,8 @@ public static class ObservationWorker
             if (!GuideObservation.IsCurrent(window, processId, frame)) throw new InvalidDataException("target_changed");
             var start = CreateStartInfo(Environment.ProcessPath!, typeof(ObservationWorker).Assembly.Location);
             var body = await ExchangeWithOptionalAccessibilityAsync((visualOnly, readToken) => ExchangeAsync(start,
-                SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection, identityProvider, visualOnly, processId, frame)), readToken),
+                SerializeRequest(new Request(window.ToInt64(), includeImage, plugin, intent, selection, identityProvider,
+                    visualOnly, processId, frame, pageCheck)), readToken),
                 includeImage && intent is null && selection is null, token);
             var reply = JsonSerializer.Deserialize<Reply>(body, Json) ?? throw new InvalidDataException("worker_reply");
             if (reply.Error is { } error)
@@ -62,7 +63,7 @@ public static class ObservationWorker
                 includeImage != (observation.Png is { Length: > 0 }) ||
                 !GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
-            ValidateScopeReply(observation, plugin, intent, selection, includeImage);
+            ValidateScopeReply(observation, plugin, intent, selection, includeImage, pageCheck);
             if (observation.Identity is { } identity && (identityProvider?.Kind != "identity" || intent is not null || selection is not null ||
                 !includeImage || !identity.IsValid(observation.ProcessId))) throw new InvalidDataException("worker_reply");
             ProbeLog.Log("guide_worker_complete", ("candidates", observation.Candidates.Count),
@@ -100,8 +101,16 @@ public static class ObservationWorker
     }
 
     internal static void ValidateScopeReply(GuideObservation observation, GuidePlugin plugin, string? intent,
-        Rect? selection, bool includeImage)
+        Rect? selection, bool includeImage, bool pageCheck = false)
     {
+        var scopeCount = plugin.ObservationScopes.Count;
+        if (observation.PageAnchors is { } anchors && (!(observation.Snapshot || pageCheck) ||
+            scopeCount == 0 || scopeCount > 16 || anchors >= (1 << scopeCount)))
+            throw new InvalidDataException("worker_reply");
+        if (pageCheck && (includeImage || intent is not null || selection is not null || observation.Snapshot ||
+            observation.Candidates.Count != 0 || observation.Png is not null || observation.Scope is not null ||
+            observation.Identity is not null))
+            throw new InvalidDataException("worker_reply");
         if (observation.Snapshot && (!includeImage || intent is not null || selection is not null ||
             observation.Scope is not null || observation.Candidates.Count != 0 || observation.VisualHash is not null || observation.Visual is not null))
             throw new InvalidDataException("worker_reply");
@@ -214,6 +223,9 @@ public static class ObservationWorker
                 throw new InvalidDataException("worker_request_invalid");
             if (request.VisualOnly && (!request.IncludeImage || request.Intent is not null || request.Selection is not null))
                 throw new InvalidDataException("worker_request_invalid");
+            if (request.PageCheck && (request.IncludeImage || request.Intent is not null || request.Selection is not null ||
+                request.IdentityProvider is not null || request.Plugin.ObservationScopes.Count is < 1 or > 16))
+                throw new InvalidDataException("worker_request_invalid");
             if (request.IdentityProvider is not null && request.IdentityProvider.Kind != "identity")
                 throw new InvalidDataException("worker_request_invalid");
             if (request.Intent is { } intent)
@@ -224,7 +236,7 @@ public static class ObservationWorker
             }
             var observation = GuideObservation.Read(new IntPtr(request.Window), request.IncludeImage, request.Plugin, CancellationToken.None,
                 request.Intent, request.Selection, request.IdentityProvider, stage => phase = stage, accessibility: !request.VisualOnly,
-                expectedProcessId: request.ProcessId, expectedFrame: request.Frame);
+                expectedProcessId: request.ProcessId, expectedFrame: request.Frame, pageCheck: request.PageCheck);
             reply = new Reply(observation, null);
         }
         catch (Exception ex) { reply = new Reply(null, ex is InvalidDataException ? SafeError(ex.Message) :

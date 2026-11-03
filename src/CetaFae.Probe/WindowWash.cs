@@ -62,7 +62,7 @@ internal static class WindowWash
     internal static void Draw(DrawingContext draw, Size size, double progress, bool upward = false)
     {
         if (Region(size, progress, upward).IsEmpty) return;
-        draw.PushClip(new RectangleGeometry(new Rect(size)));
+        draw.PushClip(GuideFrameVisual.OuterClip(size));
         if (upward)
         {
             draw.PushTransform(new ScaleTransform(1, -1, 0, size.Height / 2));

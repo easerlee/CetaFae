@@ -30,13 +30,23 @@ internal static class OverlayChecks
         int Composite(int a, int b) => 255 - (255 - a) * (255 - b) / 255;
         // A steeper fade can be naturally darker on the diagonal than its neighbors.
         // Compare against source-over of the two independent edges, not that curvature.
-        var cornerErrors = Enumerable.Range(2, (int)GuideFrameVisual.WaterDepth - 10).SelectMany(i => new[] {
+        var cornerErrors = Enumerable.Range(6, (int)GuideFrameVisual.WaterDepth - 14).SelectMany(i => new[] {
             Math.Abs(Alpha(i, i) - Composite(Alpha(i, 200), Alpha(300, i))),
             Math.Abs(Alpha(599 - i, i) - Composite(Alpha(599 - i, 200), Alpha(300, i))),
             Math.Abs(Alpha(i, 399 - i) - Composite(Alpha(i, 200), Alpha(300, 399 - i))),
             Math.Abs(Alpha(599 - i, 399 - i) - Composite(Alpha(599 - i, 200), Alpha(300, 399 - i))) }).ToArray();
         check(cornerErrors.Max() <= 2,
             "all four water corners match continuous overlapping edge alpha without diagonal antialias cracks");
+        foreach (var size in new[] { cornerSize, new Size(3440, 1392) })
+        {
+            var pixels = Render(size, new Rect(size), 0);
+            var width = (int)size.Width;
+            var height = (int)size.Height;
+            check(pixels[3] == 0 && pixels[width * 4 - 1] == 0 &&
+                pixels[(height - 1) * width * 4 + 3] == 0 && pixels[^1] == 0 &&
+                pixels[(width / 2) * 4 + 3] > 240 && pixels[(height / 2 * width) * 4 + 3] > 240,
+                "all four outer corners round away while the ordinary and maximized edge centers stay solid");
+        }
         foreach (var size in new[] { new Size(3440, 1392), new Size(3840, 2160), new Size(2560, 1440),
                      new Size(600, 320), new Size(8, 8), new Size(2, 2) })
         {

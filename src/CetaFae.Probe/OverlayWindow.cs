@@ -150,11 +150,18 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
 
     static readonly Brush WaterBrush = GuideTheme.WaterGradient(WaterDepth);
 
+    internal static Geometry OuterClip(Size size)
+    {
+        var radius = Math.Min(12, Math.Min(size.Width, size.Height) / 2);
+        return new RectangleGeometry(new Rect(size), radius, radius);
+    }
+
     internal static void DrawWater(DrawingContext draw, Size size, double phase, double progress)
     {
         var depth = Depth(size);
         if (depth <= 0 || progress < 0) return;
         var revealing = progress > 0 && progress < WindowWash.SweepEnd;
+        draw.PushClip(OuterClip(size));
         if (revealing) draw.PushOpacity(progress / WindowWash.SweepEnd);
         for (var side = 0; side < 4; side++)
         {
@@ -183,5 +190,6 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
             mesh.Freeze(); draw.DrawGeometry(WaterBrush, null, mesh); draw.Pop();
         }
         if (revealing) draw.Pop();
+        draw.Pop();
     }
 }
