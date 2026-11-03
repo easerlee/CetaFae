@@ -55,7 +55,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
         var rawView = plugin.UsesRawView;
         var snapshot = includeImage && intent is null && selection is null;
-        var rule = intent is null || selection is not null ? null : plugin.ScopeFor(intent);
+        var rule = intent is null || selection is not null ? null : plugin.OptionalScopeFor(intent);
         var pageRules = (snapshot || pageCheck) && plugin.ObservationScopes.Count > 0 ? plugin.ObservationScopes : null;
         stageChanged?.Invoke("privacy");
         EnsureNoNativePassword(window, token);
@@ -67,8 +67,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             return new GuideObservation(window, pid, frame, [], null, rawView, plugin.Id,
                 PrivacyLimited: privacy.Limited, PageAnchors: privacy.PageAnchors);
         }
-        var scope = selection is { } region ? GuideScope.FromUserSelection(frame, region) :
-            rule is null ? null : GuideScope.Resolve(frame, rule, privacy.Anchors);
+        var scope = GuideScope.ForQuestion(frame, plugin, intent, selection, privacy.Anchors);
         stageChanged?.Invoke("controls");
         var candidates = snapshot || !accessibility ? [] : ReadOptionalCandidates(() => ReadCandidates(window, token, rawView),
             () => privacy.Limited = true);
@@ -100,7 +99,7 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
             { /* Missing language/platform support must not block screenshot explanation. */ }
         }
         stageChanged?.Invoke("visual");
-        var hash = !snapshot && png is not null && (plugin.Kind == "general" || scope?.UserSelected == true) ? Fingerprint(png) : null;
+        var hash = !snapshot && png is not null && (plugin.Kind == "general" || scope is { Anchor: null }) ? Fingerprint(png) : null;
         var visual = hash is not null ? GuideVisual.Read(png!, scope?.Region ?? frame, caret) : null;
         SoftwareIdentity? identity = null;
         if (accessibility && identityProvider is not null && intent is null && selection is null && includeImage)

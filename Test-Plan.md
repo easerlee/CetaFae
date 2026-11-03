@@ -1,5 +1,8 @@
 # CetaFae Concentrated Verification Plan
 
+## Window questions without a local adapter (v1.34)
+
+Check a generated folder question through scope resolution, collector reply validation, outbound PNG/text and the explanation-only model reply. No task rule or location candidate must not trigger selection. Retain negative checks for declared local scopes with missing/ambiguous anchors, changed frames/pixels, forged whole scopes and expansion of a manual selection. Verify the 240-DIP resting input and internal controls offscreen. In the authorized native batch, bind a generated folder and ask whether its files can be deleted: receive a relevant, bounded answer or a necessary context question, without forcing a button selection or guaranteeing safe deletion. Real advice accuracy remains deferred to the direct-provider release batch.
 ## Offline development and release model validation
 
 Use generated fixtures, local OCR, offscreen layout and a fake transport for development. Defer all real model calls, including generated-only calls against the development proxy, until a release candidate can be tested against the intended direct provider. Then verify reply accuracy, unsupported and failure cases, and end-to-end latency against the existing gates. Keep historical proxy evidence separate. Native desktop runs still require separate permission.

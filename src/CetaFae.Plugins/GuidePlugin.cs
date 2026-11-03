@@ -152,11 +152,14 @@ public sealed class GuidePlugin
     public bool AllowsPoint(string? intent, string candidateName) =>
         !string.IsNullOrWhiteSpace(intent) && !BlockedPoints.Any(rule => rule.Blocks(intent, candidateName));
 
-    public ObservationScopeRule ScopeFor(string intent)
+    public ObservationScopeRule? OptionalScopeFor(string intent)
     {
         var matches = ObservationScopes.Where(s => s.MatchesIntent(intent)).Take(2).ToArray();
-        return matches.Length == 1 ? matches[0] : throw new InvalidDataException("scope_unavailable");
+        return matches.Length switch { 0 => null, 1 => matches[0], _ => throw new InvalidDataException("scope_unavailable") };
     }
+
+    public ObservationScopeRule ScopeFor(string intent) =>
+        OptionalScopeFor(intent) ?? throw new InvalidDataException("scope_unavailable");
 }
 
 static class PluginData

@@ -63,7 +63,7 @@ static class ScopeChecks
         Reject(() => new GuidePlugin(1, plugin.Id, "0.1.0", "Generated", plugin.Targets, "control", ["test"], [])
             .ScopeFor("find generated"), "legacy v1 explicit tasks do not bypass outbound scope policy");
         var rule = plugin.ScopeFor("Please find generated option");
-        Reject(() => plugin.ScopeFor("an unrelated goal"), "unmatched explicit intent cannot silently send a whole window");
+        Reject(() => plugin.ScopeFor("an unrelated goal"), "strict local rule lookup never fabricates an unmatched rule");
         Reject(() => new GuidePlugin(2, "example.duplicate", "0.2.0", "Generated", plugin.Targets, "control", ["test"], [],
                 [rule, rule]).ScopeFor("find generated"), "ambiguous scope rules refuse instead of choosing by order");
         foreach (var (json, name) in new[]
@@ -136,6 +136,34 @@ static class ScopeChecks
         Reject(() => observation.ValidateContext(observation with { Candidates = [inside] }, 7),
             "a change outside the crop still invalidates full local context");
         Reject(() => GuidePayload.From(observation with { Scope = null }), "explicit intent with a missing scope cannot reach the model");
+        var general = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).GeneralProvider!;
+        const string advice = "Can I delete the files in this folder?";
+        var whole = GuideScope.ForQuestion(frame, general, advice, null, [])!;
+        var question = observation with { PluginId = general.Id, Candidates = [], Scope = whole, ScopeIntent = advice };
+        ObservationWorker.ValidateScopeReply(question, general, advice, null, false);
+        check(whole.Region == frame && whole.Anchor is null && !whole.UserSelected &&
+              GuidePayload.From(question).Candidates.Count == 0 && question.ValidateContext(question, null) is null,
+            "a general window question reaches payload and revalidation without a task adapter or location candidate");
+        var unknownTask = GuideScope.ForQuestion(frame, plugin, advice, null, [])!;
+        ObservationWorker.ValidateScopeReply(question with { PluginId = plugin.Id, Scope = unknownTask }, plugin, advice, null, false);
+        check(unknownTask.Region == frame && plugin.OptionalScopeFor(advice) is null,
+            "an application adapter does not block unrelated window questions without a matching local rule");
+        check(GuideScope.ForQuestion(frame, plugin, "find generated", null, [anchor])!.HasSameAnchor(scope),
+            "a matching task still uses its bounded local scope");
+        Reject(() => GuideScope.ForQuestion(frame, plugin, "find generated", null, []),
+            "a declared task with a missing anchor does not widen to the whole window");
+        Reject(() => ObservationWorker.ValidateScopeReply(question with { Scope = whole, ScopeIntent = "find generated" },
+            plugin, "find generated", null, false), "a worker cannot replace a required local scope with the whole frame");
+        var chosen = new Rect(0, 180, 100, 30);
+        var chosenScope = GuideScope.ForQuestion(frame, general, advice, chosen, [])!;
+        check(chosenScope.UserSelected && chosenScope.Region == chosen,
+            "explicit selection takes priority over general whole-window questions");
+        Reject(() => ObservationWorker.ValidateScopeReply(question, general, advice, chosen, false),
+            "a worker cannot widen the user's selected region");
+        Reject(() => ObservationWorker.ValidateScopeReply(question with { Scope = whole with { Region = chosen } },
+            general, advice, null, false), "an unanchored automatic scope must equal the selected frame");
+        Reject(() => question.ValidateContext(question with { Scope = chosenScope }, null),
+            "a changed whole-window question scope discards the old answer");
         var status = GuidePayload.From(observation with { Candidates = [] });
         check(GuideAnswer.Parse("""{"mode":"explain","candidateId":null,"explanation":"Generated status"}""", status.Candidates).Mode == "explain" &&
               status.VisibleContext == anchor.Name, "a read-only status anchor can explain without an invented actionable control");
@@ -166,6 +194,53 @@ static class ScopeChecks
 
     public static async Task CheckTransportAsync(Action<bool, string> check)
     {
+        var general = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).GeneralProvider!;
+        var folderFrame = new Rect(-480, 40, 480, 200);
+        const string question = "Can I delete the files in this folder?";
+        var drawing = new DrawingVisual();
+        using (var draw = drawing.RenderOpen())
+        {
+            draw.DrawRectangle(Brushes.White, null, new Rect(0, 0, 480, 200));
+            draw.DrawText(new FormattedText("C:\\Generated\\Downloads\nnotes.txt\nsetup.exe", CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, new Typeface("Segoe UI"), 18, Brushes.Black, 1), new Point(12, 12));
+        }
+        var bitmap = new RenderTargetBitmap(480, 200, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(drawing);
+        var whole = GuideScope.ForQuestion(folderFrame, general, question, null, [])!;
+        var image = Capture.EncodeRegion(bitmap, folderFrame, whole.Region);
+        var full = new GuideObservation(new IntPtr(1), 1, folderFrame, [], image, PluginId: general.Id,
+            Scope: whole, ScopeIntent: question, VisualHash: GuideObservation.Fingerprint(image),
+            Visual: GuideVisual.Read(image, whole.Region, null));
+        ObservationWorker.ValidateScopeReply(full, general, question, null, true);
+        var fullPayload = GuidePayload.From(full);
+        using (var advice = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated"), new Handler(async request =>
+        {
+            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+            var messages = document.RootElement.GetProperty("messages");
+            var content = messages[1].GetProperty("content");
+            using var text = JsonDocument.Parse(content[0].GetProperty("text").GetString()!);
+            check(text.RootElement.GetProperty("task").GetString() == question &&
+                  text.RootElement.GetProperty("candidates").GetArrayLength() == 0 &&
+                  content[1].GetProperty("image_url").GetProperty("url").GetString() ==
+                      "data:image/png;base64," + Convert.ToBase64String(image),
+                "a folder advice question sends the actual selected-window PNG without requiring a control or manual region");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(
+                JsonSerializer.Serialize(new { choices = new[] { new { finish_reason = "stop", message = new
+                    { content = "{\"mode\":\"explain\",\"explanation\":\"Names alone do not establish deletion safety. Do you still need these files?\",\"candidateId\":null}" } } } }),
+                Encoding.UTF8, "application/json") };
+        })))
+        {
+            var answer = (await advice.AskAsync(question, fullPayload.Candidates, fullPayload.Png, default)).ForIntent(question);
+            check(answer.Mode == "explain" && answer.CandidateId is null && answer.Explanation.Contains("deletion safety"),
+                "an explanation-only advice reply remains readable without a marker or repeated goal prompt");
+        }
+        RejectChangedImage();
+        void RejectChangedImage()
+        {
+            try { full.ValidateContext(full with { VisualHash = "changed", Visual = null }, null); }
+            catch (InvalidDataException) { check(true, "whole-window advice still rejects changed visual evidence"); return; }
+            throw new InvalidOperationException("whole-window visual validation was bypassed");
+        }
         var rule = PluginCatalog.ParsePlugin(Package).ScopeFor("find generated");
         var anchor = new GuideScopeAnchor("Generated option", "ControlType.CheckBox", new Rect(100, 100, 80, 30), [7]);
         var frame = new Rect(0, 0, 800, 500);

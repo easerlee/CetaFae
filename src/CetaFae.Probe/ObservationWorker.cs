@@ -119,10 +119,11 @@ public static class ObservationWorker
             if (observation.Scope?.HasSameAnchor(GuideScope.FromUserSelection(observation.Frame, region)) != true)
                 throw new InvalidDataException("scope_unavailable");
         }
-        else if (observation.Scope is { } scope && (scope.UserSelected || scope.Anchor is null || intent is null ||
-                 !scope.HasSameAnchor(GuideScope.Resolve(observation.Frame, plugin.ScopeFor(intent), [scope.Anchor]))))
+        else if (observation.Scope is { } scope && (intent is null ||
+                 !scope.HasSameAnchor(GuideScope.ForQuestion(observation.Frame, plugin, intent, null,
+                     scope.Anchor is { } anchor ? [anchor] : []))))
             throw new InvalidDataException("scope_unavailable");
-        var expected = !observation.Snapshot && includeImage && (plugin.Kind == "general" || selection is not null)
+        var expected = !observation.Snapshot && includeImage && (plugin.Kind == "general" || observation.Scope is { Anchor: null })
             ? GuideObservation.Fingerprint(observation.Png ?? throw new InvalidDataException("worker_reply")) : null;
         if (observation.VisualHash != expected) throw new InvalidDataException("target_changed");
         var visual = expected is not null ? GuideVisual.Read(observation.Png!,

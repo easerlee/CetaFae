@@ -8,6 +8,16 @@ namespace CetaFae.Probe;
 public sealed record GuideScopeAnchor(string Name, string ControlType, Rect Bounds, int[] RuntimeId);
 public sealed record GuideScope(Rect Region, GuideScopeAnchor? Anchor, bool UserSelected = false)
 {
+    public static GuideScope? ForQuestion(Rect frame, GuidePlugin plugin, string? intent,
+        Rect? selection, IReadOnlyList<GuideScopeAnchor> anchors)
+    {
+        if (selection is { } region) return FromUserSelection(frame, region);
+        if (intent is null) return null;
+        if (!Valid(frame)) throw new InvalidDataException("scope_unavailable");
+        var rule = plugin.OptionalScopeFor(intent);
+        return rule is null ? new GuideScope(frame, null) : Resolve(frame, rule, anchors);
+    }
+
     public static GuideScope FromUserSelection(Rect frame, Rect selection)
     {
         if (!Valid(frame) || !Valid(selection) || !frame.Contains(selection) || selection.Width < 8 || selection.Height < 8)
@@ -43,7 +53,7 @@ public sealed record GuideScope(Rect Region, GuideScopeAnchor? Anchor, bool User
         new[] { rect.X, rect.Y, rect.Width, rect.Height, rect.Right, rect.Bottom }.All(double.IsFinite);
 
     public bool HasSameAnchor(GuideScope? other) => other is not null && Region == other.Region && UserSelected == other.UserSelected &&
-        (UserSelected ? Anchor is null && other.Anchor is null : Anchor is { } anchor && other.Anchor is { } current &&
+        (Anchor is null ? other.Anchor is null : Anchor is { } anchor && other.Anchor is { } current &&
         anchor.Name == current.Name && anchor.ControlType == current.ControlType &&
         anchor.Bounds == current.Bounds && anchor.RuntimeId.SequenceEqual(current.RuntimeId));
 }

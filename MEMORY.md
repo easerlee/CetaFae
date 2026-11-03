@@ -2,7 +2,9 @@
 
 - At 125% scaling, a WPF dock host can retain its old physical height even when its width scales. Use the shared prompt-body geometry for placement and card anchoring, restore the intended host height on dock, and permit edge contact for an ordinary attached reader. Preview.5 passes offline checks. Native seams and native control alignment are separate acceptance items. Initial snapshot cards and submitted guidance have separate page-change paths. A stable HWND/frame can retain an initial card after navigation, so the historical marker cleanup pass does not establish initial card freshness.
 
-Updated: 2026-11-03
+Updated: 2026-11-04
+
+- Requirements v1.34 makes local task rules optional for submitted window questions: no match produces an explicit selected-whole-window scope; matched local rules and manual selections remain bounded. Collector and parent share resolution, with visual evidence for whole-frame questions even under an application package. Missing control candidates do not block an explanation. Advice must state uncertainty, never claim file inspection or guarantee deletion safety. Resting input is240DIP. Terms1.4 disclose the scope change, so installation confirmation is required. Preview.11 passes1744 local/generated checks in Debug and Release plus inspected offscreen layouts and packaged worker rejection. User reports preview.10 basic questions working; the prior folder question was blocked before the model by strict scope lookup. Native revised folder advice and direct-model accuracy remain unverified.
 
 - Defer real model tests until a release candidate can use the intended direct provider; the current cost-saving route is not the release baseline. Continue with headless checks, generated local fixtures and fake responses. Existing release gates remain in force.
 

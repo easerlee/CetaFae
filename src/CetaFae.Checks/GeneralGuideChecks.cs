@@ -74,7 +74,7 @@ static class GeneralGuideChecks
         check(region.UserSelected && region.Anchor is null && region.Region.Width == 120,
             "user selection is independent of application labels on a negative-origin display");
         check(GuideScope.FromUserSelection(frame, frame).Region == frame,
-            "only deliberate user selection may include the entire target rather than automatic scope expansion");
+            "deliberate user selection can explicitly include the whole target");
         foreach (var invalid in new[] { new Rect(-401, 100, 50, 50), new Rect(-350, 100, 1, 50),
                      new Rect(-350, 100, double.PositiveInfinity, 50), Rect.Empty })
             Reject(() => GuideScope.FromUserSelection(frame, invalid), "invalid or out-of-target user regions refuse");

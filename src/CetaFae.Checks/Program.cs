@@ -531,6 +531,8 @@ public static class Program
         var area = new Rect(-400, 0, 400, 340);
         home.Place(new Rect(-80, 260, 72, 72), area);
         anchored.Place(new Rect(-300, 4, 72, 72), area);
+        Check(home.Width == 240 && anchored.Width == 240,
+            "the resting input and its replies use two thirds of the previous 360-DIP width");
         Check(home.Top < 260 && anchored.Top == 82 && home.Left >= area.Left &&
             anchored.Left >= area.Left && home.Handle == IntPtr.Zero && anchored.Handle == IntPtr.Zero,
             "the chat input fits a negative-origin work area and moves below an anchor near the top");

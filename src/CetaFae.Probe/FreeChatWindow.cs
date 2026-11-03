@@ -96,7 +96,7 @@ internal sealed class FreeChatWindow : Window
 
     internal void Place(Rect anchor, Rect work)
     {
-        Width = Math.Max(1, Math.Min(360, work.Width));
+        Width = Math.Max(1, Math.Min(240, work.Width));
         _transcript.MaxHeight = Math.Clamp(work.Height - 150, 0, 270);
         ((UIElement)Content).Measure(new Size(Width, double.PositiveInfinity));
         var point = Position(anchor, work, new Size(Width, ((UIElement)Content).DesiredSize.Height));
