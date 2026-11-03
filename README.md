@@ -68,7 +68,7 @@ dotnet run --project src/CetaFae.Probe -c Release -- --guide
 ./installer/Build-Installer.ps1 -Compiler 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' -ChineseMessagesFile 'C:/Program Files (x86)/Inno Setup 6/Languages/ChineseSimplified.isl'
 ```
 
-输出位于 `.artifacts/installer/`，包含运行时、开始菜单入口和卸载支持，默认安装到当前用户目录，无需管理员权限，不添加开机自启。安装协议显示现有非敏感配置；取消或失败不新增同意，静默安装不可代替点击确认。模型服务仍需另行准备。解压或源码启动不会自动获得安装同意。
+输出位于 `.artifacts/installer/`。安装包内置 .NET 8 Windows 桌面运行时，无需预装 .NET，可离线安装。点击「同意协议并安装」后，安装器会先关闭当前会话中即将被覆盖的鲸汐，再安装并启动新版。默认安装到当前用户目录，提供开始菜单入口和卸载支持，无需管理员权限。安装协议显示现有非敏感配置；取消或失败不新增同意，静默安装不可代替点击确认。模型服务仍需另行准备。解压或源码启动不会自动获得安装同意。
 
 ## 技术实现
 

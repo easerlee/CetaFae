@@ -2,6 +2,10 @@
 
 Updated: 2026-11-03
 
+## Self-contained installation and upgrade shutdown
+
+Requirements v1.26: after explicit agreement, Inno Setup calls a headless helper from the extracted bundle before any application files are copied. The helper matches the current session and exact installed executable path, terminates those processes and waits for exit. A shutdown failure blocks installation. Keep the x64 self-contained Windows Desktop publish and normal post-install launch.
+
 ## First-drop visible-error guidance (2026-11-03)
 
 Requirements v1.25: the general plugin's existing visible-error capability enables an optional, bounded next check on the initial identification response. Accept it only for an active visible error or warning and never alongside a clarification question. Render it in the existing reading card without a target marker. Reuse the explicit continuation action and target-lifetime validation. A continuation from a first-drop error starts with no original user goal and never serializes the previous model answer. Retain scoped collection, privacy checks and the existing step limit. Ordinary first-drop and explicit control-location flows use their existing paths.

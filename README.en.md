@@ -68,7 +68,7 @@ On Windows, install Inno Setup 6.7.4 with the Simplified Chinese messages file a
 ./installer/Build-Installer.ps1 -Compiler 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' -ChineseMessagesFile 'C:/Program Files (x86)/Inno Setup 6/Languages/ChineseSimplified.isl'
 ```
 
-Output is under `.artifacts/installer/`. The package includes the runtime, a Start menu shortcut and uninstall support. It installs per user without elevation or startup registration. Its agreement reflects existing non-secret settings; cancellation or failure creates no new consent, and silent installation cannot replace personal confirmation. A model service is still required. Extracting or launching source builds does not imply installation consent.
+Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runtime allows offline installation without a preinstalled .NET runtime. After you choose Agree and install, Setup closes the installed copy running in the current session, installs the update and launches the new version. It installs per user without elevation and includes a Start menu shortcut and uninstall support. Its agreement reflects existing non-secret settings. Cancellation or failure creates no new consent, and silent installation cannot replace personal confirmation. A model service is still required. Extracting or launching source builds does not imply installation consent.
 
 ## Technical implementation
 

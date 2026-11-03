@@ -74,7 +74,7 @@ var
   ScopeBytes: AnsiString;
 begin
   AgreementPage := CreateCustomPage(wpWelcome, '欢迎使用鲸汐',
-    '安装后直接拖动小鲸鱼求助。请先阅读使用协议与隐私说明。');
+    '安装会关闭正在运行的已安装鲸汐。请先阅读使用协议与隐私说明。');
   AgreementText := TNewMemo.Create(WizardForm);
   AgreementText.Parent := AgreementPage.Surface;
   AgreementText.SetBounds(0, 0, AgreementPage.SurfaceWidth, AgreementPage.SurfaceHeight);
@@ -112,6 +112,19 @@ function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := (CurPageID <> AgreementPage.ID) or AgreementReady;
   if (CurPageID = AgreementPage.ID) and Result then ExplicitlyAccepted := True;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ExitCode: Integer;
+begin
+  Result := '';
+  if not ExplicitlyAccepted then
+    Result := '尚未确认使用协议，无法继续安装。'
+  else if not Exec(ExpandConstant('{tmp}\CetaFae.Probe.exe'),
+    '--stop-installed "' + ExpandConstant('{app}\CetaFae.Probe.exe') + '"',
+    '', SW_HIDE, ewWaitUntilTerminated, ExitCode) or (ExitCode <> 0) then
+    Result := '无法关闭正在运行的鲸汐。请从托盘退出鲸汐，再重新运行安装程序。';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

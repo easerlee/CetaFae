@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Self-contained installation and upgrade shutdown
+
+For v1.26 compile the self-contained x64 installer. Run its bundled helper with a missing .NET root and no dotnet on PATH, and check fresh extraction includes native WPF components. Start two hidden copies of the bundled worker from distinct paths and verify that preflight exits only the designated installed copy, then succeeds when repeated. In desktop acceptance, verify cancel before agreement leaves the running app intact and upgrade closes it before replacing files and launching the new version.
+
 ## First-drop visible-error guidance (2026-11-03)
 
 For v1.25 use generated missing-file, missing-component and connection-error dialogs plus a document quoting an error. Check visible facts and code, one safe next check or one necessary question, no first-drop marker and no error behavior for the quoted example. Verify the plugin gate, response shape, explicit continuation without an invented goal, scoped capture, fresh target validation and step limit. Separate generated-data model checks from native acceptance. In the consolidated desktop pass, exercise first drop, manual observation, continuation and cancellation on the same window.
