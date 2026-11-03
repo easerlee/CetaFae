@@ -86,6 +86,7 @@ public sealed class BallWindow : Window
     internal bool ArtAnimating => _animation.IsEnabled;
     internal WhalePrompt Prompt => _prompt;
     public event Action<string>? AnswerSubmitted;
+    internal event Action? HomeClicked;
     public event Action<IntPtr>? TargetSelected;
     public event Action<string>? TrackingStopped;
     public event Action? TargetMoved;
@@ -457,7 +458,11 @@ public sealed class BallWindow : Window
         _pressed = false;
         _dragging = false;
         ReleaseMouseCapture();
-        if (!wasDragging) return;
+        if (!wasDragging)
+        {
+            if (!HasTarget && !_inline) HomeClicked?.Invoke();
+            return;
+        }
         StopAnimation();
         var target = HitTestUnderCursor(p);
         ProbeLog.Log("guide_drop", ("found", target != IntPtr.Zero));

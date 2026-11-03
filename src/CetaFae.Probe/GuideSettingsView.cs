@@ -98,7 +98,7 @@ internal sealed class GuideSettingsView : Border
                 FontSize = 14, Margin = new Thickness(0, 4, 0, 4) };
             _plugins.Add(plugin.Id, enabled);
             var item = new StackPanel(); item.Children.Add(enabled);
-            var kind = plugin.Kind switch { "general" => "通用界面理解", "identity" => "本机软件身份", _ => "软件适配" };
+            var kind = plugin.Kind switch { "general" => "通用界面理解", "identity" => "本机软件身份", "chat" => "自由问答", _ => "软件适配" };
             item.Children.Add(Text($"{kind} · 版本 {plugin.Version} · {plugin.TaskIds.Count} 项声明任务"));
             _pages[2].Children.Add(new Border { Child = item, Padding = new Thickness(12), Margin = new Thickness(0, 5, 0, 5),
                 BorderBrush = GuideTheme.Outline, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8) });

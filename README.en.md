@@ -4,11 +4,12 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.8**. CetaFae explains the selected window and shows where to act. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.9**. CetaFae explains the selected window, shows where to act, and answers general questions. You operate the target application. Release acceptance is pending.
 
 ## Features
 
-- **Lightweight management**: left-clicking the whale opens no management window. The tray and whale right-click share one menu. Agree once during installation and drag to use afterward, with no first-launch confirmation or routine cloud toggle; settings retains disclosure and withdrawal. Startup alone never collects or sends content.
+- **Free chat**: click the resting whale to ask a question and follow up. The attached input bar also lets you switch to free chat and back while keeping the same window selected. Free chat sends your submitted text and up to four recent exchanges from that chat.
+- **Lightweight management**: the tray and whale right-click share one menu. Accept the agreement during installation. Settings provides the disclosure and a way to withdraw consent.
 - **Unobtrusive presence**: dismiss transient notices with their header close button or an outside click. The idle whale hides while another foreground application is fullscreen and returns afterward. Ordinary maximization and active guidance remain available; fullscreen detection uses local window geometry without analyzing content.
 - **Drag to select**: the whale and input bar center on the target window, with the bar width adapting to the window. On-demand explanations and control highlights keep interaction close to the target. Ending a session restores the whale.
 - **Contextual feedback**: a repeating wave scan indicates recognition is pending; the reading card appears when a result is available. Cards join the input bar on ordinary windows and prefer its right side in top-attached layouts. They avoid validated controls or collapse when space is insufficient, with a reopen action. Baseline width follows the input bar; long text grows vertically before widening, then uses local pages at screen limits without a body scrollbar. Follow-up, region selection and details appear only when needed; the input bar close button ends guidance. Management stays in the tray and whale menu.

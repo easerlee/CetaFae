@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 7,
+  "kind": "chat",
+  "id": "cetafae.chat",
+  "version": "1.0.0",
+  "displayName": "自由问答",
+  "targets": [],
+  "uiaView": "control",
+  "taskIds": [],
+  "blockedPoints": []
+}

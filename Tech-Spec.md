@@ -1,5 +1,16 @@
 # Selected-Window Guidance: Implementation Specification
 
+## Free chat capsule (requirements v1.32)
+
+Click the resting whale to open a small text capsule and show replies in the same surface. Enter or the send arrow submits once; Enter still belongs to the input method while composing. Keep drag for window guidance and right-click for the existing menu. In a bound window, offer an explicit “问鲸汐” mode beside “问这个窗口” so a user can ask an unrelated question without losing the binding. Label the active mode in plain language. Do not infer a mode switch from the question. Switching cancels pending work, clears any position marker, and does not transfer either mode’s context.
+
+1. Add a singleton schema 7 chat capability to the existing package catalog. Keep target resolution separate and disclose the text/history scope in the installation agreement.
+2. Extract the shared completion transport in GuideModel. Use a separate text-only message and response contract. Keep at most four completed question/answer pairs per session and validate the input before dispatch. Reset cancels the active request and discards history.
+3. Connect the resting whale click and the bound prompt mode control to one capsule surface. Keep bindings while switching, clear window evidence, and return to a fresh bound input. Tie capsule lifetime to the guide session, binding and fullscreen visibility.
+4. Verify generated payloads, consent migration, transcript bounds, stale replies, layout and mode routing with local checks. Run Debug and Release before packaging. Keep native interaction and direct-provider verification separate.
+
+The capsule has a 360-DIP preferred width, constrained to the work area. It shows up above the resting whale and below an attached prompt when space permits. Display at most four exchanges in a bounded reading area. The attached mode action is hidden below 240 DIP to preserve the existing input and close targets. Each submission accepts up to 300 characters and each response up to 1200. A mode change discards the old scope and transcript. The v1.2 installation disclosure is the grant boundary.
+
 ## Prompt and reader seams after display scaling
 
 Place the ordinary prompt using the visible body edge within its host window. The reported 125% run sometimes kept an 88 pixel host height, about 70 DIP, while docking assumed an 88 DIP host. Restore the intended dock surface size for the whale transition and derive docking and the reader anchor from the same prompt body geometry. A regular reader may share the input edge without overlapping its hit area. Keep the intentional side spacing of the top-attached layout and move the reader when it would cover a located control.

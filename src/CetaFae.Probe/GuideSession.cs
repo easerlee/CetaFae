@@ -19,6 +19,8 @@ public sealed class GuideSession : IDisposable
     int _followupVersion;
     readonly GuideOptions _options;
     readonly GuideModel _model;
+    readonly FreeChatSession _chat;
+    FreeChatWindow? _chatWindow;
     readonly CloudConsentStore _consent;
     readonly GuideMenu _menu;
     readonly PluginCatalog _plugins;
@@ -45,6 +47,7 @@ public sealed class GuideSession : IDisposable
         _options = options;
         _plugins = plugins;
         _model = new GuideModel(options);
+        _chat = new FreeChatSession(_model.ChatAsync);
         _panel = new GuidePanel(options);
         _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget, () => _ball.TopAttached,
             () => _ball.Workspace);
@@ -62,6 +65,9 @@ public sealed class GuideSession : IDisposable
         _panel.Cancelled += () => _ball.StopTracking("cancelled");
         _panel.AnswerSubmitted += OnAnswerSubmitted;
         _ball.AnswerSubmitted += OnAnswerSubmitted;
+        _ball.HomeClicked += ToggleChat;
+        _ball.Prompt.ChatRequested += ToggleChat;
+        _ball.Prompt.SetChatMode(plugins.ChatProvider is not null);
         _panel.RegionRequested += OnRegionRequested;
         _panel.FollowupRequested += OnFollowupRequested;
         _ball.AllowsForeground = IsAllowedForeground;
@@ -90,7 +96,72 @@ public sealed class GuideSession : IDisposable
         _menu.Show();
     }
 
-    void OnFullscreenHidden() => _panel.DismissNotice();
+    void OnFullscreenHidden()
+    {
+        CloseChat();
+        _panel.DismissNotice();
+    }
+
+    void ToggleChat()
+    {
+        if (_plugins.ChatProvider is null) return;
+        if (_chatWindow is { } existing) { existing.Close(); return; }
+        if (_preview || !_gate.CloudEnabled)
+        {
+            _panel.SetStatus(_preview ? "这是静态预览。安装后可以使用自由问答。" : "请先通过安装程序确认使用协议，再使用自由问答。");
+            return;
+        }
+        var bound = _ball.HasTarget;
+        if (bound && (!_ball.BindingConfirmed || _ball.BindingSuspended)) return;
+        ResetRecognition();
+        if (bound)
+        {
+            _ball.SetProcessing(false);
+            _ball.Prompt.SetChatMode(true, active: true);
+            _ball.Prompt.SetResult("正在自由问答");
+        }
+        var capsule = new FreeChatWindow(bound) { Owner = _ball };
+        _chatWindow = capsule;
+        capsule.Submitted += text => SubmitChat(capsule, text);
+        capsule.Closed += (_, _) =>
+        {
+            if (_chatWindow != capsule) return;
+            _chatWindow = null;
+            _chat.Reset();
+            _ball.Prompt.SetChatMode(true);
+            if (bound && _ball.HasTarget && !_ball.BindingSuspended)
+                ReadyBoundQuestion("你想了解这个窗口里的什么？");
+        };
+        capsule.Place(_ball.FeedbackBounds, _ball.Workspace, bound);
+        capsule.Show();
+    }
+
+    async void SubmitChat(FreeChatWindow capsule, string text)
+    {
+        if (_chatWindow != capsule || !_gate.CloudEnabled) return;
+        capsule.SetStatus("鲸汐正在回答…", busy: true);
+        capsule.Place(_ball.FeedbackBounds, _ball.Workspace, _ball.HasTarget);
+        try
+        {
+            var turn = await _chat.SubmitAsync(text);
+            if (_chatWindow == capsule && turn is not null) capsule.ShowTurn(turn);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or JsonException or HttpRequestException or IOException or OperationCanceledException)
+        {
+            if (_chatWindow == capsule)
+                capsule.SetStatus(ex.Message == "sensitive_content" ? "请去掉密钥等敏感内容后再发送。" : "这次没能回答，请再试一次。");
+        }
+        if (_chatWindow == capsule) capsule.Place(_ball.FeedbackBounds, _ball.Workspace, _ball.HasTarget);
+    }
+
+    void CloseChat()
+    {
+        if (_chatWindow is not { } capsule) return;
+        _chatWindow = null;
+        _chat.Reset();
+        capsule.Close();
+        _ball.Prompt.SetChatMode(_plugins.ChatProvider is not null);
+    }
 
     internal bool CloudEnabled => _gate.CloudEnabled;
     internal void EndForSettings() => ResetRecognition();
@@ -132,6 +203,7 @@ public sealed class GuideSession : IDisposable
 
     void ResetRecognition()
     {
+        CloseChat();
         _boundQuestionReady = false;
         _activationVersion = null;
         _initialCollectionVersion = _modelVersion = null;
@@ -240,7 +312,7 @@ public sealed class GuideSession : IDisposable
 
     async void OnTargetChanged()
     {
-        if (_ball.BindingSuspended) return;
+        if (_ball.BindingSuspended || _chatWindow is not null) return;
         _contextCheckPending = true;
         if (_context is { Snapshot: true } snapshot)
         {
@@ -320,6 +392,7 @@ public sealed class GuideSession : IDisposable
     void OnEntryChanged(object? sender, EventArgs args)
     {
         if (_panel.IsVisible) _panel.Reposition();
+        _chatWindow?.Place(_ball.FeedbackBounds, _ball.Workspace, _ball.HasTarget);
     }
 
     bool IsInputForeground(IntPtr window) =>
@@ -327,6 +400,7 @@ public sealed class GuideSession : IDisposable
         ((_context is not null || _boundQuestionReady) && _gate.Accepts(_contextVersion) || _followup.WaitingForUser && _gate.Accepts(_followupVersion));
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
+        _chatWindow is { } capsule && window != IntPtr.Zero && window == capsule.Handle ||
         _menu.OwnsForeground(window) ||
         _picker is not null && (window == _picker.Handle || window == IntPtr.Zero) ||
         _activationVersion is { } version && _gate.Accepts(version) &&
@@ -790,6 +864,10 @@ public sealed class GuideSession : IDisposable
 
     public void Dispose()
     {
+        CloseChat();
+        _ball.HomeClicked -= ToggleChat;
+        _ball.Prompt.ChatRequested -= ToggleChat;
+        _ball.Prompt.SetChatMode(false);
         _ball.FullscreenHidden -= OnFullscreenHidden;
         _ball.LocationChanged -= OnEntryChanged;
         _ball.SizeChanged -= OnEntryChanged;

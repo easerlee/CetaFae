@@ -59,6 +59,12 @@ public static class Program
             PromptChecks.Render();
             return 0;
         }
+        if (args.Contains("--render-chat"))
+        {
+            _ = Dispatcher.CurrentDispatcher;
+            CheckChatLayout(render: true);
+            return 0;
+        }
         if (args.Contains("--render-whale"))
         {
             _ = Dispatcher.CurrentDispatcher;
@@ -129,6 +135,8 @@ public static class Program
         await PrivacyChecks.RunAsync(Check);
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);
+        CheckChatLayout();
+        FreeChatChecksAsync().GetAwaiter().GetResult();
         GeneralGuideChecks.Run(Check);
         SoftwareIdentityChecks.Run(Check);
         SnapshotChecks.Run(Check);
@@ -501,6 +509,120 @@ public static class Program
             }
         }
         Console.WriteLine($"RESULT: {_passed} checks passed. Desktop observation: NOT RUN.");
+    }
+
+    static void CheckChatLayout(bool render = false)
+    {
+        foreach (var width in new[] { 180d, 240d, 320d })
+        {
+            var prompt = new WhalePrompt();
+            prompt.SetChatMode(true);
+            prompt.SetQuestion(true);
+            prompt.Measure(new Size(width, 88));
+            prompt.Arrange(new Rect(0, 0, width, 88));
+            prompt.UpdateLayout();
+            Rect Bounds(FrameworkElement element) => element.TransformToAncestor(prompt).TransformBounds(new Rect(element.RenderSize));
+            Check(new Rect(prompt.RenderSize).Contains(Bounds(prompt.Answer)) &&
+                prompt.Answer.ActualWidth >= 60 && (width < 240
+                    ? prompt.ChatMode.Visibility == Visibility.Collapsed
+                    : Bounds(prompt.ChatMode).Right < Bounds(prompt.InputSurface).Left &&
+                      Bounds(prompt.DragSurface).Contains(Bounds(prompt.ChatMode))),
+                $"chat mode at prompt width {width} preserves input space and stays inside the shell");
+        }
+        var home = new FreeChatWindow(false);
+        var anchored = new FreeChatWindow(true);
+        anchored.ShowTurn(new ChatTurn("怎样把这段话写得更简短？", "先保留主要意思，再删掉重复的句子。"));
+        var area = new Rect(-400, 0, 400, 340);
+        home.Place(new Rect(-80, 260, 72, 72), area, false);
+        anchored.Place(new Rect(-300, 4, 240, 36), area, true);
+        Check(home.Top < 260 && anchored.Top == 46 && home.Left >= area.Left &&
+            anchored.Left >= area.Left && home.Handle == IntPtr.Zero && anchored.Handle == IntPtr.Zero,
+            "the chat capsule fits the work area above a home whale and below a top-docked prompt");
+        var submissions = new List<string>();
+        home.Submitted += text => { submissions.Add(text); home.SetStatus("等待回答", busy: true); };
+        home.Input.Text = "测试问题";
+        home.Send.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        home.Send.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        Check(submissions.SequenceEqual(new[] { "测试问题" }) && home.Input.IsReadOnly,
+            "the real capsule send button submits once and prevents repeated sends while waiting");
+        home.ShowTurn(new ChatTurn("测试问题", "测试回答"));
+        Check(!home.Input.IsReadOnly && home.Input.Text.Length == 0 && !home.Send.IsEnabled,
+            "a completed capsule reply clears input and enables the next question");
+        if (!render) return;
+        var folder = Path.Combine(".artifacts", "checks");
+        Directory.CreateDirectory(folder);
+        foreach (var (window, name, scale) in new[] { (home, "chat-home", 1d), (anchored, "chat-bound", 1.25) })
+        {
+            var content = (FrameworkElement)window.Content;
+            var size = new Size(window.Width, content.DesiredSize.Height);
+            content.Arrange(new Rect(size));
+            content.UpdateLayout();
+            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(size.Width * scale),
+                (int)Math.Ceiling(size.Height * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            bitmap.Render(content);
+            var png = new PngBitmapEncoder();
+            png.Frames.Add(BitmapFrame.Create(bitmap));
+            using var stream = File.Create(Path.Combine(folder, name + ".png"));
+            png.Save(stream);
+        }
+    }
+
+    static async Task FreeChatChecksAsync()
+    {
+        var options = GuideOptions.Create("http://127.0.0.1:8787/v1", "generated-chat-model");
+        using var model = new GuideModel(options, new Handler(async (request, token) =>
+        {
+            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+            var messages = document.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+            Check(messages.Select(message => message.GetProperty("role").GetString())
+                .SequenceEqual(new[] { "system", "user", "assistant", "user" }) &&
+                messages.All(message => message.GetProperty("content").ValueKind == JsonValueKind.String) &&
+                messages.Skip(1).Select(message => message.GetProperty("content").GetString())
+                    .SequenceEqual(new[] { "第一问", "第一答", "继续问" }),
+                "chat sends only its text and same-session history even with image guidance enabled");
+            return Completion("{\"reply\":\"第二答\"}");
+        }));
+        Check(await model.ChatAsync([new("第一问", "第一答")], "继续问", default) == "第二答",
+            "chat parses a text-only completion");
+        using var wrong = new GuideModel(options, new Handler((_, _) =>
+            Task.FromResult(Completion("{\"reply\":\"位置\",\"candidateId\":1}"))));
+        await RejectAsync(() => wrong.ChatAsync([], "继续问", default), "chat rejects a location result");
+        var historySeen = Array.Empty<ChatTurn>();
+        var chat = new FreeChatSession((history, question, _) =>
+        {
+            historySeen = history.ToArray();
+            return Task.FromResult("答：" + question);
+        });
+        for (var i = 0; i <= 5; i++) await chat.SubmitAsync("第" + i + "问");
+        Check(historySeen.Select(turn => turn.Question).SequenceEqual(new[] { "第1问", "第2问", "第3问", "第4问" }),
+            "chat uses only the four most recent completed turns");
+        await RejectAsync(() => chat.SubmitAsync("密码：generated-test"), "detected credentials are rejected before sending chat");
+        chat.Reset();
+        await chat.SubmitAsync("新会话");
+        Check(historySeen.Length == 0, "switching away clears the text history");
+        await RejectAsync(() => chat.SubmitAsync(""), "blank chat input cannot send");
+        await RejectAsync(() => chat.SubmitAsync(new string('x', 301)), "oversized chat input cannot send");
+        await RejectAsync(() => chat.SubmitAsync("line\nline"), "multiline chat input cannot bypass the single-line contract");
+        var calls = 0;
+        var retry = new FreeChatSession((history, _, _) =>
+        {
+            Check(history.Count == 0, "a failed chat exchange never enters the next request");
+            if (calls++ == 0) throw new HttpRequestException("generated failure");
+            return Task.FromResult("重试成功");
+        });
+        await RejectAsync(() => retry.SubmitAsync("失败问题"), "a chat transport failure is reported");
+        Check((await retry.SubmitAsync("重试问题"))?.Reply == "重试成功", "a failed chat remains available for retry");
+        var late = new TaskCompletionSource<string>();
+        var race = new FreeChatSession((_, question, _) => question == "旧问题" ? late.Task : Task.FromResult("新回答"));
+        var pending = race.SubmitAsync("旧问题");
+        Check(await race.SubmitAsync("重复点击") is null, "a pending chat accepts no duplicate submission");
+        race.Reset();
+        var current = await race.SubmitAsync("新问题");
+        late.SetResult("旧回答");
+        Check(await pending is null && current?.Reply == "新回答", "closing or switching discards a late reply without affecting a new session");
+        Check(InstallationAgreement.Text(options).Contains("自由问答仅在你发送时", StringComparison.Ordinal) &&
+            InstallationAgreement.Text(options).Contains("最近四组问答", StringComparison.Ordinal),
+            "the installation agreement discloses the exact new text scope");
     }
 
     static HttpResponseMessage Completion(string answer) => new(HttpStatusCode.OK)

@@ -1,5 +1,11 @@
 # CetaFae Concentrated Verification Plan
 
+## Offline development and release model validation
+
+Use generated fixtures, local OCR, offscreen layout and a fake transport for development. Defer all real model calls, including generated-only calls against the development proxy, until a release candidate can be tested against the intended direct provider. Then verify reply accuracy, unsupported and failure cases, and end-to-end latency against the existing gates. Keep historical proxy evidence separate. Native desktop runs still require separate permission.
+
+For the v1.32 free chat capsule, test click versus drag, Chinese input and single submission, bounded follow-up, cancellation and stale replies, and layout at 100/125/150/200% scaling. Check outgoing mock requests for typed text and same-session history only. Check that opening, switching, closing and revocation never start capture or send a request, that bound-window evidence stays within window guidance, and that free chat cannot draw a marker or issue an action.
+
 ## Prompt and reader seam regression
 
 Reproduce the ordinary dock with the recorded 88 pixel host at 125% and compare the rendered prompt body to the target top and reader top. Check ordinary docking after host size changes, top attachment with insufficient exterior room, and reader avoidance of both input and target control. Inspect offscreen fixed data, then verify the same 125% Edge layout on the installed candidate. Score control marker accuracy separately.

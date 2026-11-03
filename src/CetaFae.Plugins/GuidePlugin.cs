@@ -111,7 +111,8 @@ public sealed class GuidePlugin
         IReadOnlyList<PointBlockRule> blockedPoints, IReadOnlyList<ObservationScopeRule>? observationScopes = null,
         string kind = "application", string? identityPolicy = null, InterpretationPolicy? interpretationPolicy = null)
     {
-        if (schemaVersion is not (1 or 2 or 3 or 4 or 5 or 6) || kind is not ("application" or "general" or "identity") ||
+        if (schemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7) || kind is not ("application" or "general" or "identity" or "chat") ||
+            (schemaVersion == 7) != (kind == "chat") ||
             kind == "general" && schemaVersion is not (3 or 5 or 6) ||
             (schemaVersion is 5 or 6 ? kind != "general" || interpretationPolicy is null : interpretationPolicy is not null) ||
             schemaVersion != 6 && interpretationPolicy?.LocateTextRegions == true ||
@@ -132,8 +133,10 @@ public sealed class GuidePlugin
         DisplayName = displayName;
         Targets = Array.AsReadOnly(targets.ToArray());
         UiaView = uiaView;
-        TaskIds = PluginData.Texts(taskIds, 32, 64);
-        if (TaskIds.Any(task => !PluginData.IsToken(task, 64))) throw new InvalidDataException("plugin_task");
+        TaskIds = PluginData.Texts(taskIds, 32, 64, allowEmpty: kind == "chat");
+        if (TaskIds.Any(task => !PluginData.IsToken(task, 64)) ||
+            kind == "chat" && (TaskIds.Count != 0 || uiaView != "control"))
+            throw new InvalidDataException("plugin_task");
         BlockedPoints = Array.AsReadOnly(blockedPoints.ToArray());
         if (schemaVersion >= 2 && kind == "application" && observationScopes is not { Count: > 0 and <= 16 } ||
             kind != "application" && (blockedPoints.Count != 0 || observationScopes is { Count: > 0 }) ||

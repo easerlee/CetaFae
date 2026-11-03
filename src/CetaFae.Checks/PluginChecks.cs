@@ -19,8 +19,16 @@ static class PluginChecks
 
         var installed = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
         var winrar = installed.Resolve("WinRAR", "解压路径和选项");
-        check(installed.Plugins.Count == 5 && winrar.TaskIds.SequenceEqual(new[] { "X-01" }),
+        check(winrar.TaskIds.SequenceEqual(new[] { "X-01" }),
             "the WinRAR development package is deployed through the common catalog with its bounded task");
+        var chat = installed.ChatProvider!;
+        check(chat.SchemaVersion == 7 && chat.Targets.Count == 0 && !chat.Matches("generated-app", "") &&
+            installed.Resolve("generated-app", "").Kind == "general",
+            "the free chat package is enabled without changing window resolution");
+        check(new PluginCatalog(installed.Plugins.Where(plugin => plugin != chat)).ChatProvider is null,
+            "free chat can be disabled through the common catalog");
+        Reject(() => new PluginCatalog([chat, new GuidePlugin(7, "another.chat", "1.0", "Another chat",
+            [], "control", [], [], kind: "chat")]), "conflicting free chat providers are rejected");
         check(!winrar.UsesRawView && installed.Resolve("winrar", "Extraction path and options").Id == winrar.Id,
             "the WinRAR package declares control traversal and both exact dialog-title candidates");
         Reject(() => new PluginCatalog([winrar]).Resolve("WinRAR", "generated.zip - WinRAR"),

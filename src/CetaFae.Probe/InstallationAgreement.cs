@@ -45,8 +45,8 @@ internal static class InstallationAgreement
 
     internal static string Text(GuideOptions options) =>
         "鲸汐（CetaFae）软件许可协议与隐私说明\n" +
-        "条款版本 1.1（2026年11月3日）\n\n" +
-        "请在安装前阅读本协议，尤其是下方的窗口内容发送和留存说明。点击“同意协议并安装”即确认本协议及所列连接配置。不同意可取消安装。\n\n" +
+        "条款版本 1.2（2026年11月3日）\n\n" +
+        "请在安装前阅读本协议，尤其是下方的窗口识别、自由问答和留存说明。点击“同意协议并安装”即确认本协议及所列连接配置。不同意可取消安装。\n\n" +
         GuidePanel.Disclosure(options) + "\n\n" +
         "软件许可条款\n\n" +
         "一、安装与使用\n" +

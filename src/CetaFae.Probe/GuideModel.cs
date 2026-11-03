@@ -91,7 +91,29 @@ public sealed class GuideModel : IDisposable
         => GuideIdentification.Parse(await CompleteAsync(GuideObservation.TaskDescription, candidates, png,
             cancellationToken, visibleContext, true, interpretationPolicy), interpretationPolicy);
 
-    async Task<string> CompleteAsync(string task, IReadOnlyList<GuideCandidate> candidates,
+    internal async Task<string> ChatAsync(IReadOnlyList<ChatTurn> history, string question, CancellationToken cancellationToken)
+    {
+        var messages = new List<object>
+        {
+            new { role = "system", content = "Answer the user's question in plain language. Use Chinese unless the user explicitly requests another language. You cannot see the screen, access files or perform actions. Return one JSON object containing only the string reply (at most 1200 characters)." }
+        };
+        foreach (var turn in history)
+        {
+            messages.Add(new { role = "user", content = turn.Question });
+            messages.Add(new { role = "assistant", content = turn.Reply });
+        }
+        messages.Add(new { role = "user", content = question });
+        var response = await SendAsync(new { model = _options.Model, stream = false,
+            response_format = new { type = "json_object" }, messages }, cancellationToken);
+        using var document = JsonDocument.Parse(response, new JsonDocumentOptions { MaxDepth = 4 });
+        if (document.RootElement.ValueKind != JsonValueKind.Object) throw new InvalidDataException("chat_reply");
+        var fields = document.RootElement.EnumerateObject().ToArray();
+        if (fields.Length != 1 || fields[0].Name != "reply" || fields[0].Value.ValueKind != JsonValueKind.String)
+            throw new InvalidDataException("chat_reply");
+        return FreeChatSession.ValidateReply(fields[0].Value.GetString());
+    }
+
+    Task<string> CompleteAsync(string task, IReadOnlyList<GuideCandidate> candidates,
         byte[]? png, CancellationToken cancellationToken, string? visibleContext, bool identifyWindow, InterpretationPolicy? interpretationPolicy = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -104,8 +126,6 @@ public sealed class GuideModel : IDisposable
         }
         if (_options.IncludeImage && png is not { Length: > 0 })
             throw new InvalidDataException("image_required");
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(_options.Timeout);
         var context = JsonSerializer.Serialize(new
         {
             task,
@@ -152,6 +172,14 @@ public sealed class GuideModel : IDisposable
                 new { role = "user", content }
             }
         };
+        return SendAsync(body, cancellationToken);
+    }
+
+    async Task<string> SendAsync(object body, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_options.Timeout);
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseUrl, "chat/completions"))
         { Content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(body)) };
         // Unbuffered content failed the gateway comparison; keep a known length without a UTF16 copy.

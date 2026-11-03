@@ -4,6 +4,12 @@
 
 Updated: 2026-11-03
 
+- Defer real model tests until a release candidate can use the intended direct provider; the current cost-saving route is not the release baseline. Continue with headless checks, generated local fixtures and fake responses. Existing release gates remain in force.
+
+- Requirements v1.32 adds free chat through the singleton schema7 chat package. The resting whale click opens its capsule, and sufficiently wide attached prompts expose an explicit mode switch. Switching clears captured guidance context and markers while preserving the target binding. Text chat uses only submitted text and up to four completed exchanges, held in memory. Installation terms v1.2 disclose that scope, so the previous grant requires an upgrade agreement. Debug and Release each pass1720 generated/local checks. Offscreen layouts are inspected, while native entry, Chinese IME and mode-switch acceptance remain pending. No real model request was made for this increment.
+
+- The user accepted the planned preview.8 desktop batch as a whole, without per-case results or timing. Keep the build as the next measurement baseline. Generated model requests in that build returned the expected results, with 6 of 12 transport runs above 3 seconds. Native timing, cleanup timing, and the standby resource gate still need measurement.
+
 - Preview.7 reuses plugin-declared scope anchors as local page evidence for the initial reader. A confirmed change clears the old explanation and preserves the bound input. Unknown or unsupported page evidence keeps snapshot behavior. The check is bounded, captures no image and sends no model request. Scope rules are not a universal page identifier. The user accepted the preview.7 native batch for Edge navigation, 125% attachment/marker alignment, and 12-DIP corners, without reporting timing. Preview.8 uses the Windows 11 overlay reference of 8 DIP for the shared frame and scan corners in both layouts.
 
 - A one-pixel pale blue line can be visible around the top of the attached reader even when the prompt and card are geometrically flush. Treat edge color and dock position as separate checks. Preview.6 unifies the reader title and white body into one opaque background using the perimeter gradient. A generated fractional-pixel composition checks the revised join. The user confirmed the line revision; the reply does not establish native DPI docking or marker alignment.
