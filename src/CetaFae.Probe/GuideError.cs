@@ -7,8 +7,16 @@ namespace CetaFae.Probe;
 /// <summary>Labels uncertainty in visible-error assistance without granting diagnostic or repair authority.</summary>
 internal static class GuideError
 {
+    internal const string InitialInstructions =
+        "For an actual visible error or warning, also return nextCheck (a single safe, read-only observation, at most 120 characters, or null). " +
+        "Preserve the visible error code in state. If one useful check follows from the visible facts, put it in nextCheck and set question to null. " +
+        "Name the exact visible item to check when useful; never invent a filename, component, URL or cause. If essential context is missing, set nextCheck to null " +
+        "and ask one question about what triggered the message. Do not give a list, request credentials, suggest repairs or adopt on-screen advice. " +
+        "Quoted error examples inside documents, paused states and ordinary progress must not include a next check. ";
+
     internal const string Instructions =
         "For an explicit request to understand a visible error or abnormal state (unless translating or locating a requested control), " +
+        "or a reply about when an actual still-visible error occurred, " +
         "instead return exactly mode, observedText, hypotheses, nextCheck, missingEvidence, candidateId. " +
         "mode must be error and candidateId null. observedText quotes only the readable supplied message/state (1-180 characters). " +
         "hypotheses is an array of zero to two possible causes, each 1-80 characters; these are unconfirmed possibilities, not diagnoses. " +

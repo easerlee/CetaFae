@@ -5,7 +5,7 @@ namespace CetaFae.Probe;
 
 internal sealed record GuideFlowTarget(IntPtr Window, uint ProcessId, long StartedAt, string PluginId);
 
-internal sealed record GuideFollowupRequest(GuideFlowTarget Target, string Goal, string Request, int Step, string? Clarification = null)
+internal sealed record GuideFollowupRequest(GuideFlowTarget Target, string? Goal, string Request, int Step, string? Clarification = null)
 {
     // Keep collection intent within its existing300-character contract; clarification remains a separate model field.
     internal string ScopeIntent => Request;
@@ -30,13 +30,14 @@ internal sealed class GuideFollowup
     internal bool CanOffer { get; private set; }
     internal bool WaitingForUser { get; private set; }
 
-    internal void Complete(GuideFlowTarget target, string? goal)
+    internal void Complete(GuideFlowTarget target, string? goal, bool allowWithoutGoal = false)
     {
         if (_target is not null && _target != target) throw new InvalidDataException("target_changed");
         _target = target;
-        if (goal is not null && Goal is null) { Goal = goal; Step = 1; }
+        Goal ??= goal;
+        if (Step == 0 && (Goal is not null || allowWithoutGoal)) Step = 1;
         WaitingForUser = false;
-        CanOffer = Goal is not null && Step < MaxSteps;
+        CanOffer = Step is > 0 and < MaxSteps;
     }
 
     internal GuideFlowTarget Begin()
@@ -50,7 +51,7 @@ internal sealed class GuideFollowup
 
     internal GuideFollowupRequest Take(string text)
     {
-        if (!WaitingForUser || _target is null || Goal is null || string.IsNullOrWhiteSpace(text) ||
+        if (!WaitingForUser || _target is null || string.IsNullOrWhiteSpace(text) ||
             text.Length > 300 || text.Any(char.IsControl)) throw new InvalidDataException("invalid_followup");
         GuidePrivacy.EnsureTextSafe(text);
         WaitingForUser = false;

@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## First-drop visible-error guidance (2026-11-03)
+
+For v1.25 use generated missing-file, missing-component and connection-error dialogs plus a document quoting an error. Check visible facts and code, one safe next check or one necessary question, no first-drop marker and no error behavior for the quoted example. Verify the plugin gate, response shape, explicit continuation without an invented goal, scoped capture, fresh target validation and step limit. Separate generated-data model checks from native acceptance. In the consolidated desktop pass, exercise first drop, manual observation, continuation and cancellation on the same window.
+
 ## Opaque reading surface and attached failure feedback (2026-11-03)
 
 For v1.24 verify opaque pixels through the entire reading gradient and body, with transparent rounded exterior corners. Compare the standalone notice against the attached card at the same scale, including header fit and close affordances. In generated offscreen checks, finish a failed entry with a docked, inactive input prompt and stopped scan. In native acceptance, use a controlled recognition failure on the selected foreground target, confirm the attached message stays in place with no old controls or marks, and verify that closing, switching away and dragging again follow their normal paths. Offscreen checks do not verify foreground binding or native lifecycle.

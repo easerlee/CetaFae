@@ -399,6 +399,7 @@ public static class Program
         if (args.Contains("--live-general")) await GeneralGuideChecks.RunLiveAsync(Check);
         if (args.Contains("--live-translation")) await TranslationChecks.RunLiveAsync(Check);
         if (args.Contains("--live-errors")) await ErrorChecks.RunLiveAsync(Check);
+        if (args.Contains("--live-first-drop-errors")) await ErrorChecks.RunFirstDropLiveAsync(Check);
         if (args.Contains("--replay-followup-third")) FollowupChecks.ReplayThirdStep(Check);
         if (args.Contains("--live-followup"))
         {

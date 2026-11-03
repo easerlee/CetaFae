@@ -405,15 +405,17 @@ public sealed class GuideSession : IDisposable
             stage = ProcessingStage.Model;
             GuideIdentification? identification = null;
             GuideAnswer modelAnswer;
+            var policy = _plugins.GeneralProvider?.InterpretationPolicy;
             if (intent is null)
             {
-                identification = await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext));
+                identification = await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext, policy));
                 modelAnswer = identification.ToAnswer(identifiedProcess!, observation.Identity);
             }
             else
                 modelAnswer = await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
-                    _plugins.GeneralProvider?.InterpretationPolicy));
-            var answer = modelAnswer.ForIntent(intent, allowQuestion: followup is { Clarification: null });
+                    policy));
+            var answer = identification?.NextCheck is not null ? modelAnswer :
+                modelAnswer.ForIntent(intent, allowQuestion: followup is { Clarification: null });
             var modelMs = total.ElapsedMilliseconds - observeMs;
             ProbeLog.Log("guide_response_received", ("modelMs", modelMs), ("mode", answer.Mode),
                 ("clarificationLimited", intent is not null && modelAnswer.Mode == "ask" && answer.Mode != "ask"));
@@ -446,9 +448,9 @@ public sealed class GuideSession : IDisposable
                 _gate.AwaitClarification(version);
                 _ball.ShowQuestion();
             }
-            else if (_plugins.GeneralProvider?.InterpretationPolicy?.UserLedFollowup == true)
+            else if (policy?.UserLedFollowup == true)
             {
-                _followup.Complete(flowTarget, intent);
+                _followup.Complete(flowTarget, intent, allowWithoutGoal: identification?.CanStartErrorFollowup(policy) == true);
                 _panel.SetFollowupAvailable(_followup.CanOffer);
                 _activeFollowup = null;
             }

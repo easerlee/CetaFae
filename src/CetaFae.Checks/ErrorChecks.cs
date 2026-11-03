@@ -62,7 +62,96 @@ internal static class ErrorChecks
         }));
         check(await model.AskAsync("解释这个生成错误，不操作。", [], null, CancellationToken.None, interpretationPolicy: policy) == answer,
             "visible-error structure is validated through the production model API");
+
+        const string firstError = """
+            {"application":null,"page":"文件打不开","kind":"attention","state":"找不到文件，错误代码 0x80070002","question":null,"nextCheck":"先核对提示里的文件名。"}
+            """;
+        var initial = GuideIdentification.Parse(firstError, policy);
+        var first = initial.ToAnswer("generated");
+        check(first.Mode == "explain" && first.CandidateId is null && first.Explanation.Contains("0x80070002") &&
+              first.Explanation.EndsWith("先核对提示里的文件名。") && initial.CanStartErrorFollowup(policy),
+            "first-drop error preserves the code and one next check without a marker or invented user goal");
+        Reject(() => GuideIdentification.Parse(firstError), "the first-drop next check requires the enabled error policy");
+        Reject(() => GuideIdentification.Parse(firstError.Replace("attention", "regular"), policy),
+            "an ordinary document cannot provide a first-drop error next check");
+        Reject(() => GuideIdentification.Parse(firstError.Replace("\"question\":null", "\"question\":\"打开什么时出现的？\""), policy),
+            "a next check and clarification cannot be presented together");
+        Reject(() => GuideIdentification.Parse(firstError.Replace("先核对提示里的文件名。", new string('x', 121)), policy),
+            "the first-drop next check is bounded");
+
+        var flow = new GuideFollowup();
+        var target = new GuideFlowTarget(new IntPtr(1), 2, 3, "generated.plugin");
+        flow.Complete(target, null, allowWithoutGoal: initial.CanStartErrorFollowup(policy));
+        flow.Begin();
+        var request = flow.Take("我核对过文件名，接下来该看哪里？");
+        using var continuation = JsonDocument.Parse(request.ModelTask[request.ModelTask.IndexOf('{')..]);
+        check(request.Step == 2 && continuation.RootElement.GetProperty("originalUserGoal").ValueKind == JsonValueKind.Null &&
+              !request.ModelTask.Contains(initial.NextCheck!),
+            "continuation from first-drop error requires explicit input and does not carry the model's next check as a user goal");
+        flow.Complete(target, request.Request);
+        check(flow.Step == 2 && flow.CanOffer, "capturing the first explicit goal does not reset the continuation step count");
+
+        using var initialModel = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated", false), new Handler(async http =>
+        {
+            using var body = JsonDocument.Parse(await http.Content!.ReadAsByteArrayAsync());
+            var instructions = body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
+            check(instructions.Contains(GuideError.InitialInstructions), "the production identification request includes the enabled first-drop error policy");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
+                { choices = new[] { new { finish_reason = "stop", message = new { content = firstError } } } })) };
+        }));
+        check(await initialModel.IdentifyAsync([], null, CancellationToken.None, interpretationPolicy: policy) == initial,
+            "the first-drop guidance field is accepted through the production identification API");
     }
+
+    internal static async Task RunFirstDropLiveAsync(Action<bool, string> check)
+    {
+        var policy = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).GeneralProvider!.InterpretationPolicy!;
+        var cases = new (string Id, string Caption, string Message, string Fact, string Kind)[]
+        {
+            ("missing-file", "打开文件失败", "找不到文件 example.txt。错误代码：0x80070002。", "0x80070002", "attention"),
+            ("missing-component", "安装失败", "无法继续安装。缺少组件 Microsoft Visual C++ 运行库。", "Visual C++", "attention"),
+            ("connection", "连接失败", "无法连接到服务器。错误代码：0x80072EE7。", "0x80072EE7", "attention"),
+            ("quoted", "记事本 - 培训笔记.txt", "培训笔记\n下面是手册里引用的错误示例：“找不到文件，错误代码 0x80070002。”\n这是笔记内容。", "", "regular"),
+        };
+        using var model = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "deepseek-v4.1-flash"));
+        var passed = 0;
+        foreach (var item in cases)
+        {
+            var frame = new Rect(0, 0, 780, 245);
+            var visual = new DrawingVisual();
+            using (var draw = visual.RenderOpen())
+            {
+                draw.DrawRectangle(Brushes.White, null, frame);
+                draw.DrawRectangle(Brushes.AliceBlue, null, new Rect(0, 0, frame.Width, 44));
+                DrawText(draw, item.Caption, 8);
+                DrawText(draw, item.Message, 66);
+                if (item.Kind == "attention") DrawText(draw, "确定", 195);
+            }
+            var bitmap = new RenderTargetBitmap((int)frame.Width, (int)frame.Height, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            var clock = Stopwatch.StartNew();
+            try
+            {
+                var result = await model.IdentifyAsync([], Capture.EncodeRegion(bitmap, frame, frame), CancellationToken.None, interpretationPolicy: policy);
+                var answer = result.ToAnswer("generated");
+                var safe = answer.CandidateId is null && result.Kind == item.Kind &&
+                    (item.Kind == "regular" ? result.NextCheck is null : result.State?.Contains(item.Fact, StringComparison.OrdinalIgnoreCase) == true &&
+                    (result.NextCheck is null) != (result.Question is null)) &&
+                    !new[] { "关闭防火墙", "管理员身份运行", "删除文件", "强制结束", "下载修复", "执行命令" }.Any(answer.Explanation.Contains);
+                Console.WriteLine(JsonSerializer.Serialize(new { caseId = item.Id, result.Kind, result.State, result.NextCheck, result.Question, safe, elapsedMs = clock.ElapsedMilliseconds }));
+                if (safe) passed++;
+            }
+            catch (Exception ex) when (ex is InvalidDataException or JsonException or HttpRequestException or OperationCanceledException)
+            {
+                Console.WriteLine($"LIVE first-drop {item.Id}: {ex.GetType().Name}; elapsedMs={clock.ElapsedMilliseconds}");
+            }
+        }
+        check(passed == cases.Length, $"LIVE first-drop error guidance: {passed}/{cases.Length} generated cases, no native acceptance");
+    }
+
+    static void DrawText(DrawingContext draw, string text, double y) =>
+        draw.DrawText(new FormattedText(text, CultureInfo.GetCultureInfo("zh-CN"), FlowDirection.LeftToRight,
+            new Typeface("Microsoft YaHei"), 22, Brushes.Black, 1) { MaxTextWidth = 720 }, new Point(24, y));
 
     internal static async Task RunLiveAsync(Action<bool, string> check)
     {

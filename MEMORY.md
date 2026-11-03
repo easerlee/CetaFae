@@ -2,6 +2,8 @@
 
 Updated: 2026-11-03
 
+- Requirements v1.25 extends the existing general plugin's visible-error policy to first drop. An optional next check is valid only for a visible error or warning and is mutually exclusive with a clarification question. A completed first-drop check can start an explicit same-window continuation with a null original goal; only actual user input can become that goal. The existing scoped capture and marker validation remain the authority for subsequent requests.
+
 - Requirements v1.24 supersedes the transparent reading header and automatic return on ordinary recognition failure. The reading gradient is layered on a single opaque white card. A home notice uses a solid, content-sized blue header. When the selected foreground window is still bound, end the failed request and clear stale content/markers while retaining the docked close/drag prompt and attached error card. Window loss, switching, dismissal and consent withdrawal still end the session. Do not use offscreen presentation checks as proof of native foreground behavior.
 
 - The user subsequently clarified that preview.38 IS equal-width in both modes, but too wide, and supplied the earlier normal-window image as the desired visual reference. This supersedes the immediately preceding unresolved-mismatch report without inventing a clipping/DPI cause. Requirements v1.23 narrows the main visible band to48 DIP with16 DIP solid blue, gives the header the same constant/gradient, and renames readers/bubbles/notices窗口解读. The source reference has16px opaque blue and a faint tail almost96px long;48 DIP is the chosen visible-main-band interpretation, not exact tail reproduction. Existing idle art, scan sequence, content layout, capture and consent stay unchanged.

@@ -2,6 +2,10 @@
 
 Updated: 2026-11-03
 
+## First-drop visible-error guidance (2026-11-03)
+
+Requirements v1.25: the general plugin's existing visible-error capability enables an optional, bounded next check on the initial identification response. Accept it only for an active visible error or warning and never alongside a clarification question. Render it in the existing reading card without a target marker. Reuse the explicit continuation action and target-lifetime validation. A continuation from a first-drop error starts with no original user goal and never serializes the previous model answer. Retain scoped collection, privacy checks and the existing step limit. Ordinary first-drop and explicit control-location flows use their existing paths.
+
 ## Opaque reading surface and attached failure feedback (2026-11-03)
 
 Requirements v1.24: paint one white card background below the perimeter-matched reading gradient. A standalone notice measures its solid blue header from the title, close button and padding. On a recognition failure, confirm the bound visible foreground window and its process still match. Invalidate the request, clear observations, input and markers, and stop scanning. Keep the close/drag prompt docked and render the message as a session card. If the target cannot remain bound, end tracking before presenting any applicable standalone message. This is presentation-only and does not retry or widen collection.
