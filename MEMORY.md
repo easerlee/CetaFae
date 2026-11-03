@@ -4,7 +4,7 @@
 
 Updated: 2026-11-03
 
-- A one-pixel pale blue line can be visible around the top of the attached reader even when the prompt and card are geometrically flush. Treat edge color and dock position as separate checks. Preview.6 unifies the reader title and white body into one opaque background using the perimeter gradient. A generated fractional-pixel composition checks the revised join; the native screenshot artifact remains a separate acceptance case.
+- A one-pixel pale blue line can be visible around the top of the attached reader even when the prompt and card are geometrically flush. Treat edge color and dock position as separate checks. Preview.6 unifies the reader title and white body into one opaque background using the perimeter gradient. A generated fractional-pixel composition checks the revised join. The user confirmed the line revision; the reply does not establish native DPI docking or marker alignment.
 
 - Preview.4 fixes the result prompt remaining read-only after a control bubble expands into the reader. Page changes previously restored an editable prompt, which explains the reported Edge tab workaround. Keep the prompt editable whenever a result offers a follow-up. Expanding details preserves the draft and result. Submitting directly uses the existing follow-up checks and recollects the current bound window. Debug and Release each passed 1677 local checks. The user installed the verified build and confirmed they could type, submit, and receive a follow-up after expanding details on the same Edge downloads tab.
 
