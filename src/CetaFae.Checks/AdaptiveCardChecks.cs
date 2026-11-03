@@ -119,7 +119,7 @@ internal static class AdaptiveCardChecks
             "negative-coordinate top attachment preserves the right gap and screen bounds");
         var narrow = new Rect(0, 0, 640, 480); var narrowEntry = new Rect(176, 0, 288, 36);
         var below = FeedbackLayout.Attached(narrowEntry, narrow, new Size(360, 180), true);
-        check(narrow.Contains(below) && !below.IntersectsWith(narrowEntry),
+        check(narrow.Contains(below) && below.Top == narrowEntry.Bottom,
             "a narrow screen falls below the input instead of clipping a side card");
         var scan = Enumerable.Range(0, 81).Select(i => WindowWash.ScanProgress(i * WindowWash.Duration / 20)).ToArray();
         check(scan[0] > scan[10] && scan[10] > scan[20] && scan[20] < scan[30] && scan[30] < scan[40] &&

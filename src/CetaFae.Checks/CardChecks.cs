@@ -212,7 +212,7 @@ static class CardChecks
         var entry = new Rect(-760, 0, 288, 36);
         var control = new Rect(-160, 240, 50, 24);
         var attached = FeedbackLayout.Attached(entry, work, new Size(288, 260));
-        check(work.Contains(attached) && attached.Left == entry.Left && attached.Top == entry.Bottom + 1,
+        check(work.Contains(attached) && attached.Left == entry.Left && attached.Top == entry.Bottom,
             "attached reader joins directly below the real input body on negative-coordinate work areas");
         var bubbleBounds = FeedbackLayout.Bubble(control, entry, work, new Size(258, 210));
         check(bubbleBounds is { } safe && work.Contains(safe) && !safe.IntersectsWith(entry) && !safe.IntersectsWith(control),

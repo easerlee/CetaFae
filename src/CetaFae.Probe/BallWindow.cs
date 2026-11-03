@@ -78,7 +78,7 @@ public sealed class BallWindow : Window
     public IntPtr Handle => _hwnd;
     public Rect InteractionBounds => new(Left, Top, Width, Height);
     internal Rect FeedbackBounds => _target != IntPtr.Zero && Width > WhaleVisual.CanvasSize
-        ? new Rect(Left, Top + (_whale.TopAttached ? 0 : (Height - WhalePrompt.HeightDip) / 2 + WhalePrompt.HeightDip - WhalePrompt.BodyHeight), Width, WhalePrompt.BodyHeight)
+        ? new Rect(Left, Top + WhalePrompt.BodyTop(Height, TopAttached), Width, WhalePrompt.BodyHeight)
         : InteractionBounds;
     public bool IsAnswering => _inline && _prompt.CanAnswer && IsActive;
     public bool IsSessionInteraction => _target != IntPtr.Zero && IsActive;
@@ -120,13 +120,14 @@ public sealed class BallWindow : Window
         Left = visible.X; Top = visible.Y;
     }
 
-    public static Point TopDockPosition(Rect target, Rect work, double width = WhalePrompt.WidthDip)
+    public static Point TopDockPosition(Rect target, Rect work, double width = WhalePrompt.WidthDip,
+        double height = WhaleVisual.CanvasSize)
     {
         var centerX = Math.Clamp(target.Left + target.Width / 2,
             work.Left + width / 2, Math.Max(work.Left + width / 2, work.Right - width / 2));
-        var top = target.Top - WhalePrompt.DockFoot;
+        var top = target.Top - (WhalePrompt.BodyTop(height, false) + WhalePrompt.BodyHeight);
         if (top < work.Top) top = target.Top;
-        return new Point(centerX - width / 2, Math.Clamp(top, work.Top, Math.Max(work.Top, work.Bottom - WhaleVisual.CanvasSize)));
+        return new Point(centerX - width / 2, Math.Clamp(top, work.Top, Math.Max(work.Top, work.Bottom - height)));
     }
 
     public BallWindow()
@@ -324,12 +325,7 @@ public sealed class BallWindow : Window
     public void BeginDock()
     {
         if (_target == IntPtr.Zero || _state == Motion.Dock || _inline) return;
-        var frame = Native.Frame(_target);
-        Width = WhalePrompt.DockWidth((frame.Right - frame.Left) / _scale, Workspace.Width);
-        var position = TopDockPosition(new Rect(frame.Left / _scale, frame.Top / _scale,
-            (frame.Right - frame.Left) / _scale, (frame.Bottom - frame.Top) / _scale), Workspace, Width);
-        PlaceBall(position);
-        SetDockLayout(position.Y >= frame.Top / _scale);
+        SnapToEdge(_target);
         BeginDockMotion();
     }
 
@@ -505,10 +501,13 @@ public sealed class BallWindow : Window
     void SnapToEdge(IntPtr target)
     {
         var r = Native.Frame(target);
-        if (_inline || _state == Motion.Dock)
-            Width = WhalePrompt.DockWidth((r.Right - r.Left) / _scale, Workspace.Width);
+        var work = Workspace;
+        Width = WhalePrompt.DockWidth((r.Right - r.Left) / _scale, work.Width);
+        // Windows can keep the previous pixel height after a DPI change. The morph uses the full canvas.
+        Height = WhaleVisual.CanvasSize;
         PlaceBall(TopDockPosition(new Rect(r.Left / _scale, r.Top / _scale,
-            (r.Right - r.Left) / _scale, (r.Bottom - r.Top) / _scale), Workspace, Width));
+            (r.Right - r.Left) / _scale, (r.Bottom - r.Top) / _scale), work, Width, Height));
+        SetDockLayout(Top >= r.Top / _scale);
 
         ProbeLog.Log("snap",
             ("edge", "top"),
@@ -607,10 +606,7 @@ public sealed class BallWindow : Window
         _overlay.Place(new Rect(r.Left / _scale, r.Top / _scale,
             Math.Max(1, (r.Right - r.Left) / _scale), Math.Max(1, (r.Bottom - r.Top) / _scale)));
         if (_inline || _state == Motion.Dock)
-        {
             SnapToEdge(_target);
-            SetDockLayout(Top >= r.Top / _scale);
-        }
         _overlayUpdates++;
 
         long sinceEventMs = -1;

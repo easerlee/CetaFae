@@ -195,7 +195,7 @@ internal static class DropChecks
                 "a recognition failure during entry immediately leaves the closable prompt without scanning or accepting input");
             ball.ResetArt(); ball.Left = 100; ball.Top = 100; ball.ReturnHome(); ball.AdvanceMotion(.6);
             var whale = (WhaleVisual)((Grid)ball.Content).Children[0];
-            check(new Point(ball.Left, ball.Top) == BallWindow.HomePosition(SystemParameters.WorkArea) && whale.Facing == -1,
+            check(new Point(ball.Left, ball.Top) == BallWindow.HomePosition(ball.Workspace) && whale.Facing == -1,
                 "return completion places the real product surface at home and faces left without creating a native handle");
             ball.AdvanceMotion(4.4);
             check(!ball.ArtAnimating && whale.Facing == -1 && whale.Pose.Frame == 109,

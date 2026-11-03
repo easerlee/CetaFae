@@ -1,5 +1,7 @@
 # CetaFae Project Memory
 
+- At 125% scaling, a WPF dock host can retain its old physical height even when its width scales. Use the shared prompt-body geometry for placement and card anchoring, restore the intended host height on dock, and permit edge contact for an ordinary attached reader. Preview.5 passes offline checks. Native seams and native control alignment are separate acceptance items. Initial snapshot cards and submitted guidance have separate page-change paths. A stable HWND/frame can retain an initial card after navigation, so the historical marker cleanup pass does not establish initial card freshness.
+
 Updated: 2026-11-03
 
 - Preview.4 fixes the result prompt remaining read-only after a control bubble expands into the reader. Page changes previously restored an editable prompt, which explains the reported Edge tab workaround. Keep the prompt editable whenever a result offers a follow-up. Expanding details preserves the draft and result. Submitting directly uses the existing follow-up checks and recollects the current bound window. Debug and Release each passed 1677 local checks. The user installed the verified build and confirmed they could type, submit, and receive a follow-up after expanding details on the same Edge downloads tab.

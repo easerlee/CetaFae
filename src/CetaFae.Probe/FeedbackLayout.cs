@@ -16,7 +16,7 @@ internal static class FeedbackLayout
             if (entry.Left - GuideTheme.CardGap - width >= work.Left)
                 return new Rect(entry.Left - GuideTheme.CardGap - width, Math.Clamp(entry.Top, work.Top, work.Bottom - height), width, height);
         }
-        var top = entry.Bottom + 1;
+        var top = entry.Bottom;
         if (top + height > work.Bottom) top = entry.Top - height - 1;
         return new Rect(Math.Clamp(entry.Left, work.Left, work.Right - width),
             Math.Clamp(top, work.Top, work.Bottom - height), width, height);
@@ -59,7 +59,8 @@ internal static class FeedbackLayout
         {
             var bounds = new Rect(Math.Clamp(point.X, work.Left, work.Right - width),
                 Math.Clamp(point.Y, work.Top, work.Bottom - height), width, height);
-            if (!bounds.IntersectsWith(protectedControl) && !bounds.IntersectsWith(entry)) return bounds;
+            if (!bounds.IntersectsWith(protectedControl) && Rect.Intersect(bounds, entry) is not { Width: > 0, Height: > 0 })
+                return bounds;
         }
         return null;
     }

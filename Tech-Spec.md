@@ -1,5 +1,9 @@
 # Selected-Window Guidance: Implementation Specification
 
+## Prompt and reader seams after display scaling
+
+Place the ordinary prompt using the visible body edge within its host window. The reported 125% run sometimes kept an 88 pixel host height, about 70 DIP, while docking assumed an 88 DIP host. Restore the intended dock surface size for the whale transition and derive docking and the reader anchor from the same prompt body geometry. A regular reader may share the input edge without overlapping its hit area. Keep the intentional side spacing of the top-attached layout and move the reader when it would cover a located control.
+
 ## Editable input after expanding result details
 
 The user reports that expanding a control bubble leaves the white input read-only, while close and blue-background dragging still work; navigating Edge restores input. This points to the completed-result input state, not an established overlay obstruction. A completed result with an available plugin-enabled continuation must leave the existing input editable before and after details expansion. Expanding details only changes presentation: retain the explanation and marker, do not collect content or send a request. Submit the next input through the existing guarded follow-up path, clearing old evidence and collecting the current bound window afresh. Processing, cancellation, withdrawal, disabled continuation and the eight-step cap must not expose a new submission path. Keep the existing continue action and accepted layout; no new receiver, capability or automatic request.

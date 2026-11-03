@@ -32,7 +32,7 @@ internal static class FeedbackChecks
             check(!panel.IsVisible && !panel.Card.HasSession && panel.Card.FullText.Length == 0 && panel.Handle == IntPtr.Zero,
                 "processing clears stale feedback without showing a card or creating a native handle");
             panel.Card.SetStatus("生成窗口说明，全部文字仅用于离屏检查。");
-            check(panel.Left == entry.Left && panel.Top == entry.Bottom + 1 && panel.Width == entry.Width,
+            check(panel.Left == entry.Left && panel.Top == entry.Bottom && panel.Width == entry.Width,
                 "live reader uses the input body anchor and matches the prompt width");
             check(!panel.IsVisible && !panel.ShowActivated && panel.AllowsTransparency && panel.Handle == IntPtr.Zero,
                 "feedback placement and rendering need no native handle, visible launch or automatic activation");
@@ -70,13 +70,13 @@ internal static class FeedbackChecks
             check(FeedbackLayout.Reader(generatedWork, generatedEntry, generatedWork, new Size(288, 180)) is null,
                 "a cramped reader reports unavailable placement instead of pretending the control is visible");
             Click(panel.Card, "展开详情");
-            check(!panel.Card.IsBubble && panel.Width == entry.Width && panel.Top == entry.Bottom + 1 && panel.Card.FullText.Contains("生成窗口"),
+            check(!panel.Card.IsBubble && panel.Width == entry.Width && panel.Top == entry.Bottom && panel.Card.FullText.Contains("生成窗口"),
                 "native details replace the same bubble surface with the attached full explanation");
             panel.Card.Collapse();
             check(panel.Card.IsCollapsed && panel.Height <= 40 && panel.Card.HasSession,
                 $"native collapse leaves a compact attached reopen tab and keeps the session (collapsed={panel.Card.IsCollapsed}, height={panel.Height}, session={panel.Card.HasSession})");
             entry.Offset(120, 24); panel.Reposition();
-            check(panel.Left == entry.Left && panel.Top == entry.Bottom + 1,
+            check(panel.Left == entry.Left && panel.Top == entry.Bottom,
                 "reopen tab follows changes to the existing input anchor");
             Click(panel.Card, "展开说明  ﹀");
             panel.SetControl(new Rect(work.X * scale, work.Y * scale, work.Width * scale, work.Height * scale));
@@ -288,7 +288,7 @@ internal static class FeedbackChecks
                     draw.DrawEllipse(Brushes.White, null, new Point(control.Right - 12, control.Y + 12), 9, 9);
                     var promptWidth = WhalePrompt.DockWidth(target.Width, work.Width);
                     var promptPosition = BallWindow.TopDockPosition(target, work, promptWidth);
-                    var entry = new Rect(promptPosition.X, promptPosition.Y + (top ? 0 : 40), promptWidth, 36);
+                    var entry = new Rect(promptPosition.X, promptPosition.Y + WhalePrompt.BodyTop(88, top), promptWidth, WhalePrompt.BodyHeight);
                     if (i == 6)
                     {
                         control = new Rect(entry.Left + 12, entry.Bottom + 20, 150, 24);

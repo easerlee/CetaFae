@@ -15,8 +15,10 @@ internal sealed class WhalePrompt : Border
     internal static double DockWidth(double targetWidth, double availableWidth) =>
         Math.Max(1, Math.Min(Math.Min(targetWidth, availableWidth), Math.Clamp(targetWidth * .24, 240, 320)));
     internal const double HeightDip = 64;
-    internal const double DockFoot = 76;
+    internal const double DockFoot = (WhaleVisual.CanvasSize + HeightDip) / 2;
     internal const double BodyHeight = 36;
+    internal static double BodyTop(double hostHeight, bool topAttached) =>
+        topAttached ? 0 : Math.Max(0, (hostHeight - HeightDip) / 2) + HeightDip - BodyHeight;
     internal const double InputLeft = 26;
     readonly Grid _body;
     internal readonly TextBox Answer = new() { MaxLength = 300, AcceptsReturn = false, BorderThickness = new Thickness(0),

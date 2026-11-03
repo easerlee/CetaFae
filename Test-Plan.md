@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Prompt and reader seam regression
+
+Reproduce the ordinary dock with the recorded 88 pixel host at 125% and compare the rendered prompt body to the target top and reader top. Check ordinary docking after host size changes, top attachment with insufficient exterior room, and reader avoidance of both input and target control. Inspect offscreen fixed data, then verify the same 125% Edge layout on the installed candidate. Score control marker accuracy separately.
+
 ## Result details input regression
 
 After a completed located result, expand the control bubble into its attached reader and enter a new question directly in the existing white input. Do not require navigating the target to unlock input. Retain the displayed explanation/marker while merely expanding or typing; submit once through the same bounded follow-up flow and collect fresh scoped evidence. Controlled checks cover the actual prompt/card transition, disabled processing/ended input, stale submission, and the existing eight-step/identity guards. Inspect fixed-data offscreen placement; native typing/focus still requires an authorized targeted retest. The pending preview.3 password-page/recovery questions are not executed evidence.
