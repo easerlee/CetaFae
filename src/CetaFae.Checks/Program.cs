@@ -369,6 +369,7 @@ public static class Program
                 "activation confirmation can be cancelled without observing content");
 
         await SnapshotChecks.RunTransportAsync(Check);
+        await BindingChecks.RunAsync(Check);
         await LifetimeChecks.RunAsync(Check);
 
         var delayedResponse = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);

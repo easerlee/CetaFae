@@ -174,7 +174,7 @@ internal static class DropChecks
                 (BallWindow.HomePosition(work) - p.First).Length) &&
             BallWindow.HomePosition(new Rect(10, 20, 40, 40)) == new Point(10, 20),
             "home travel eases to the work-area bottom-right including negative-origin and tiny monitors");
-        check(new[] { "foreground_changed", "inline_closed", "target_gone", "cloud_changed", "cancelled" }
+        check(new[] { "inline_closed", "target_gone", "cloud_changed", "cancelled" }
                 .All(reason => BallWindow.ShouldReturn(new IntPtr(1), reason)) &&
             !BallWindow.ShouldReturn(new IntPtr(1), "drag_start") && !BallWindow.ShouldReturn(new IntPtr(1), "exit") &&
             !BallWindow.ShouldReturn(IntPtr.Zero, "cloud_changed"),

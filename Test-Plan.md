@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Persistent binding and compact reader spacing
+
+For v1.28 cover activation already satisfied, delayed confirmation despite a false API result, genuine refusal and cancellation. Verify background/minimized bindings retain identity while work/results are invalidated; returning restores only local input, old results remain rejected, and explicit re-question uses fresh scope. Check destroy/reused handle/PID, rapid away-return, close, drag, settings withdrawal and content/geometry changes. Verify compact measured title-to-body spacing, opaque gradient, standalone notice sizing, long text pagination and narrow/maximized layouts offscreen. Native acceptance after permission must exercise drop activation, switch-away/return, minimization/restoration, content change and close/drag. Headless results do not prove Windows foreground permission or native lifecycle.
+
 ## Responsive centered docking and scan boundaries
 
 For v1.27 check adaptive prompt/reader widths on narrow, ordinary and maximized targets, centering and screen bounds, input/button reachability and target resize. Cover scan endpoints in both directions, fractional geometry and pixels outside the target, and fixed strip height through reversals. Retain capture protection and unavailable-backend checks, and verify PrintWindow succeeds without starting the compositor. Replay the generated missing-file dialog including its test label and the ordinary document quoting an error. Preserve codes and one contextual check/question. Inspect offscreen layouts and decoded scan playback before packaging. Native fluency, reduced yellow flashes, resizing and capture compatibility require the concentrated desktop pass after authorization.

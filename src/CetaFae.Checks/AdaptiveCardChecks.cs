@@ -41,6 +41,11 @@ internal static class AdaptiveCardChecks
         surface.Render(card);
         var rgba = new byte[surface.PixelWidth * surface.PixelHeight * 4]; surface.CopyPixels(rgba, surface.PixelWidth * 4, 0);
         var headerBounds = card.Header.TransformToAncestor(card).TransformBounds(new Rect(card.Header.RenderSize));
+        var bodyText = Descendants(card.BodyScroll).OfType<TextBlock>().Single(block => block.Text == text);
+        var bodyBounds = bodyText.TransformToAncestor(card).TransformBounds(new Rect(bodyText.RenderSize));
+        var titleBounds = card.Heading.TransformToAncestor(card).TransformBounds(new Rect(card.Heading.RenderSize));
+        check(bodyBounds.Top - titleBounds.Bottom is >= 4 and <= 16,
+            $"reading text begins close to the title without overlap: gap={bodyBounds.Top - titleBounds.Bottom:F1}");
         int Alpha(int y) => rgba[(y * surface.PixelWidth + surface.PixelWidth - 24) * 4 + 3];
         check(Alpha((int)headerBounds.Top + 1) == 255 && Alpha((int)headerBounds.Bottom - 1) == 255 &&
             Alpha((int)headerBounds.Bottom + 10) == 255,

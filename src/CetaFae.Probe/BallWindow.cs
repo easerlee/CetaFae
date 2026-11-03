@@ -21,6 +21,7 @@ public sealed class BallWindow : Window
     IntPtr _contentHook;
     IntPtr _hwnd;
     IntPtr _target;
+    readonly GuideBinding _binding = new();
     bool _dragging;
     bool _pressed;
     Point _pressPoint;
@@ -56,6 +57,12 @@ public sealed class BallWindow : Window
 
     public double Scale => _scale;
     internal bool HasTarget => _target != IntPtr.Zero;
+    internal IntPtr BoundTarget => _target;
+    internal bool BindingSuspended => _binding.Suspended;
+    internal bool BindingConfirmed => _binding.Confirmed;
+    internal event Action? BindingSuspendedChanged;
+    internal event Action? BindingResumed;
+    internal event Action? GuidanceCleared;
     internal event Action? FullscreenHidden;
     public IntPtr Handle => _hwnd;
     public Rect InteractionBounds => new(Left, Top, Width, Height);
@@ -129,7 +136,7 @@ public sealed class BallWindow : Window
         Content = grid;
         _handle.MouseEnter += (_, _) => { if (!_pressed && _target == IntPtr.Zero && _state == Motion.Idle) Animate(Motion.Jump); };
         _animation.Tick += (_, _) => AdvanceMotion();
-        _presence.Tick += (_, _) => { UpdateFullscreenPresence(); UpdateIdleSwim(); };
+        _presence.Tick += (_, _) => { UpdateBoundPresence(); UpdateFullscreenPresence(); UpdateIdleSwim(); };
         Loaded += (_, _) => _presence.Start();
         _prompt.FocusRequested += () => { Activate(); _prompt.Answer.Focus(); };
         _prompt.Submitted += text => AnswerSubmitted?.Invoke(text);
@@ -153,7 +160,7 @@ public sealed class BallWindow : Window
         Closed += (_, _) => { _presence.Stop(); _animation.Stop(); _whale.Release(); _wake.Close(); _overlay.Close(); };
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape) { StopTracking("esc"); e.Handled = true; }
+            if (e.Key == Key.Escape) { if (HasTarget) GuidanceCleared?.Invoke(); e.Handled = true; }
         };
     }
 
@@ -221,7 +228,11 @@ public sealed class BallWindow : Window
         base.OnDpiChanged(oldDpi, newDpi);
         _scale = newDpi.DpiScaleX;
         // Coordinates from a previous scale cannot remain valid in a target-bound session.
-        if (IsLoaded) { StopTracking("dpi_changed"); PlaceBall(HomePosition(SystemParameters.WorkArea)); }
+        if (IsLoaded)
+        {
+            if (HasTarget) { UpdateOverlay(-1); TargetMoved?.Invoke(); }
+            else PlaceBall(HomePosition(SystemParameters.WorkArea));
+        }
     }
 
     static IntPtr PreventMouseActivation(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -439,7 +450,7 @@ public sealed class BallWindow : Window
         }
 
         _target = target;
-        SnapToEdge(target);
+        _binding.Begin(target, Native.ProcessId(target));
         StartTracking();
         TargetSelected?.Invoke(target);
     }
@@ -480,8 +491,6 @@ public sealed class BallWindow : Window
 
     void StartTracking()
     {
-        UpdateOverlay(-1);
-        _overlay.Show();
         _overlayUpdates = 0;
         _settle.Restart();
 
@@ -507,21 +516,23 @@ public sealed class BallWindow : Window
 
     void OnWinEvent(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
-        if (evt == 3 && hwnd != _target)
+        if (evt == 3)
         {
-            var selected = _target;
+            var generation = _binding.Generation;
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                var foreground = Native.GetForegroundWindow();
-                if (_target == selected && foreground != selected && !(AllowsForeground?.Invoke(foreground) ?? false))
-                    StopTracking("foreground_changed");
+                if (_binding.Generation == generation) UpdateBoundPresence();
             }));
             return;
         }
         if (evt == 0x8001 && hwnd == _target && idObject == Native.OBJID_WINDOW)
         {
             var selected = _target;
-            Dispatcher.BeginInvoke(new Action(() => { if (_target == selected) StopTracking("target_gone"); }));
+            var generation = _binding.Generation;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_target == selected && _binding.Generation == generation) StopTracking("target_gone");
+            }));
             return;
         }
         if (evt is >= 0x8002 and <= 0x8017 && evt != 0x8005 &&
@@ -530,7 +541,13 @@ public sealed class BallWindow : Window
             var selected = _target;
             ProbeLog.Log("target_content_event", ("event", evt), ("object", idObject), ("child", idChild),
                 ("eventProcess", Native.ProcessId(hwnd)), ("targetProcess", Native.ProcessId(selected)));
-            Dispatcher.BeginInvoke(new Action(() => { if (_target == selected) TargetMoved?.Invoke(); }));
+            var generation = _binding.Generation;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_target != selected || _binding.Generation != generation) return;
+                UpdateBoundPresence();
+                if (_target == selected && !_binding.Suspended) TargetMoved?.Invoke();
+            }));
         }
         if (evt != Native.EVENT_OBJECT_LOCATIONCHANGE) return;
         if (hwnd != _target || idObject != Native.OBJID_WINDOW) return;
@@ -554,11 +571,8 @@ public sealed class BallWindow : Window
     void UpdateOverlay(long eventTicks)
     {
         if (_target == IntPtr.Zero) return;
-        if (!Native.IsWindow(_target))
-        {
-            StopTracking("target_gone");
-            return;
-        }
+        UpdateBoundPresence();
+        if (_target == IntPtr.Zero || _binding.Suspended) return;
 
         var r = Native.Frame(_target);
         _overlay.Place(new Rect(r.Left / _scale, r.Top / _scale,
@@ -597,6 +611,8 @@ public sealed class BallWindow : Window
         if (_destroyHook != IntPtr.Zero) { Native.UnhookWinEvent(_destroyHook); _destroyHook = IntPtr.Zero; }
         if (_contentHook != IntPtr.Zero) { Native.UnhookWinEvent(_contentHook); _contentHook = IntPtr.Zero; }
         _target = IntPtr.Zero;
+        _binding.Clear();
+        if (had != IntPtr.Zero && !_fullscreenHidden && !IsVisible && IsLoaded) Show();
         if (had != IntPtr.Zero || _state != Motion.Return || reason is "drag_start" or "exit") ResetArt();
         if (_overlay.IsVisible) _overlay.HideAndReset();
         TrackingStopped?.Invoke(reason);
@@ -613,6 +629,49 @@ public sealed class BallWindow : Window
 
     internal static bool ShouldReturn(IntPtr target, string reason) =>
         target != IntPtr.Zero && reason is not ("drag_start" or "exit");
+
+    internal void ConfirmBinding()
+    {
+        _binding.Confirm();
+        UpdateOverlay(-1);
+        if (HasTarget && !_binding.Suspended && !_overlay.IsVisible) _overlay.Show();
+    }
+
+    internal void ReadyBoundInput()
+    {
+        if (!HasTarget || _binding.Suspended) return;
+        SetFailure();
+        UpdateOverlay(-1);
+        if (!HasTarget || _binding.Suspended) return;
+        _overlay.Show();
+        _overlay.SetWaterProgress(0);
+        ShowQuestion();
+    }
+
+    void UpdateBoundPresence()
+    {
+        if (!HasTarget) return;
+        var foreground = Native.GetForegroundWindow();
+        var change = _binding.Update(Native.IsWindow(_target) && Native.ProcessId(_target) == _binding.ProcessId,
+            Native.IsWindowVisible(_target) && !Native.IsIconic(_target),
+            foreground == _target || (AllowsForeground?.Invoke(foreground) ?? false));
+        if (change == BindingChange.Ended) { StopTracking("target_gone"); return; }
+        if (change == BindingChange.Suspended)
+        {
+            SetProcessing(false); StopAnimation();
+            _overlay.HideAndReset();
+            BindingSuspendedChanged?.Invoke();
+            Hide();
+            ProbeLog.Log("binding_suspended");
+        }
+        else if (change == BindingChange.Resumed)
+        {
+            SnapToEdge(_target);
+            Show();
+            BindingResumed?.Invoke();
+            ProbeLog.Log("binding_resumed");
+        }
+    }
 
     internal void ReturnHome()
     {

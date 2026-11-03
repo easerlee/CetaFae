@@ -38,7 +38,7 @@ Download a Windows x64 preview from [GitHub Releases](https://github.com/easerle
 
 The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-flash`. Supply a compatible model service yourself; CetaFae bundles neither a model nor a proxy. Image understanding requires multimodal input support.
 
-Recognition waits at most 60 seconds per request. End guidance or switch to another window to cancel. A slow response does not establish a fault in the target application; latency and availability depend on the configured service route.
+Recognition waits at most 60 seconds per request. Switching windows cancels the request and hides session effects while retaining the target binding. Returning restores an input entry; only a new question starts collection. A slow response does not establish a fault in the target application; latency and availability depend on the configured service route.
 
 The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page enables or disables shipped plugins; it does not download or install plugins.
 
@@ -46,7 +46,7 @@ The main branch includes a self-contained Windows x64 installer candidate. Revie
 
 Drag onto the target, describe your goal when asked, and select a region if requested. Read the guidance and operate the target yourself, or end the session. Changed recipient, model, sending scope or terms require confirmation again.
 
-To continue, first choose Continue asking in the result, then act manually and submit your next question. Content reads pause while this input is armed. Switching to another window ends the entire flow and requires another drop. Changes to the disclosed sending scope or terms invalidate saved consent.
+To continue, first choose Continue asking in the result, then act manually and submit your next question. Content reads pause while this input is armed. After switching away, return and ask a new question without another drop; previous results do not return. Close the prompt or drag the whale away to end the binding. Closing the target or withdrawing consent also ends it. Changes to the disclosed sending scope or terms invalidate saved consent.
 
 ### Run from source
 

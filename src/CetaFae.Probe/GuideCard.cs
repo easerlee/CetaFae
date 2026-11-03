@@ -323,6 +323,7 @@ internal sealed class GuideCard : Border
         _header.CornerRadius = session && !bubble ? new CornerRadius(0) : new CornerRadius(14, 14, 0, 0);
         _header.Height = notice ? double.NaN : GuideTheme.CardHeaderHeight;
         _header.Background = notice ? GuideTheme.WhaleBlue : GuideTheme.CardHeader;
+        BodyScroll.Margin = new Thickness(16, session ? -12 : 12, 16, 14);
         _status.MaxHeight = double.PositiveInfinity;
         _status.TextTrimming = TextTrimming.None;
         _status.FontSize = 14;

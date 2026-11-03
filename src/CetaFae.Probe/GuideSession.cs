@@ -29,6 +29,7 @@ public sealed class GuideSession : IDisposable
     IntPtr _activationSource;
     bool _checkingContext;
     bool _contextCheckPending;
+    bool _boundQuestionReady;
     RegionPicker? _picker;
     string? _pendingIntent;
     readonly bool _preview;
@@ -62,6 +63,9 @@ public sealed class GuideSession : IDisposable
         _ball.TargetSelected += OnSelected;
         _ball.TrackingStopped += Cancel;
         _ball.TargetMoved += OnTargetChanged;
+        _ball.BindingSuspendedChanged += OnBindingSuspended;
+        _ball.BindingResumed += OnBindingResumed;
+        _ball.GuidanceCleared += OnGuidanceCleared;
         _ball.MenuRequested += OnMenuRequested;
         if (preview)
         {
@@ -84,7 +88,7 @@ public sealed class GuideSession : IDisposable
     void OnFullscreenHidden() => _panel.DismissNotice();
 
     internal bool CloudEnabled => _gate.CloudEnabled;
-    internal void EndForSettings() => _ball.StopTracking("settings_opened");
+    internal void EndForSettings() => OnBindingSuspended();
     internal void RevokeForConfiguration()
     {
         _ball.StopTracking("configuration_changed");
@@ -123,6 +127,7 @@ public sealed class GuideSession : IDisposable
 
     void ResetRecognition()
     {
+        _boundQuestionReady = false;
         _activationVersion = null;
         var picker = _picker;
         _picker = null;
@@ -141,12 +146,36 @@ public sealed class GuideSession : IDisposable
         _panel.EndSession();
     }
 
+    void OnBindingSuspended() => ResetRecognition();
+
+    void OnBindingResumed() => ReadyBoundQuestion("已回到这个窗口。你想了解什么？");
+    void OnGuidanceCleared() => ReadyBoundQuestion("本次识别已停止。你想了解什么？");
+
+    void ReadyBoundQuestion(string message)
+    {
+        ResetRecognition();
+        if (!_gate.CloudEnabled || !_ball.HasTarget || _ball.BindingSuspended) return;
+        _contextVersion = _gate.Begin();
+        _gate.AwaitClarification(_contextVersion);
+        _boundQuestionReady = true;
+        _ball.ReadyBoundInput();
+        if (!_ball.HasTarget || _ball.BindingSuspended) return;
+        _panel.SetStatus(message);
+        ProbeLog.Log("guide_bound_ready");
+    }
+
     void ShowRecognitionFailure(IntPtr window, uint processId, string reason, string message)
     {
         if (_ball.IsBoundForeground(window, processId))
         {
+            _ball.ConfirmBinding();
             ResetRecognition();
             _ball.SetFailure();
+        }
+        else if (_ball.BoundTarget == window && _ball.BindingConfirmed)
+        {
+            ResetRecognition();
+            return;
         }
         else
             _ball.StopTracking(reason);
@@ -155,6 +184,7 @@ public sealed class GuideSession : IDisposable
 
     async void OnTargetChanged()
     {
+        if (_ball.BindingSuspended) return;
         _contextCheckPending = true;
         if (_context is { Snapshot: true } snapshot)
         {
@@ -162,7 +192,7 @@ public sealed class GuideSession : IDisposable
             if (!Native.IsWindow(snapshot.Window) || !Native.IsWindowVisible(snapshot.Window) ||
                 Native.IsIconic(snapshot.Window) || Native.ProcessId(snapshot.Window) != snapshot.ProcessId ||
                 GuideObservation.WindowRect(snapshot.Window) != snapshot.Frame)
-                _ball.StopTracking("target_changed");
+                ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
             _contextCheckPending = false;
             return;
         }
@@ -170,7 +200,7 @@ public sealed class GuideSession : IDisposable
         {
             // Geometry/lifetime checks are allowed while armed, but do not inspect changed content.
             if (!Native.IsWindow(armed.Window) || !Native.IsWindowVisible(armed.Window) || Native.IsIconic(armed.Window) ||
-                Native.ProcessId(armed.Window) != armed.ProcessId) _ball.StopTracking("target_changed");
+                Native.ProcessId(armed.Window) != armed.ProcessId) ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
             _contextCheckPending = false;
             return;
         }
@@ -179,7 +209,7 @@ public sealed class GuideSession : IDisposable
             if (!Native.IsWindow(selecting.Window) || !Native.IsWindowVisible(selecting.Window) ||
                 Native.IsIconic(selecting.Window) || Native.ProcessId(selecting.Window) != selecting.ProcessId ||
                 GuideObservation.WindowRect(selecting.Window) != selecting.Frame)
-                _ball.StopTracking("target_changed");
+                ReadyBoundQuestion("窗口已有变化，旧选区已清除。你想了解什么？");
             return;
         }
         if (_checkingContext || _context is null || IsInputForeground(Native.GetForegroundWindow())) return;
@@ -204,7 +234,7 @@ public sealed class GuideSession : IDisposable
                         GuideObservation.LogContextDifference(context.Candidates, current.Candidates);
                     if (_gate.CancelIfContextChanged(version, context.Candidates, current.Candidates) ||
                         _gate.Accepts(version) && (!context.HasSameScope(current) || !context.HasSameVisual(current)))
-                        _ball.StopTracking("target_changed");
+                        ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
                     else if (_gate.Accepts(version)) ProbeLog.Log("guide_context_unchanged");
                 }
                 catch (OperationCanceledException) when (!_gate.Accepts(version)) { }
@@ -226,7 +256,7 @@ public sealed class GuideSession : IDisposable
 
     bool IsInputForeground(IntPtr window) =>
         (window == _panel.Handle && _panel.IsSessionInteraction || window == _ball.Handle && _ball.IsSessionInteraction) &&
-        (_context is not null && _gate.Accepts(_contextVersion) || _followup.WaitingForUser && _gate.Accepts(_followupVersion));
+        ((_context is not null || _boundQuestionReady) && _gate.Accepts(_contextVersion) || _followup.WaitingForUser && _gate.Accepts(_followupVersion));
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
         _menu.OwnsForeground(window) ||
@@ -236,6 +266,15 @@ public sealed class GuideSession : IDisposable
 
     async void OnAnswerSubmitted(string text)
     {
+        if (!_preview && _boundQuestionReady && _ball.HasTarget && !_ball.BindingSuspended && _gate.CanClarify(_contextVersion))
+        {
+            string request;
+            try { request = _gate.TakeClarification(_contextVersion, text); }
+            catch (InvalidDataException) { _panel.SetStatus("请用一行文字说明你想了解什么（最多300字）。"); return; }
+            _boundQuestionReady = false;
+            await RecognizeAsync(_ball.BoundTarget, request, null);
+            return;
+        }
         if (!_preview && _followup.WaitingForUser && _gate.Accepts(_followupVersion))
         {
             GuideFollowupRequest next;
@@ -279,7 +318,7 @@ public sealed class GuideSession : IDisposable
         _request?.Cancel(); _followupVersion = _gate.Begin();
         _context = null; _contextCheckPending = false; _pendingIntent = null; _activeFollowup = null;
         _marker.HideAndReset(); _panel.SetControl(null); _panel.SetRegionAvailable(false); _panel.ClearQuestion();
-        _panel.SetStatus("继续提问已准备。可先在当前窗口手动操作，再在上方输入本轮问题（例如“下一步看哪里”）。提交后才重新读取，切换到其他窗口会结束本次指导。");
+        _panel.SetStatus("可先在这个窗口手动操作，再输入本轮问题。提交后才重新读取；切到别处时暂停，回来后可重新提问。");
         _ball.ShowQuestion();
         ProbeLog.Log("guide_followup_armed", ("step", _followup.Step + 1));
     }
@@ -299,7 +338,7 @@ public sealed class GuideSession : IDisposable
         {
             if (!ReferenceEquals(_picker, picker)) return;
             if (region is null || !_gate.Accepts(version) || !_gate.CloudEnabled)
-            { _ball.StopTracking("selection_cancelled"); return; }
+            { ReadyBoundQuestion("已取消框选。你想了解什么？"); return; }
             // Admit the owned picker until the existing activation path resumes the bound target.
             picker.Hide();
             var processing = RecognizeAsync(previous.Window, intent, previous, region, followup);
@@ -328,6 +367,7 @@ public sealed class GuideSession : IDisposable
         using var deadline = new GuideDeadline(_options.Timeout, request.Token);
         var token = deadline.Token;
         var version = _gate.Begin();
+        _boundQuestionReady = false;
         _context = null;
         _pendingIntent = null;
         _activeFollowup = followup;
@@ -355,16 +395,25 @@ public sealed class GuideSession : IDisposable
             var flowTarget = new GuideFlowTarget(window, (uint)targetProcess.Id, selectedStart, plugin.Id);
             followup?.ValidateTarget(flowTarget);
             if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
+            var activated = await ActivateSelectedAsync(window, version, token);
+            if (!_gate.Accepts(version)) return;
+            if (!activated) throw new InvalidDataException("target_activation_failed");
+            _ball.ConfirmBinding();
+            if (!_gate.Accepts(version)) return;
             if (previous is null && followup is null) _ball.BeginDock();
             _panel.SetControl(null);
             _panel.BeginProcessing();
             _ball.SetProcessing(true);
-            var activated = await ActivateSelectedAsync(window, version, token);
-            if (!_gate.Accepts(version)) return;
-            if (!activated) throw new InvalidDataException("target_activation_failed");
             _panel.Reposition();
             stage = ProcessingStage.SourceValidation;
-            if (previous is null && followup is not null)
+            if (previous is null && intent is not null && followup is null)
+            {
+                // A resumed question needs only a fresh identity/geometry anchor before scoped capture.
+                // Do not make unknown applications pass a full accessibility traversal first.
+                previous = new GuideObservation(window, flowTarget.ProcessId, GuideObservation.WindowRect(window),
+                    [], null, plugin.UsesRawView, plugin.Id, Snapshot: true);
+            }
+            else if (previous is null && followup is not null)
             {
                 // An armed step may follow manual changes; obtain a fresh local baseline, never the prior result's data.
                 _contextCheckPending = false;
@@ -487,7 +536,7 @@ public sealed class GuideSession : IDisposable
             }
             if (ex is InvalidDataException changed && changed.Message == "target_changed")
             {
-                if (_gate.Accepts(version)) _ball.StopTracking("target_changed");
+                if (_gate.Accepts(version)) ReadyBoundQuestion("窗口已有变化，本次识别已停止。你想了解什么？");
                 return;
             }
             if (_gate.Accepts(version))
@@ -519,16 +568,27 @@ public sealed class GuideSession : IDisposable
         _activationSource = Native.GetForegroundWindow();
         try
         {
-            var accepted = Native.SetForegroundWindow(window);
-            ProbeLog.Log("guide_target_activation", ("target", Native.Hex(window)),
-                ("fg", Native.Hex(Native.GetForegroundWindow())), ("accepted", accepted));
-            var confirmed = await WaitForForegroundAsync(window, Native.GetForegroundWindow, token);
+            var confirmed = await ActivateOnceAsync(window, () =>
+            {
+                var accepted = Native.SetForegroundWindow(window);
+                ProbeLog.Log("guide_target_activation", ("target", Native.Hex(window)),
+                    ("fg", Native.Hex(Native.GetForegroundWindow())), ("accepted", accepted));
+            }, Native.GetForegroundWindow, token);
             if (!_gate.Accepts(version)) return false;
             ProbeLog.Log("guide_target_activation_complete", ("target", Native.Hex(window)),
                 ("fg", Native.Hex(Native.GetForegroundWindow())), ("confirmed", confirmed));
             return confirmed;
         }
         finally { if (_activationVersion == version) _activationVersion = null; }
+    }
+
+    internal static async Task<bool> ActivateOnceAsync(IntPtr target, Action activate,
+        Func<IntPtr> getForeground, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (getForeground() == target) return true;
+        activate();
+        return await WaitForForegroundAsync(target, getForeground, token);
     }
 
     public static async Task<bool> WaitForForegroundAsync(IntPtr target, Func<IntPtr> getForeground,
@@ -622,6 +682,9 @@ public sealed class GuideSession : IDisposable
         _ball.TargetSelected -= OnSelected;
         _ball.TrackingStopped -= Cancel;
         _ball.TargetMoved -= OnTargetChanged;
+        _ball.BindingSuspendedChanged -= OnBindingSuspended;
+        _ball.BindingResumed -= OnBindingResumed;
+        _ball.GuidanceCleared -= OnGuidanceCleared;
         _ball.MenuRequested -= OnMenuRequested;
         _panel.MenuRequested -= OnMenuRequested;
         _ball.AllowsForeground = null;
