@@ -113,8 +113,16 @@ public sealed class GuideSession : IDisposable
 
     void Cancel(string reason)
     {
-        var explain = _context is { } context && Native.GetForegroundWindow() == context.Window &&
-            reason is "target_changed" or "target_context_unavailable";
+        var explain = reason == "target_changed" &&
+            _context is { } context && Native.GetForegroundWindow() == context.Window;
+        ResetRecognition();
+        if (explain)
+            _panel.SetStatus(FailureMessage(new InvalidDataException(reason)));
+        ProbeLog.Log("guide_cancel", ("reason", reason));
+    }
+
+    void ResetRecognition()
+    {
         _activationVersion = null;
         var picker = _picker;
         _picker = null;
@@ -131,9 +139,18 @@ public sealed class GuideSession : IDisposable
         _ball.ClearQuestion();
         if (_marker.IsVisible) _marker.HideAndReset();
         _panel.EndSession();
-        if (explain)
-            _panel.SetStatus(FailureMessage(new InvalidDataException(reason)));
-        ProbeLog.Log("guide_cancel", ("reason", reason));
+    }
+
+    void ShowRecognitionFailure(IntPtr window, uint processId, string reason, string message)
+    {
+        if (_ball.IsBoundForeground(window, processId))
+        {
+            ResetRecognition();
+            _ball.SetFailure();
+        }
+        else
+            _ball.StopTracking(reason);
+        _panel.SetStatus(message);
     }
 
     async void OnTargetChanged()
@@ -194,7 +211,8 @@ public sealed class GuideSession : IDisposable
                 catch (Exception)
                 {
                     if (_gate.Accepts(version) && _picker is null && !IsInputForeground(Native.GetForegroundWindow()))
-                        _ball.StopTracking("target_context_unavailable");
+                        ShowRecognitionFailure(context.Window, context.ProcessId, "target_context_unavailable",
+                            FailureMessage(new InvalidDataException("target_context_unavailable")));
                 }
             }
         }
@@ -225,7 +243,10 @@ public sealed class GuideSession : IDisposable
             catch (InvalidDataException error)
             {
                 if (error.Message == "sensitive_content")
-                { _ball.StopTracking("sensitive_input"); _panel.SetStatus(FailureMessage(error)); }
+                {
+                    var target = _followup.Target!;
+                    ShowRecognitionFailure(target.Window, target.ProcessId, "sensitive_input", FailureMessage(error));
+                }
                 else { _panel.SetStatus("请用一行文字说明本轮问题（最多300字）。"); _ball.ShowQuestion(); }
                 return;
             }
@@ -316,6 +337,7 @@ public sealed class GuideSession : IDisposable
         _ball.ClearQuestion();
         var total = Stopwatch.StartNew();
         var stage = ProcessingStage.Activation;
+        var processId = Native.ProcessId(window);
         string? identifiedProcess = null;
         string? CurrentOwnership() => stage == ProcessingStage.Model && identifiedProcess is not null &&
             _contextVersion == version && _context is { } context &&
@@ -442,9 +464,9 @@ public sealed class GuideSession : IDisposable
             {
                 var ownership = CurrentOwnership();
                 var localIdentity = ownership is null ? null : _context?.Identity;
-                _ball.StopTracking("processing_timeout");
                 var message = TimeoutMessage(stage == ProcessingStage.Model);
-                _panel.SetStatus(ownership is not null ? GuideIdentification.Unavailable(ownership, message, localIdentity) : message);
+                ShowRecognitionFailure(window, processId, "processing_timeout",
+                    ownership is not null ? GuideIdentification.Unavailable(ownership, message, localIdentity) : message);
             }
             ProbeLog.Log("guide_failure", ("category", cancelled ? "cancelled" : "timeout"), ("stage", stage.ToString()));
         }
@@ -470,8 +492,7 @@ public sealed class GuideSession : IDisposable
             {
                 var ownership = CurrentOwnership();
                 var localIdentity = ownership is null ? null : _context?.Identity;
-                _ball.StopTracking("recognition_failed");
-                _panel.SetStatus(ownership is not null &&
+                ShowRecognitionFailure(window, processId, "recognition_failed", ownership is not null &&
                     ex is not InvalidDataException { Message: "sensitive_content" }
                     ? GuideIdentification.Unavailable(ownership, FailureMessage(ex), localIdentity) : FailureMessage(ex));
             }

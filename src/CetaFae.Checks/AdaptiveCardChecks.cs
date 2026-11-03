@@ -42,9 +42,16 @@ internal static class AdaptiveCardChecks
         var rgba = new byte[surface.PixelWidth * surface.PixelHeight * 4]; surface.CopyPixels(rgba, surface.PixelWidth * 4, 0);
         var headerBounds = card.Header.TransformToAncestor(card).TransformBounds(new Rect(card.Header.RenderSize));
         int Alpha(int y) => rgba[(y * surface.PixelWidth + surface.PixelWidth - 24) * 4 + 3];
-        check(Alpha((int)headerBounds.Top + 1) == 255 && Alpha((int)headerBounds.Bottom - 1) < 5 &&
+        check(Alpha((int)headerBounds.Top + 1) == 255 && Alpha((int)headerBounds.Bottom - 1) == 255 &&
             Alpha((int)headerBounds.Bottom + 10) == 255,
-            "actual card header fades to transparent pixels while the separate reading body stays opaque");
+            "the entire card, including the end of the header fade, masks the application below");
+        var notice = new GuideCard(Options);
+        notice.SetNotice("生成测试通知");
+        Layout(notice, new Size(900, 700));
+        check(notice.Header.ActualHeight < card.Header.ActualHeight &&
+            notice.Header.ActualHeight == Math.Ceiling(Math.Max(notice.Heading.DesiredSize.Height, notice.DismissButton.DesiredSize.Height) +
+                notice.Header.Padding.Top + notice.Header.Padding.Bottom),
+            "standalone notice title bar fits its title and close button");
         check(card.DismissButton.Visibility == Visibility.Collapsed,
             "session reader has no duplicate close beside the input bar close");
         var gradient = (LinearGradientBrush)card.Header.Background;

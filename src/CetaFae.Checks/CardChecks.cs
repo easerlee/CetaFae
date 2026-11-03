@@ -71,17 +71,17 @@ static class CardChecks
         yield return ("24 Error or warning", attention);
         var partial = New(); partial.SetCloud(true); partial.SetStatus(new GuideIdentification(null, null, null, "uncertain", "已完成，耗时12秒。").ToAnswer("generated-unknown").Explanation); partial.SetRegionAvailable(true);
         yield return ("25 Uncertain content", partial);
-        var protectedWindow = New(); protectedWindow.SetNotice(GuideSession.FailureMessage(new InvalidDataException("elevated_target")));
+        var protectedWindow = New(); protectedWindow.SetStatus(GuideSession.FailureMessage(new InvalidDataException("elevated_target")));
         yield return ("26 Protected window", protectedWindow);
-        var privacy = New(); privacy.SetNotice(GuideSession.FailureMessage(new InvalidDataException("sensitive_content")));
+        var privacy = New(); privacy.SetStatus(GuideSession.FailureMessage(new InvalidDataException("sensitive_content")));
         yield return ("27 Private content", privacy);
-        var service = New(); service.SetNotice(GuideIdentification.Unavailable("generated-process", GuideSession.FailureMessage(new System.Net.Http.HttpRequestException())));
+        var service = New(); service.SetStatus(GuideIdentification.Unavailable("generated-process", GuideSession.FailureMessage(new System.Net.Http.HttpRequestException())));
         yield return ("28 Service unavailable", service);
         var recognizing = New(); recognizing.SetCloud(true); recognizing.SetStatus(GuideIdentification.Processing);
         yield return ("29 Recognition in progress", recognizing);
         var changed = New(); changed.SetNotice(GuideSession.FailureMessage(new InvalidDataException("target_changed")));
         yield return ("30 Context changed", changed);
-        var recheck = New(); recheck.SetNotice(GuideSession.FailureMessage(new InvalidDataException("target_context_unavailable")));
+        var recheck = New(); recheck.SetStatus(GuideSession.FailureMessage(new InvalidDataException("target_context_unavailable")));
         yield return ("31 Context recheck unavailable", recheck);
     }
 

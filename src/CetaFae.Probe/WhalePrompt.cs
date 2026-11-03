@@ -99,7 +99,7 @@ internal sealed class WhalePrompt : Border
         _hint.Text = available ? "告诉我你想做什么" : "正在识别当前窗口…";
         UpdateHint();
     }
-    internal void SetResult() { if (!CanAnswer) _hint.Text = "说明已就绪 · 可拖动继续求助"; }
+    internal void SetResult(string hint = "说明已就绪 · 可拖动继续求助") { if (!CanAnswer) _hint.Text = hint; }
     internal void SetTopAttached(bool attached)
     {
         VerticalAlignment = attached ? VerticalAlignment.Top : VerticalAlignment.Center;

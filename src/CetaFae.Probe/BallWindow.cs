@@ -350,6 +350,20 @@ public sealed class BallWindow : Window
     }
     public void SetResult() { SetProcessing(false); if (_inline) _prompt.SetResult(); }
 
+    internal bool IsBoundForeground(IntPtr window, uint processId) =>
+        window != IntPtr.Zero && _target == window && processId != 0 &&
+        Native.GetForegroundWindow() == window && Native.IsWindowVisible(window) &&
+        !Native.IsIconic(window) && Native.ProcessId(window) == processId;
+
+    internal void SetFailure()
+    {
+        SetProcessing(false);
+        BeginDock();
+        FinishMorph(complete: true);
+        _overlay.HideAndReset();
+        _prompt.SetResult("可拖动继续求助");
+    }
+
     internal void ResetArt()
     {
         _processing = false; ClearQuestion(); StopAnimation();

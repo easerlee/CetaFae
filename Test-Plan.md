@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Opaque reading surface and attached failure feedback (2026-11-03)
+
+For v1.24 verify opaque pixels through the entire reading gradient and body, with transparent rounded exterior corners. Compare the standalone notice against the attached card at the same scale, including header fit and close affordances. In generated offscreen checks, finish a failed entry with a docked, inactive input prompt and stopped scan. In native acceptance, use a controlled recognition failure on the selected foreground target, confirm the attached message stays in place with no old controls or marks, and verify that closing, switching away and dragging again follow their normal paths. Offscreen checks do not verify foreground binding or native lifecycle.
+
 ## Reference-sized perimeter and reading title (2026-11-02)
 
 For v1.23 reproduce the old96 DIP depth and old heading failures before changing production. Require48 DIP perimeter/header size,16 DIP solid rim and actual alpha falloff inside48 DIP. Compare normal/full alpha profiles and tiled/full-image channels allowing at most one8-bit rasterization level, with actual errors reported; this is not a geometry/size tolerance. Verify corner alpha against source-over of independent edges, avoiding a neighbor-curvature heuristic that mislabels the steeper fade. Verify窗口解读 on reader/bubble/notice while privacy remains distinct; preserve text, controls and pagination. Inspect shared-scale clean/grid dark/light boards with reference main-band dimensions, then run both configurations and packagepreview.39 without a visible launch. User confirmation of equality refers topreview.38; new narrower native appearance still needs acceptance.

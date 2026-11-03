@@ -187,6 +187,12 @@ internal static class DropChecks
             check(ball.HasInlineInput && ball.Prompt.CanAnswer && ball.Prompt.Answer.Text == "生成回答" && !ball.ArtAnimating &&
                 new System.Windows.Interop.WindowInteropHelper(ball).Handle == IntPtr.Zero,
                 "a fast question accepts text during the finite wash and subsequent animation ticks never clear that text");
+            ball.ResetArt();
+            ball.BeginDockMotion();
+            ball.SetProcessing(true);
+            ball.SetFailure();
+            check(ball.HasInlineInput && !ball.Prompt.CanAnswer && !ball.ArtAnimating,
+                "a recognition failure during entry immediately leaves the closable prompt without scanning or accepting input");
             ball.ResetArt(); ball.Left = 100; ball.Top = 100; ball.ReturnHome(); ball.AdvanceMotion(.6);
             var whale = (WhaleVisual)((Grid)ball.Content).Children[0];
             check(new Point(ball.Left, ball.Top) == BallWindow.HomePosition(SystemParameters.WorkArea) && whale.Facing == -1,

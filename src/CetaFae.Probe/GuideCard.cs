@@ -29,7 +29,6 @@ internal sealed class GuideCard : Border
     readonly Button _details;
     readonly Button _followup;
     readonly Border _header;
-    readonly Border _content;
     readonly StackPanel _body = new();
     readonly StackPanel _pagination = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Visibility = Visibility.Collapsed };
     readonly TextBlock _pageLabel = new() { VerticalAlignment = VerticalAlignment.Center, Foreground = GuideTheme.Muted, FontSize = 12 };
@@ -79,7 +78,7 @@ internal sealed class GuideCard : Border
 
     internal GuideCard(GuideOptions options)
     {
-        Background = Brushes.Transparent;
+        Background = Brushes.White;
         BorderBrush = GuideTheme.WhaleBlue;
         BorderThickness = new Thickness(2);
         CornerRadius = new CornerRadius(0, 0, 19, 19);
@@ -152,8 +151,7 @@ internal sealed class GuideCard : Border
         DockPanel.SetDock(Actions, Dock.Bottom);
         content.Children.Add(Actions);
         content.Children.Add(BodyScroll);
-        _content = new Border { Background = GuideTheme.Surface, Child = content };
-        layout.Children.Add(_content);
+        layout.Children.Add(content);
         Child = layout;
         Refresh();
     }
@@ -323,7 +321,8 @@ internal sealed class GuideCard : Border
         Padding = new Thickness(0);
         CornerRadius = session ? (bubble ? new CornerRadius(20, 20, 5, 20) : new CornerRadius(0, 0, 19, 19)) : new CornerRadius(16);
         _header.CornerRadius = session && !bubble ? new CornerRadius(0) : new CornerRadius(14, 14, 0, 0);
-        _content.CornerRadius = compact ? new CornerRadius(17) : new CornerRadius(0, 0, CornerRadius.BottomRight - 2, CornerRadius.BottomLeft - 2);
+        _header.Height = notice ? double.NaN : GuideTheme.CardHeaderHeight;
+        _header.Background = notice ? GuideTheme.WhaleBlue : GuideTheme.CardHeader;
         _status.MaxHeight = double.PositiveInfinity;
         _status.TextTrimming = TextTrimming.None;
         _status.FontSize = 14;
