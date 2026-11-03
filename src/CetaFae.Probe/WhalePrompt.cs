@@ -29,14 +29,11 @@ internal sealed class WhalePrompt : Border
         FontSize = 12, Foreground = GuideTheme.Muted, IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
     internal readonly Button Send;
     internal readonly Button Dismiss;
-    internal readonly Button ChatMode;
     internal readonly PromptShell DragSurface;
     internal readonly Border InputSurface;
     internal bool CanAnswer { get; private set; }
-    bool _chatAvailable;
     internal event Action? FocusRequested;
     internal event Action? DismissRequested;
-    internal event Action? ChatRequested;
     internal event Action<string>? Submitted;
     internal WhalePrompt()
     {
@@ -58,14 +55,6 @@ internal sealed class WhalePrompt : Border
         InputSurface = new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12),
             Margin = new Thickness(InputLeft, 4, 48, 4), Padding = new Thickness(10, 0, 6, 0), Child = row };
         body.Children.Add(InputSurface); root.Children.Add(body);
-        ChatMode = Action("问鲸汐", "切换到自由问答", 51, Brushes.White, Brushes.Transparent, 11);
-        ChatMode.Height = 26;
-        ChatMode.Margin = new Thickness(9, 0, 0, 0);
-        ChatMode.HorizontalAlignment = HorizontalAlignment.Left;
-        ChatMode.VerticalAlignment = VerticalAlignment.Center;
-        ChatMode.Click += (_, _) => ChatRequested?.Invoke();
-        ChatMode.Visibility = Visibility.Collapsed;
-        body.Children.Add(ChatMode);
         Dismiss = Action("×", "结束本次指路，恢复鲸鱼", 26, Brushes.White, Brushes.Transparent, 20);
         Dismiss.Opacity = .75; Dismiss.Margin = new Thickness(0, 0, 12, 0);
         Dismiss.HorizontalAlignment = HorizontalAlignment.Right; Dismiss.VerticalAlignment = VerticalAlignment.Center;
@@ -74,7 +63,6 @@ internal sealed class WhalePrompt : Border
         Answer.PreviewMouseLeftButtonDown += (_, _) => { if (CanAnswer) FocusRequested?.Invoke(); };
         Answer.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && CanAnswer) { Submit(); e.Handled = true; } };
         Answer.TextChanged += (_, _) => UpdateHint();
-        SizeChanged += (_, _) => UpdateChatMode();
         SetQuestion(false);
     }
     internal static Button Action(string text, string hint, double size, Brush foreground, Brush background, double fontSize)
@@ -116,20 +104,6 @@ internal sealed class WhalePrompt : Border
         UpdateHint();
     }
     internal void SetResult(string hint = "说明已就绪 · 可拖动继续求助") { if (!CanAnswer) _hint.Text = hint; }
-    internal void SetChatMode(bool available, bool active = false)
-    {
-        _chatAvailable = available;
-        ChatMode.Content = active ? "问窗口" : "问鲸汐";
-        AutomationProperties.SetName(ChatMode, active ? "问这个窗口" : "切换到自由问答");
-        ChatMode.ToolTip = active ? "问这个窗口" : "切换到自由问答";
-        UpdateChatMode();
-    }
-    void UpdateChatMode()
-    {
-        var visible = _chatAvailable && (ActualWidth == 0 || ActualWidth >= 240);
-        ChatMode.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-        InputSurface.Margin = new Thickness(visible ? 63 : InputLeft, 4, 48, 4);
-    }
     internal void SetTopAttached(bool attached)
     {
         VerticalAlignment = attached ? VerticalAlignment.Top : VerticalAlignment.Center;

@@ -20,6 +20,7 @@ public sealed class GuideSession : IDisposable
     readonly GuideOptions _options;
     readonly GuideModel _model;
     readonly FreeChatSession _chat;
+    readonly FreeChatSession _questions;
     FreeChatWindow? _chatWindow;
     readonly CloudConsentStore _consent;
     readonly GuideMenu _menu;
@@ -30,6 +31,7 @@ public sealed class GuideSession : IDisposable
     int? _activationVersion;
     int? _initialCollectionVersion;
     int? _modelVersion;
+    int? _routingVersion;
     bool _retryInitialOnResume;
     TaskCompletionSource? _foregroundReturn;
     IntPtr _activationSource;
@@ -47,7 +49,8 @@ public sealed class GuideSession : IDisposable
         _options = options;
         _plugins = plugins;
         _model = new GuideModel(options);
-        _chat = new FreeChatSession(_model.ChatAsync);
+        _chat = new FreeChatSession(async (history, question, token) => await _model.ChatAsync(history, question, token));
+        _questions = new FreeChatSession(_model.RouteQuestionAsync);
         _panel = new GuidePanel(options);
         _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget, () => _ball.TopAttached,
             () => _ball.Workspace);
@@ -66,8 +69,6 @@ public sealed class GuideSession : IDisposable
         _panel.AnswerSubmitted += OnAnswerSubmitted;
         _ball.AnswerSubmitted += OnAnswerSubmitted;
         _ball.HomeClicked += ToggleChat;
-        _ball.Prompt.ChatRequested += ToggleChat;
-        _ball.Prompt.SetChatMode(plugins.ChatProvider is not null);
         _panel.RegionRequested += OnRegionRequested;
         _panel.FollowupRequested += OnFollowupRequested;
         _ball.AllowsForeground = IsAllowedForeground;
@@ -111,16 +112,9 @@ public sealed class GuideSession : IDisposable
             _panel.SetStatus(_preview ? "这是静态预览。安装后可以使用自由问答。" : "请先通过安装程序确认使用协议，再使用自由问答。");
             return;
         }
-        var bound = _ball.HasTarget;
-        if (bound && (!_ball.BindingConfirmed || _ball.BindingSuspended)) return;
+        if (_ball.HasTarget) return;
         ResetRecognition();
-        if (bound)
-        {
-            _ball.SetProcessing(false);
-            _ball.Prompt.SetChatMode(true, active: true);
-            _ball.Prompt.SetResult("正在自由问答");
-        }
-        var capsule = new FreeChatWindow(bound) { Owner = _ball };
+        var capsule = new FreeChatWindow { Owner = _ball };
         _chatWindow = capsule;
         capsule.Submitted += text => SubmitChat(capsule, text);
         capsule.Closed += (_, _) =>
@@ -128,11 +122,8 @@ public sealed class GuideSession : IDisposable
             if (_chatWindow != capsule) return;
             _chatWindow = null;
             _chat.Reset();
-            _ball.Prompt.SetChatMode(true);
-            if (bound && _ball.HasTarget && !_ball.BindingSuspended)
-                ReadyBoundQuestion("你想了解这个窗口里的什么？");
         };
-        capsule.Place(_ball.FeedbackBounds, _ball.Workspace, bound);
+        capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
         capsule.Show();
     }
 
@@ -140,7 +131,7 @@ public sealed class GuideSession : IDisposable
     {
         if (_chatWindow != capsule || !_gate.CloudEnabled) return;
         capsule.SetStatus("鲸汐正在回答…", busy: true);
-        capsule.Place(_ball.FeedbackBounds, _ball.Workspace, _ball.HasTarget);
+        capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
         try
         {
             var turn = await _chat.SubmitAsync(text);
@@ -151,7 +142,7 @@ public sealed class GuideSession : IDisposable
             if (_chatWindow == capsule)
                 capsule.SetStatus(ex.Message == "sensitive_content" ? "请去掉密钥等敏感内容后再发送。" : "这次没能回答，请再试一次。");
         }
-        if (_chatWindow == capsule) capsule.Place(_ball.FeedbackBounds, _ball.Workspace, _ball.HasTarget);
+        if (_chatWindow == capsule) capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
     }
 
     void CloseChat()
@@ -160,7 +151,6 @@ public sealed class GuideSession : IDisposable
         _chatWindow = null;
         _chat.Reset();
         capsule.Close();
-        _ball.Prompt.SetChatMode(_plugins.ChatProvider is not null);
     }
 
     internal bool CloudEnabled => _gate.CloudEnabled;
@@ -201,12 +191,14 @@ public sealed class GuideSession : IDisposable
         ProbeLog.Log("guide_cancel", ("reason", reason));
     }
 
-    void ResetRecognition()
+    void ResetRecognition(bool preserveConversation = false)
     {
         CloseChat();
+        if (!preserveConversation) _questions.Reset();
         _boundQuestionReady = false;
         _activationVersion = null;
         _initialCollectionVersion = _modelVersion = null;
+        _routingVersion = null;
         _retryInitialOnResume = false;
         _foregroundReturn = null;
         var picker = _picker;
@@ -279,9 +271,9 @@ public sealed class GuideSession : IDisposable
     }
     void OnGuidanceCleared() => ReadyBoundQuestion("本次识别已停止。你想了解什么？");
 
-    void ReadyBoundQuestion(string message)
+    void ReadyBoundQuestion(string message, bool preserveConversation = false)
     {
-        ResetRecognition();
+        ResetRecognition(preserveConversation);
         if (!_gate.CloudEnabled || !_ball.HasTarget || _ball.BindingSuspended) return;
         _contextVersion = _gate.Begin();
         _gate.AwaitClarification(_contextVersion);
@@ -312,7 +304,7 @@ public sealed class GuideSession : IDisposable
 
     async void OnTargetChanged()
     {
-        if (_ball.BindingSuspended || _chatWindow is not null) return;
+        if (_ball.BindingSuspended || _chatWindow is not null || _routingVersion is not null) return;
         _contextCheckPending = true;
         if (_context is { Snapshot: true } snapshot)
         {
@@ -350,7 +342,7 @@ public sealed class GuideSession : IDisposable
         _checkingContext = true;
         try
         {
-            while (_contextCheckPending && _context is { } context && _gate.Accepts(_contextVersion))
+            while (_contextCheckPending && _context is { } context && _gate.Accepts(_contextVersion) && _routingVersion is null)
             {
                 if (_picker is not null || IsInputForeground(Native.GetForegroundWindow())) break;
                 _contextCheckPending = false;
@@ -360,6 +352,7 @@ public sealed class GuideSession : IDisposable
                 {
                     using var deadline = new GuideDeadline(_options.Timeout, token);
                     var current = await ReadContextAsync(context, deadline.Token);
+                    if (_routingVersion is not null) break;
                     // A picker/input may have opened while the native worker was reading.
                     // Defer that result; resuming recognition performs the bound revalidation.
                     if (_picker is not null || IsInputForeground(Native.GetForegroundWindow()))
@@ -372,15 +365,15 @@ public sealed class GuideSession : IDisposable
                         ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
                     else if (_gate.Accepts(version)) ProbeLog.Log("guide_context_unchanged");
                 }
-                catch (OperationCanceledException) when (!_gate.Accepts(version)) { }
+                catch (OperationCanceledException) when (!_gate.Accepts(version) || token.IsCancellationRequested) { }
                 catch (InvalidDataException ex) when (context.Snapshot && ex.Message == "sensitive_content")
                 {
-                    if (_gate.Accepts(version) && !_ball.BindingSuspended)
+                    if (_gate.Accepts(version) && !_ball.BindingSuspended && _routingVersion is null)
                         ShowRecognitionFailure(context.Window, context.ProcessId, ex.Message, FailureMessage(ex));
                 }
                 catch (Exception)
                 {
-                    if (_gate.Accepts(version) && _picker is null && !IsInputForeground(Native.GetForegroundWindow()))
+                    if (_gate.Accepts(version) && _routingVersion is null && _picker is null && !IsInputForeground(Native.GetForegroundWindow()))
                         ShowRecognitionFailure(context.Window, context.ProcessId, "target_context_unavailable",
                             FailureMessage(new InvalidDataException("target_context_unavailable")));
                 }
@@ -392,7 +385,7 @@ public sealed class GuideSession : IDisposable
     void OnEntryChanged(object? sender, EventArgs args)
     {
         if (_panel.IsVisible) _panel.Reposition();
-        _chatWindow?.Place(_ball.FeedbackBounds, _ball.Workspace, _ball.HasTarget);
+        _chatWindow?.Place(_ball.FeedbackBounds, _ball.Workspace);
     }
 
     bool IsInputForeground(IntPtr window) =>
@@ -408,13 +401,68 @@ public sealed class GuideSession : IDisposable
 
     async void OnAnswerSubmitted(string text)
     {
+        if (_plugins.ChatProvider is null)
+        {
+            await SubmitWindowQuestionAsync(text);
+            return;
+        }
+        var version = _followup.WaitingForUser ? _followupVersion : _contextVersion;
+        if (_preview || !_gate.CloudEnabled || !_ball.HasTarget || _ball.BindingSuspended ||
+            !_gate.Accepts(version) || _routingVersion is not null ||
+            !(_boundQuestionReady || _followup.WaitingForUser || _followup.CanOffer || _context is not null && _gate.CanClarify(version))) return;
+        _request?.Cancel();
+        _request?.Dispose();
+        var request = new CancellationTokenSource();
+        _request = request;
+        _routingVersion = _modelVersion = version;
+        _ball.ClearQuestion();
+        _panel.ClearQuestion();
+        _marker.HideAndReset();
+        _panel.SetControl(null);
+        _panel.SetPoint(false);
+        _panel.SetRegionAvailable(false);
+        _panel.SetFollowupAvailable(false);
+        _panel.BeginProcessing();
+        _ball.SetProcessing(true);
+        var elapsed = Stopwatch.StartNew();
+        try
+        {
+            var answer = await _questions.SubmitAsync(text, request.Token);
+            var remaining = _options.Timeout - elapsed.Elapsed;
+            if (answer is null || await WaitForPresentationAsync(version, request.Token) is null) return;
+            _routingVersion = null;
+            if (_modelVersion == version) _modelVersion = null;
+            _ball.SetProcessing(false);
+            if (answer.RequiresWindow)
+            {
+                if (remaining <= TimeSpan.Zero) throw new OperationCanceledException();
+                await SubmitWindowQuestionAsync(text, remaining);
+            }
+            else ReadyBoundQuestion(answer.Reply, preserveConversation: true);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or JsonException or HttpRequestException or IOException or OperationCanceledException)
+        {
+            if (await WaitForPresentationAsync(version, request.Token) is not null)
+                ReadyBoundQuestion(ex is InvalidDataException { Message: "chat_question" }
+                    ? "请用一行文字提问，最多300字。" : FailureMessage(ex), preserveConversation: true);
+        }
+        finally
+        {
+            if (_routingVersion == version) _routingVersion = null;
+            if (_modelVersion == version) _modelVersion = null;
+            if (!ReferenceEquals(_request, request)) request.Dispose();
+        }
+    }
+
+    async Task SubmitWindowQuestionAsync(string text, TimeSpan? budget = null)
+    {
         if (!_preview && _boundQuestionReady && _ball.HasTarget && !_ball.BindingSuspended && _gate.CanClarify(_contextVersion))
         {
             string request;
             try { request = _gate.TakeClarification(_contextVersion, text); }
             catch (InvalidDataException) { _panel.SetStatus("请用一行文字说明你想了解什么（最多300字）。"); return; }
             _boundQuestionReady = false;
-            await RecognizeAsync(_ball.BoundTarget, request, null);
+            await RecognizeAsync(_ball.BoundTarget, request, null, budget: budget);
             return;
         }
         // Direct result input uses the same guarded transition as the existing continue action.
@@ -434,7 +482,7 @@ public sealed class GuideSession : IDisposable
                 return;
             }
             _panel.ClearQuestion(); _ball.ClearQuestion();
-            await RecognizeAsync(next.Target.Window, next.Request, null, followup: next);
+            await RecognizeAsync(next.Target.Window, next.Request, null, followup: next, budget: budget);
             return;
         }
         if (_preview || _context is not { } previous || !_gate.CanClarify(_contextVersion)) return;
@@ -451,7 +499,7 @@ public sealed class GuideSession : IDisposable
         // Submission returns to this target through the same bounded activation path as a drop.
         var followup = _activeFollowup is { } active ? active with { Clarification = intent } : null;
         if (followup is not null) intent = followup.ScopeIntent;
-        await RecognizeAsync(previous.Window, intent, previous, previous.Scope?.UserSelected == true ? previous.Scope.Region : null, followup);
+        await RecognizeAsync(previous.Window, intent, previous, previous.Scope?.UserSelected == true ? previous.Scope.Region : null, followup, budget);
     }
 
     void OnFollowupRequested()
@@ -495,7 +543,7 @@ public sealed class GuideSession : IDisposable
     }
 
     async Task RecognizeAsync(IntPtr window, string? intent, GuideObservation? previous, Rect? selection = null,
-        GuideFollowupRequest? followup = null)
+        GuideFollowupRequest? followup = null, TimeSpan? budget = null)
     {
         if (_preview) return;
         if (!_gate.CloudEnabled)
@@ -509,7 +557,7 @@ public sealed class GuideSession : IDisposable
         var request = new CancellationTokenSource();
         _request = request;
         var requestToken = request.Token;
-        using var deadline = new GuideDeadline(_options.Timeout, requestToken);
+        using var deadline = new GuideDeadline(budget ?? _options.Timeout, requestToken);
         var token = deadline.Token;
         var version = _gate.Begin();
         _boundQuestionReady = false;
@@ -658,6 +706,8 @@ public sealed class GuideSession : IDisposable
                 observation.Candidates.Single(c => c.Id == selected).ControlType == GuideTextRegions.ControlType;
             _panel.SetStatus(textRegion ? "这里标出的是文字所在区域，不是按钮的点击范围。\n" + answer.Explanation : answer.Explanation);
             _panel.SetPoint(bounds is not null && _marker.IsVisible);
+            if (intent is not null && _plugins.ChatProvider is not null)
+                _questions.Remember(followup?.Clarification ?? intent, answer.Explanation[..Math.Min(answer.Explanation.Length, 1200)]);
             _ball.SetResult();
             _panel.SetRegionAvailable(identification is { Page: null });
             if (answer.Mode == "ask")
@@ -865,9 +915,8 @@ public sealed class GuideSession : IDisposable
     public void Dispose()
     {
         CloseChat();
+        _questions.Reset();
         _ball.HomeClicked -= ToggleChat;
-        _ball.Prompt.ChatRequested -= ToggleChat;
-        _ball.Prompt.SetChatMode(false);
         _ball.FullscreenHidden -= OnFullscreenHidden;
         _ball.LocationChanged -= OnEntryChanged;
         _ball.SizeChanged -= OnEntryChanged;

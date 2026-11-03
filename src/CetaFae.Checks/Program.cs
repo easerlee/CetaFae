@@ -516,28 +516,30 @@ public static class Program
         foreach (var width in new[] { 180d, 240d, 320d })
         {
             var prompt = new WhalePrompt();
-            prompt.SetChatMode(true);
             prompt.SetQuestion(true);
             prompt.Measure(new Size(width, 88));
             prompt.Arrange(new Rect(0, 0, width, 88));
             prompt.UpdateLayout();
             Rect Bounds(FrameworkElement element) => element.TransformToAncestor(prompt).TransformBounds(new Rect(element.RenderSize));
             Check(new Rect(prompt.RenderSize).Contains(Bounds(prompt.Answer)) &&
-                prompt.Answer.ActualWidth >= 60 && (width < 240
-                    ? prompt.ChatMode.Visibility == Visibility.Collapsed
-                    : Bounds(prompt.ChatMode).Right < Bounds(prompt.InputSurface).Left &&
-                      Bounds(prompt.DragSurface).Contains(Bounds(prompt.ChatMode))),
-                $"chat mode at prompt width {width} preserves input space and stays inside the shell");
+                prompt.Answer.ActualWidth >= 60 && prompt.InputSurface.Margin.Left == WhalePrompt.InputLeft,
+                $"the unified prompt at width {width} preserves its full input space");
         }
-        var home = new FreeChatWindow(false);
-        var anchored = new FreeChatWindow(true);
+        var home = new FreeChatWindow();
+        var anchored = new FreeChatWindow();
         anchored.ShowTurn(new ChatTurn("怎样把这段话写得更简短？", "先保留主要意思，再删掉重复的句子。"));
         var area = new Rect(-400, 0, 400, 340);
-        home.Place(new Rect(-80, 260, 72, 72), area, false);
-        anchored.Place(new Rect(-300, 4, 240, 36), area, true);
-        Check(home.Top < 260 && anchored.Top == 46 && home.Left >= area.Left &&
+        home.Place(new Rect(-80, 260, 72, 72), area);
+        anchored.Place(new Rect(-300, 4, 72, 72), area);
+        Check(home.Top < 260 && anchored.Top == 82 && home.Left >= area.Left &&
             anchored.Left >= area.Left && home.Handle == IntPtr.Zero && anchored.Handle == IntPtr.Zero,
-            "the chat capsule fits the work area above a home whale and below a top-docked prompt");
+            "the chat input fits a negative-origin work area and moves below an anchor near the top");
+        var surface = (System.Windows.Controls.Border)home.Content;
+        Check(surface.CornerRadius == new CornerRadius(8) &&
+            FreeChatWindow.InputRadius / FreeChatWindow.OuterRadius ==
+                FreeChatWindow.InputHeight / (FreeChatWindow.InputHeight + FreeChatWindow.FramePadding * 2) &&
+            surface.DesiredSize.Height == FreeChatWindow.InputHeight + FreeChatWindow.FramePadding * 2,
+            "the initial home input is one row with 8-DIP outer corners and proportional inner corners");
         var submissions = new List<string>();
         home.Submitted += text => { submissions.Add(text); home.SetStatus("等待回答", busy: true); };
         home.Input.Text = "测试问题";
@@ -551,7 +553,9 @@ public static class Program
         if (!render) return;
         var folder = Path.Combine(".artifacts", "checks");
         Directory.CreateDirectory(folder);
-        foreach (var (window, name, scale) in new[] { (home, "chat-home", 1d), (anchored, "chat-bound", 1.25) })
+        var initial = new FreeChatWindow();
+        initial.Place(new Rect(-80, 260, 72, 72), area);
+        foreach (var (window, name, scale) in new[] { (initial, "chat-input", 1d), (home, "chat-home", 1d), (anchored, "chat-reply", 1.25) })
         {
             var content = (FrameworkElement)window.Content;
             var size = new Size(window.Width, content.DesiredSize.Height);
@@ -587,11 +591,52 @@ public static class Program
         using var wrong = new GuideModel(options, new Handler((_, _) =>
             Task.FromResult(Completion("{\"reply\":\"位置\",\"candidateId\":1}"))));
         await RejectAsync(() => wrong.ChatAsync([], "继续问", default), "chat rejects a location result");
+        var routedReplies = new Queue<string>(["{\"reply\":\"一般知识回答\"}", "{\"reply\":null}"]);
+        var routeCalls = 0;
+        using var router = new GuideModel(options, new Handler(async (request, token) =>
+        {
+            using var payload = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+            var messages = payload.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+            Check(messages.All(message => message.GetProperty("content").ValueKind == JsonValueKind.String) &&
+                !payload.RootElement.TryGetProperty("image", out _) &&
+                messages.Last().GetProperty("content").GetString() == (routeCalls == 0 ? "写一句祝福" : "这个开关在哪里？"),
+                "unified routing uses submitted text and bounded history without a captured image");
+            routeCalls++;
+            return Completion(routedReplies.Dequeue());
+        }));
+        var unified = new FreeChatSession(router.RouteQuestionAsync);
+        var direct = await unified.SubmitAsync("写一句祝福");
+        Check(direct is { RequiresWindow: false, Reply: "一般知识回答" } && routeCalls == 1,
+            "a general question is answered in one request without requesting window guidance");
+        var routed = await unified.SubmitAsync("这个开关在哪里？");
+        Check(routed is { RequiresWindow: true, Reply: "" } && routeCalls == 2,
+            "a window-dependent question hands off to guidance instead of presenting an empty reply");
+        using var invalidRoute = new GuideModel(options, new Handler((_, _) =>
+            Task.FromResult(Completion("{\"reply\":null,\"capture\":true}"))));
+        await RejectAsync(() => invalidRoute.RouteQuestionAsync([], "找一下", default),
+            "extra fields cannot authorize a window handoff");
+        using var unboundNull = new GuideModel(options, new Handler((_, _) =>
+            Task.FromResult(Completion("{\"reply\":null}"))));
+        await RejectAsync(() => unboundNull.ChatAsync([], "一般问题", default),
+            "a resting question cannot request capture without a selected window");
+        ChatTurn[] carried = [];
+        var mixed = new FreeChatSession((history, _, _) =>
+        {
+            carried = history.ToArray();
+            return Task.FromResult<string?>(null);
+        });
+        mixed.Remember("这个开关开了吗？", "当前为开启状态。");
+        await mixed.SubmitAsync("那是什么意思？");
+        Check(carried is [{ Question: "这个开关开了吗？", Reply: "当前为开启状态。" }],
+            "validated window answers support reference resolution in the same input");
+        mixed.Reset();
+        await mixed.SubmitAsync("新问题");
+        Check(carried.Length == 0, "window handoff decisions never enter completed conversation history");
         var historySeen = Array.Empty<ChatTurn>();
         var chat = new FreeChatSession((history, question, _) =>
         {
             historySeen = history.ToArray();
-            return Task.FromResult("答：" + question);
+            return Task.FromResult<string?>("答：" + question);
         });
         for (var i = 0; i <= 5; i++) await chat.SubmitAsync("第" + i + "问");
         Check(historySeen.Select(turn => turn.Question).SequenceEqual(new[] { "第1问", "第2问", "第3问", "第4问" }),
@@ -608,18 +653,29 @@ public static class Program
         {
             Check(history.Count == 0, "a failed chat exchange never enters the next request");
             if (calls++ == 0) throw new HttpRequestException("generated failure");
-            return Task.FromResult("重试成功");
+            return Task.FromResult<string?>("重试成功");
         });
         await RejectAsync(() => retry.SubmitAsync("失败问题"), "a chat transport failure is reported");
         Check((await retry.SubmitAsync("重试问题"))?.Reply == "重试成功", "a failed chat remains available for retry");
-        var late = new TaskCompletionSource<string>();
-        var race = new FreeChatSession((_, question, _) => question == "旧问题" ? late.Task : Task.FromResult("新回答"));
+        var late = new TaskCompletionSource<string?>();
+        var race = new FreeChatSession((_, question, _) => question == "旧问题" ? late.Task : Task.FromResult<string?>("新回答"));
         var pending = race.SubmitAsync("旧问题");
         Check(await race.SubmitAsync("重复点击") is null, "a pending chat accepts no duplicate submission");
         race.Reset();
         var current = await race.SubmitAsync("新问题");
         late.SetResult("旧回答");
         Check(await pending is null && current?.Reply == "新回答", "closing or switching discards a late reply without affecting a new session");
+        var lateRoute = new TaskCompletionSource<string?>();
+        var handoff = new FreeChatSession((_, _, _) => lateRoute.Task);
+        using var lifetime = new CancellationTokenSource();
+        var cancelledRoute = handoff.SubmitAsync("窗口问题", lifetime.Token);
+        lifetime.Cancel();
+        lateRoute.SetResult(null);
+        Check(await cancelledRoute is null, "binding cancellation rejects a late window handoff");
+        var sends = 0;
+        var stopped = new FreeChatSession((_, _, _) => { sends++; return Task.FromResult<string?>("回答"); });
+        Check(await stopped.SubmitAsync("已经关闭", lifetime.Token) is null && sends == 0,
+            "a cancelled binding cannot start a text routing request");
         Check(InstallationAgreement.Text(options).Contains("自由问答仅在你发送时", StringComparison.Ordinal) &&
             InstallationAgreement.Text(options).Contains("最近四组问答", StringComparison.Ordinal),
             "the installation agreement discloses the exact new text scope");
