@@ -162,7 +162,8 @@ internal static class WhaleChecks
             "actual whale and inline surface sizes share the same visible work-area constraint");
         var normal = BallWindow.TopDockPosition(new Rect(100, 180, 900, 700), work);
         var full = BallWindow.TopDockPosition(new Rect(0, 0, 1920, 1040), work);
-        check(normal.Y + WhalePrompt.DockFoot == 180 && full.Y == 0 && full.X + WhalePrompt.WidthDip / 2 == work.Width / 2,
+        check(normal.Y + WhalePrompt.DockFoot == 180 && normal.X + WhalePrompt.WidthDip / 2 == 550 &&
+            full.Y == 0 && full.X + WhalePrompt.WidthDip / 2 == work.Width / 2,
             "normal top docking stays outside the title bar and fullscreen docking stays inside the work area");
         foreach (var target in new[] { new Rect(-500, -200, 900, 700), new Rect(1800, 900, 800, 700), new Rect(0, 0, 80, 60) })
             check(work.Contains(new Rect(BallWindow.TopDockPosition(target, work), new Size(WhalePrompt.WidthDip, 88))),

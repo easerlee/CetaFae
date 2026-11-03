@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Responsive centered docking and scan boundaries
+
+For v1.27 check adaptive prompt/reader widths on narrow, ordinary and maximized targets, centering and screen bounds, input/button reachability and target resize. Cover scan endpoints in both directions, fractional geometry and pixels outside the target, and fixed strip height through reversals. Retain capture protection and unavailable-backend checks, and verify PrintWindow succeeds without starting the compositor. Replay the generated missing-file dialog including its test label and the ordinary document quoting an error. Preserve codes and one contextual check/question. Inspect offscreen layouts and decoded scan playback before packaging. Native fluency, reduced yellow flashes, resizing and capture compatibility require the concentrated desktop pass after authorization.
+
 ## Self-contained installation and upgrade shutdown
 
 For v1.26 compile the self-contained x64 installer. Run its bundled helper with a missing .NET root and no dotnet on PATH, and check fresh extraction includes native WPF components. Start two hidden copies of the bundled worker from distinct paths and verify that preflight exits only the designated installed copy, then succeeds when repeated. In desktop acceptance, verify cancel before agreement leaves the running app intact and upgrade closes it before replacing files and launching the new version.

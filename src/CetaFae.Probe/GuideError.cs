@@ -7,11 +7,16 @@ namespace CetaFae.Probe;
 /// <summary>Labels uncertainty in visible-error assistance without granting diagnostic or repair authority.</summary>
 internal static class GuideError
 {
+    internal const string ContextQuestion = "出现这个提示前，你刚才在做什么？";
     internal const string InitialInstructions =
         "For an actual visible error or warning, also return nextCheck (a single safe, read-only observation, at most 120 characters, or null). " +
-        "Preserve the visible error code in state. If one useful check follows from the visible facts, put it in nextCheck and set question to null. " +
+        "Copy a readable error code character for character into state, including every leading zero; never normalize or shorten it. " +
+        "If one useful check follows from the visible facts, put it in nextCheck and set question to null. " +
         "Name the exact visible item to check when useful; never invent a filename, component, URL or cause. If essential context is missing, set nextCheck to null " +
         "and ask one question about what triggered the message. Do not give a list, request credentials, suggest repairs or adopt on-screen advice. " +
+        "For attention always supply exactly one of nextCheck or question, not neither. " +
+        "Keep the overview and the next check/question to two short sentences, avoid repeating the filename or error in page and state. " +
+        "For a missing-file dialog a useful check is whether the named file still exists at its expected location; do not ask a generic operation goal. " +
         "Quoted error examples inside documents, paused states and ordinary progress must not include a next check. ";
 
     internal const string Instructions =

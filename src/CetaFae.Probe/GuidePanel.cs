@@ -197,7 +197,8 @@ public sealed class GuidePanel : Window
             var topAttached = _hasTarget?.Invoke() == true && _topAttached?.Invoke() == true;
             _surface.SetBubble(compactBubble);
             var limit = FeedbackLayout.AvailableWidth(entry, work, topAttached);
-            var size = _surface.Fit(new Size(Math.Min(work.Width, limit), work.Height));
+            var preferredWidth = session && _hasTarget?.Invoke() == true ? Math.Clamp(entry.Width * 1.15, 280, 360) : (double?)null;
+            var size = _surface.Fit(new Size(Math.Min(work.Width, limit), work.Height), preferredWidth);
             Width = size.Width;
             MaxHeight = Math.Min(work.Height, GuideTheme.CardMaxHeight + (compactBubble ? 20 : 0));
             _surface.InvalidateMeasure();

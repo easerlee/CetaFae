@@ -26,20 +26,20 @@ public static class Capture
         var before = Native.CaretRect(hwnd);
         var captured = WithWindowFallback(() =>
         {
+            var frame = ReadPixels(hwnd, w, h);
+            if (!frame.Ok || frame.NonBlackPct <= 1) throw new InvalidDataException("capture_unusable");
+            var image = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, frame.Pixels, w * 4);
+            ProbeLog.Log("guide_capture_backend", ("backend", "print_window"));
+            return new WindowCapture.Frame(image, new Rect(rect.Left, rect.Top, w, h));
+        }, () =>
+        {
+            token.ThrowIfCancellationRequested();
             if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 18362))
                 throw new InvalidDataException("capture_backend_unavailable");
             var modern = WindowCapture.ReadAsync(hwnd, token).GetAwaiter().GetResult();
             if (!Usable(modern.Image)) throw new InvalidDataException("capture_unusable");
             ProbeLog.Log("guide_capture_backend", ("backend", "window_graphics"));
             return modern;
-        }, () =>
-        {
-            token.ThrowIfCancellationRequested();
-            var frame = ReadPixels(hwnd, w, h);
-            if (!frame.Ok || frame.NonBlackPct <= 1) throw new InvalidDataException("capture_unusable");
-            var image = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, frame.Pixels, w * 4);
-            ProbeLog.Log("guide_capture_backend", ("backend", "print_window"));
-            return new WindowCapture.Frame(image, new Rect(rect.Left, rect.Top, w, h));
         });
         var after = Native.CaretRect(hwnd);
         if (before is not null && before == after) caret = before;
@@ -47,15 +47,15 @@ public static class Capture
         return EncodeRegion(captured.Image, captured.Bounds, region ?? GuideObservation.WindowRect(hwnd));
     }
 
-    internal static T WithWindowFallback<T>(Func<T> modern, Func<T> legacy)
+    internal static T WithWindowFallback<T>(Func<T> preferred, Func<T> fallback)
     {
-        try { return modern(); }
+        try { return preferred(); }
         catch (Exception ex) when (ex is UnauthorizedAccessException || ex.HResult == unchecked((int)0x80070005))
         { throw new InvalidDataException("capture_protected"); }
         catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or TypeLoadException or
             EntryPointNotFoundException or PlatformNotSupportedException || ex is InvalidDataException
             { Message: "capture_backend_unavailable" or "capture_dimensions" or "capture_unusable" })
-        { return legacy(); }
+        { return fallback(); }
     }
 
     static bool Usable(BitmapSource image)

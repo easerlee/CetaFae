@@ -2,6 +2,10 @@
 
 Updated: 2026-11-03
 
+## Responsive centered docking and bounded scanning
+
+For v1.27 derive the prompt width from the already bound native frame before the entry animation, clamp it to240–320 DIP and the visible target/work width, and center both entry and prompt on the target. Reapply sizing on geometry events. Attached readers start at280–360 DIP based on prompt width, retaining the existing height-first expansion and pagination. Use a fixed-height scan surface wholly inside the target, explicit target clipping and hide/reset when target geometry changes. This prevents a previously rendered tall strip from being moved beyond the bottom while its WPF resize/render is pending. Try target-only PrintWindow first and preserve the compositor fallback and protection failures. Windows may still show its capture border for that fallback. Initial error prompts must avoid duplicated facts and generic goal questions; missing guidance falls back to one error-context question.
+
 ## Self-contained installation and upgrade shutdown
 
 Requirements v1.26: after explicit agreement, Inno Setup calls a headless helper from the extracted bundle before any application files are copied. The helper matches the current session and exact installed executable path, terminates those processes and waits for exit. A shutdown failure blocks installation. Keep the x64 self-contained Windows Desktop publish and normal post-install launch.
@@ -50,7 +54,7 @@ Actionable-control enumeration is optional: recoverable provider/availability/ov
 
 The initial enriched worker has a 2500ms local budget within the unchanged overall deadline. This bounds the entire enriched attempt, not just UIA calls. On that local timeout only, kill/reap the owned worker and allow exactly one image-only continuation with the same HWND/process/frame binding. Do not retry completed refusals, external cancellation or model requests. The image-only path retains native password-style and target checks, explicitly records limited privacy evidence, and cannot be used for intent-scoped guidance. Request/reply IPC carries and validates the original process/frame across both attempts.
 
-On Windows1903+, prefer HWND-bound Windows Graphics Capture, with an in-memory D3D11 frame and exact compositor/outer-window dimension mapping. Cursor-arrow capture is disabled where the platform supports it; the system capture border remains enabled. Windows1809 or unavailable/unusable backends may use existing target-only PrintWindow. Access denial, protected targets, cancellation and vanished targets do not fall back. No monitor capture or desktop pixels are used. Microsoft Windows SDK projections are pinned to10.0.19041.56; supported minimum OS remains17763. Ten authorized generated-window native cases passed, including direct backend and occlusion/crop behavior; this does not accept arbitrary applications, DPI, games or formal resource gates.
+Prefer target-only PrintWindow when its frame is usable. On Windows1903+, an unavailable/unusable native frame may fall back to HWND-bound Windows Graphics Capture, with an in-memory D3D11 frame and exact compositor/outer-window dimension mapping. Cursor-arrow capture is disabled where the platform supports it; the fallback system capture border remains enabled. Windows1809 retains target-only PrintWindow. Access denial, protected targets, cancellation and vanished targets do not fall back. No monitor capture or desktop pixels are used. Microsoft Windows SDK projections are pinned to10.0.19041.56; supported minimum OS remains17763. Ten authorized generated-window native cases passed, including direct backend and occlusion/crop behavior; this does not accept arbitrary applications, DPI, games or formal resource gates.
 
 ## Recognition requirements refinement — approved for development (2026-11-02)
 

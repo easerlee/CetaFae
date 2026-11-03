@@ -74,9 +74,11 @@ static class SnapshotChecks
         Reject(() => WindowCapture.MapBounds(visible, outer, 100000, 100000), "capture dimensions are bounded before allocation");
         var legacyRead = false;
         check(Capture.WithWindowFallback(() => "modern", () => { legacyRead = true; return "legacy"; }) == "modern" && !legacyRead,
-            "available target-window compositor capture does not invoke legacy capture");
+            "usable preferred target capture does not start the fallback capture session");
         check(Capture.WithWindowFallback<string>(() => throw new InvalidDataException("capture_backend_unavailable"),
-                  () => "legacy") == "legacy", "unavailable window compositor can use target-only PrintWindow");
+                  () => "legacy") == "legacy", "unavailable preferred target capture can use the target-only fallback");
+        check(Capture.WithWindowFallback<string>(() => throw new InvalidDataException("capture_unusable"),
+                  () => "window_graphics") == "window_graphics", "unusable PrintWindow pixels preserve compositor compatibility");
         foreach (var error in new Exception[] { new UnauthorizedAccessException(),
                      new System.Runtime.InteropServices.COMException("generated", unchecked((int)0x80070005)),
                      new InvalidDataException("capture_protected"), new InvalidDataException("capture_target_unavailable") })

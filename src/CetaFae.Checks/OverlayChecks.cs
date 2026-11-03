@@ -62,7 +62,19 @@ internal static class OverlayChecks
                     !edge.IsHitTestVisible && new WindowInteropHelper(edge).Handle == IntPtr.Zero),
                 "all four offset edges retain noactivate clickthrough policy without native windows");
             overlay.SetWaterProgress(-1);
+            overlay.SetWaterProgress((target.Height + WindowWash.Band + 11.5) /
+                (target.Height + WindowWash.Band + 24) * WindowWash.SweepEnd);
+            check(target.Contains(new Rect(overlay.Wash.Left, overlay.Wash.Top, overlay.Wash.Width, overlay.Wash.Height)),
+                "a final sub-two-DIP wash row cannot extend below the target");
             overlay.SetWaterProgress(.5);
+            foreach (var size in new[] { new Size(3440, 1392), new Size(600, 320), new Size(600.5, 320.5), new Size(8, 8) })
+            foreach (var upward in new[] { false, true })
+            {
+                var surfaces = Enumerable.Range(1, 399).Select(i => WindowWash.SurfaceRegion(size,
+                    WindowWash.SweepEnd * i / 400d, upward)).Where(r => !r.IsEmpty).ToArray();
+                check(surfaces.All(r => new Rect(size).Contains(r)) && surfaces.Select(r => r.Height).Distinct().Count() == 1,
+                    "native scan surfaces retain fixed height and stay in bounds through both turns and fractional sizing");
+            }
             check(overlay.Wash.Width == target.Width && overlay.Wash.Height <= WindowWash.Band + 26 &&
                 !overlay.Wash.IsHitTestVisible && !overlay.Wash.ShowActivated &&
                 new WindowInteropHelper(overlay.Wash).Handle == IntPtr.Zero,
@@ -82,6 +94,24 @@ internal static class OverlayChecks
                 "placing after clear restores every edge size without showing or activating windows");
         }
         finally { overlay.Close(); }
+        var clipped = true;
+        foreach (var upward in new[] { false, true })
+        foreach (var fraction in new[] { .03, .35, .68, .97 })
+        {
+            var drawing = new DrawingVisual();
+            using (var draw = drawing.RenderOpen())
+            {
+                draw.PushTransform(new TranslateTransform(20, 20));
+                WindowWash.Draw(draw, new Size(200, 100), WindowWash.SweepEnd * fraction, upward);
+                draw.Pop();
+            }
+            var bitmap = new RenderTargetBitmap(240, 140, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(drawing);
+            var pixels = new byte[240 * 140 * 4]; bitmap.CopyPixels(pixels, 240 * 4, 0);
+            clipped &= Enumerable.Range(0, 240 * 140).All(i =>
+                i % 240 is >= 20 and < 220 && i / 240 is >= 20 and < 120 || pixels[i * 4 + 3] == 0);
+        }
+        check(clipped, "both scan directions paint no pixels outside the target even without a caller clip");
         var sizeForPixels = new Size(600, 320);
         foreach (var phase in new[] { 0d, 1.7, 4.2 })
         {

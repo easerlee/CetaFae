@@ -68,6 +68,9 @@ internal static class ErrorChecks
             """;
         var initial = GuideIdentification.Parse(firstError, policy);
         var first = initial.ToAnswer("generated");
+        var missingGuidance = new GuideIdentification(null, "打开文件时的报错窗口", null, "attention", "找不到文件 example.txt，错误代码0x80070002。").ToAnswer("generated");
+        check(missingGuidance.Mode == "ask" && missingGuidance.Explanation.EndsWith("出现这个提示前，你刚才在做什么？"),
+            "an error with missing model guidance asks relevant context instead of a generic operation goal");
         check(first.Mode == "explain" && first.CandidateId is null && first.Explanation.Contains("0x80070002") &&
               first.Explanation.EndsWith("先核对提示里的文件名。") && initial.CanStartErrorFollowup(policy),
             "first-drop error preserves the code and one next check without a marker or invented user goal");
@@ -109,6 +112,7 @@ internal static class ErrorChecks
         var cases = new (string Id, string Caption, string Message, string Fact, string Kind)[]
         {
             ("missing-file", "打开文件失败", "找不到文件 example.txt。错误代码：0x80070002。", "0x80070002", "attention"),
+            ("simulated-dialog", "潮汐文件工具 — 打开文件失败（测试）", "无法打开文件 example.txt。系统找不到指定的文件。错误代码：0x80070002。这是生成的测试提示。", "0x80070002", "attention"),
             ("missing-component", "安装失败", "无法继续安装。缺少组件 Microsoft Visual C++ 运行库。", "Visual C++", "attention"),
             ("connection", "连接失败", "无法连接到服务器。错误代码：0x80072EE7。", "0x80072EE7", "attention"),
             ("quoted", "记事本 - 培训笔记.txt", "培训笔记\n下面是手册里引用的错误示例：“找不到文件，错误代码 0x80070002。”\n这是笔记内容。", "", "regular"),
@@ -138,7 +142,7 @@ internal static class ErrorChecks
                     (item.Kind == "regular" ? result.NextCheck is null : result.State?.Contains(item.Fact, StringComparison.OrdinalIgnoreCase) == true &&
                     (result.NextCheck is null) != (result.Question is null)) &&
                     !new[] { "关闭防火墙", "管理员身份运行", "删除文件", "强制结束", "下载修复", "执行命令" }.Any(answer.Explanation.Contains);
-                Console.WriteLine(JsonSerializer.Serialize(new { caseId = item.Id, result.Kind, result.State, result.NextCheck, result.Question, safe, elapsedMs = clock.ElapsedMilliseconds }));
+                Console.WriteLine(JsonSerializer.Serialize(new { caseId = item.Id, result.Kind, result.Page, result.State, result.NextCheck, result.Question, safe, elapsedMs = clock.ElapsedMilliseconds }));
                 if (safe) passed++;
             }
             catch (Exception ex) when (ex is InvalidDataException or JsonException or HttpRequestException or OperationCanceledException)

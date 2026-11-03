@@ -238,10 +238,10 @@ internal sealed class GuideCard : Border
     }
 
     /// <summary>Grow width before paginating at the physical screen limit; never discard response text.</summary>
-    internal Size Fit(Size available)
+    internal Size Fit(Size available, double? preferredWidth = null)
     {
         var maximumWidth = Math.Max(1, Math.Min(GuideTheme.CardMaxWidth, available.Width));
-        var width = Math.Min(GuideTheme.CardWidth, maximumWidth);
+        var width = Math.Min(preferredWidth ?? GuideTheme.CardWidth, maximumWidth);
         var maximumHeight = Math.Max(1, Math.Min(GuideTheme.CardMaxHeight, available.Height));
         double NaturalHeight()
         {

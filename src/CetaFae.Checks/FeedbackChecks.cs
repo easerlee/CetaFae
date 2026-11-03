@@ -31,8 +31,8 @@ internal static class FeedbackChecks
             check(!panel.IsVisible && !panel.Card.HasSession && panel.Card.FullText.Length == 0 && panel.Handle == IntPtr.Zero,
                 "processing clears stale feedback without showing a card or creating a native handle");
             panel.Card.SetStatus("生成窗口说明，全部文字仅用于离屏检查。");
-            check(panel.Left == entry.Left && panel.Top == entry.Bottom + 1 && panel.Width == GuideTheme.CardWidth,
-                "live reader uses the input body anchor and shared card width");
+            check(panel.Left == entry.Left && panel.Top == entry.Bottom + 1 && panel.Width == Math.Clamp(entry.Width * 1.15, 280, 360),
+                "live reader uses the input body anchor and adapts its base width to the prompt");
             check(!panel.IsVisible && !panel.ShowActivated && panel.AllowsTransparency && panel.Handle == IntPtr.Zero,
                 "feedback placement and rendering need no native handle, visible launch or automatic activation");
             var topEntry = new Rect(work.Left + (work.Width - WhalePrompt.WidthDip) / 2, work.Top, WhalePrompt.WidthDip, 36);
@@ -69,7 +69,7 @@ internal static class FeedbackChecks
             check(FeedbackLayout.Reader(generatedWork, generatedEntry, generatedWork, new Size(288, 180)) is null,
                 "a cramped reader reports unavailable placement instead of pretending the control is visible");
             Click(panel.Card, "展开详情");
-            check(!panel.Card.IsBubble && panel.Width == GuideTheme.CardWidth && panel.Top == entry.Bottom + 1 && panel.Card.FullText.Contains("生成窗口"),
+            check(!panel.Card.IsBubble && panel.Width == Math.Clamp(entry.Width * 1.15, 280, 360) && panel.Top == entry.Bottom + 1 && panel.Card.FullText.Contains("生成窗口"),
                 "native details replace the same bubble surface with the attached full explanation");
             panel.Card.Collapse();
             check(panel.Card.IsCollapsed && panel.Height <= 40 && panel.Card.HasSession,
@@ -246,8 +246,9 @@ internal static class FeedbackChecks
                     var control = new Rect(target.Right - 85, target.Top + 190, 45, 24);
                     draw.DrawRoundedRectangle(GuideTheme.WhaleBlue, null, control, 12, 12);
                     draw.DrawEllipse(Brushes.White, null, new Point(control.Right - 12, control.Y + 12), 9, 9);
-                    var promptPosition = BallWindow.TopDockPosition(target, work);
-                    var entry = new Rect(promptPosition.X, promptPosition.Y + (top ? 0 : 40), 288, 36);
+                    var promptWidth = WhalePrompt.DockWidth(target.Width, work.Width);
+                    var promptPosition = BallWindow.TopDockPosition(target, work, promptWidth);
+                    var entry = new Rect(promptPosition.X, promptPosition.Y + (top ? 0 : 40), promptWidth, 36);
                     if (i == 6)
                     {
                         control = new Rect(entry.Left + 12, entry.Bottom + 20, 150, 24);
@@ -259,7 +260,7 @@ internal static class FeedbackChecks
                         var prompt = new WhalePrompt(); prompt.SetTopAttached(top); prompt.SetQuestion(i is 0 or 4);
                         if (i is 1 or 2 or 5 or 6) prompt.SetResult();
                         var host = new Grid(); host.Children.Add(prompt);
-                        draw.DrawImage(RenderElement(host, 288, 88), new Rect(promptPosition, new Size(288, 88)));
+                        draw.DrawImage(RenderElement(host, promptWidth, 88), new Rect(promptPosition, new Size(promptWidth, 88)));
                     }
                     else
                     {
@@ -281,7 +282,8 @@ internal static class FeedbackChecks
                     if (i == 1) card.SetPoint(true);
                     if (i == 5) card.Collapse();
                     var surface = new FeedbackSurface(card); surface.SetBubble(i == 1);
-                    var size = surface.Fit(new Size(FeedbackLayout.AvailableWidth(entry, work, top), work.Height));
+                    var size = surface.Fit(new Size(FeedbackLayout.AvailableWidth(entry, work, top), work.Height),
+                        i == 3 ? null : Math.Clamp(entry.Width * 1.15, 280, 360));
                     var bounds = i == 1 ? FeedbackLayout.Reader(control, entry, work, size, top)!.Value :
                         i == 6 ? FeedbackLayout.Reader(control, entry, work, size, top)!.Value : FeedbackLayout.Attached(entry, work, size, top);
                     if (i is 1 or 5 or 6)

@@ -12,6 +12,8 @@ namespace CetaFae.Probe;
 internal sealed class WhalePrompt : Border
 {
     internal const double WidthDip = 288;
+    internal static double DockWidth(double targetWidth, double availableWidth) =>
+        Math.Max(1, Math.Min(Math.Min(targetWidth, availableWidth), Math.Clamp(targetWidth * .24, 240, 320)));
     internal const double HeightDip = 64;
     internal const double DockFoot = 76;
     internal const double BodyHeight = 36;

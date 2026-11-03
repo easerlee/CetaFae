@@ -14,7 +14,11 @@ internal static class PromptChecks
 {
     internal static void Run(Action<bool, string> check)
     {
-        foreach (var width in new[] { 256d, WhalePrompt.WidthDip, 320d })
+        check(WhalePrompt.DockWidth(300, 1920) == 240 && WhalePrompt.DockWidth(1200, 1920) == 288 &&
+            WhalePrompt.DockWidth(1920, 1920) == 320 && WhalePrompt.DockWidth(180, 1920) == 180 &&
+            WhalePrompt.DockWidth(900, 200) == 200,
+            "prompt width follows target size within its minimum maximum and physical available space");
+        foreach (var width in new[] { 180d, 240d, 256d, WhalePrompt.WidthDip, 320d })
         foreach (var state in new[] { "waiting", "question", "answer", "result" })
         foreach (var topAttached in new[] { false, true })
         {
@@ -26,7 +30,7 @@ internal static class PromptChecks
             Rect Bounds(FrameworkElement element) => element.TransformToAncestor(prompt).TransformBounds(new Rect(element.RenderSize));
             var area = new Rect(prompt.RenderSize);
             check(WhalePrompt.WidthDip == 288 && area.Contains(Bounds(prompt.Dismiss)) && area.Contains(Bounds(prompt.Answer)) && area.Contains(Bounds(prompt.DragSurface)) &&
-                area.Contains(Bounds(prompt.Send)) && prompt.Answer.ActualWidth >= 120,
+                area.Contains(Bounds(prompt.Send)) && prompt.Answer.ActualWidth >= (width < 240 ? 60 : 120),
                 $"attached prompt {state}/{width}: input, blue drag surface and actions fit without clipping");
             if (prompt.CanAnswer)
                 check(Bounds(prompt.DragSurface).Contains(Bounds(prompt.Dismiss)) &&

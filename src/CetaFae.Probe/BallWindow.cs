@@ -102,9 +102,7 @@ public sealed class BallWindow : Window
 
     public static Point TopDockPosition(Rect target, Rect work, double width = WhalePrompt.WidthDip)
     {
-        var maximized = target.Top <= work.Top + 1 && target.Left <= work.Left + 1 &&
-            target.Right >= work.Right - 1 && target.Bottom >= work.Bottom - 1;
-        var centerX = Math.Clamp(maximized ? work.Left + work.Width / 2 : target.Left + target.Width * .4,
+        var centerX = Math.Clamp(target.Left + target.Width / 2,
             work.Left + width / 2, Math.Max(work.Left + width / 2, work.Right - width / 2));
         var top = target.Top - WhalePrompt.DockFoot;
         if (top < work.Top) top = target.Top;
@@ -302,8 +300,8 @@ public sealed class BallWindow : Window
     public void BeginDock()
     {
         if (_target == IntPtr.Zero || _state == Motion.Dock || _inline) return;
-        Width = Math.Min(WhalePrompt.WidthDip, SystemParameters.WorkArea.Width);
         var frame = Native.Frame(_target);
+        Width = WhalePrompt.DockWidth((frame.Right - frame.Left) / _scale, SystemParameters.WorkArea.Width);
         var position = TopDockPosition(new Rect(frame.Left / _scale, frame.Top / _scale,
             (frame.Right - frame.Left) / _scale, (frame.Bottom - frame.Top) / _scale), SystemParameters.WorkArea, Width);
         PlaceBall(position);
@@ -467,6 +465,8 @@ public sealed class BallWindow : Window
     void SnapToEdge(IntPtr target)
     {
         var r = Native.Frame(target);
+        if (_inline || _state == Motion.Dock)
+            Width = WhalePrompt.DockWidth((r.Right - r.Left) / _scale, SystemParameters.WorkArea.Width);
         PlaceBall(TopDockPosition(new Rect(r.Left / _scale, r.Top / _scale,
             (r.Right - r.Left) / _scale, (r.Bottom - r.Top) / _scale), SystemParameters.WorkArea, Width));
 

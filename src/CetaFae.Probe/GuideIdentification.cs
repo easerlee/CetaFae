@@ -46,7 +46,10 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         "Explain only consequences supported by visible choices; do not promise safety, reversibility or completion without evidence. " +
         "Prefer a brief purpose/content summary and at most one necessary everyday question; avoid repeating the same fact across fields. " +
         "question is one short question only when a user goal or missing context is needed, otherwise null (at most 120 characters). " +
-        "For attention ask only necessary context about what the user was doing. Do not ask for already visible facts or software names. " +
+        "For attention ask only necessary context about what the user was doing. Never ask a generic 'what do you want to do in this window'. " +
+        "Describe the dialog type in page and put its error fact/code in state without repeating those details across fields. " +
+        "A real dialog marked as a simulation/test is still an error interface to explain as a simulation; do not confuse it with a document quoting an error. " +
+        "Do not ask for already visible facts or software names. " +
         "When no meaningful content is readable, leave page/state/question null rather than inventing a question. " +
         "Use everyday Chinese for computer beginners without line breaks, process names, handles, PID, signatures or package identifiers. " +
         "Describe visible facts only; no repair, command, download, setting change or claim of a confirmed cause. " +
@@ -113,8 +116,9 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         var explanation = state is not null ? Clause(content) + "；" + state : content;
         if (!explanation.EndsWith('。') && !explanation.EndsWith('！') && !explanation.EndsWith('？') &&
             !explanation.EndsWith('.') && !explanation.EndsWith('!') && !explanation.EndsWith('?')) explanation += "。";
-        if ((Question ?? NextCheck) is { } guidance) explanation += "\n" + guidance;
-        return new(Question is null ? "explain" : "ask", explanation.Trim(), null);
+        var question = Question ?? (Kind == "attention" && NextCheck is null ? GuideError.ContextQuestion : null);
+        if ((question ?? NextCheck) is { } guidance) explanation += "\n" + guidance;
+        return new(question is null ? "explain" : "ask", explanation.Trim(), null);
     }
 
     internal bool CanStartErrorFollowup(InterpretationPolicy? policy) =>

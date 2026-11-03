@@ -34,6 +34,15 @@ internal static class WindowWash
         return bottom > top ? new Rect(0, top, size.Width, bottom - top) : Rect.Empty;
     }
 
+    internal static Rect SurfaceRegion(Size size, double progress, bool upward = false)
+    {
+        var visible = Region(size, progress, upward);
+        if (visible.IsEmpty) return Rect.Empty;
+        // Keep the native surface inside the target even while WPF presents the previous frame.
+        var height = Math.Min(size.Height, Band + 24);
+        return new Rect(0, Math.Clamp(visible.Top, 0, size.Height - height), size.Width, height);
+    }
+
     static readonly Brush Water = CreateWater();
     static Brush CreateWater()
     {
@@ -53,11 +62,12 @@ internal static class WindowWash
     internal static void Draw(DrawingContext draw, Size size, double progress, bool upward = false)
     {
         if (Region(size, progress, upward).IsEmpty) return;
+        draw.PushClip(new RectangleGeometry(new Rect(size)));
         if (upward)
         {
             draw.PushTransform(new ScaleTransform(1, -1, 0, size.Height / 2));
             Draw(draw, size, SweepEnd - progress);
-            draw.Pop(); return;
+            draw.Pop(); draw.Pop(); return;
         }
         var front = Front(size, progress);
         var shape = new StreamGeometry();
@@ -72,5 +82,6 @@ internal static class WindowWash
             }
         }
         shape.Freeze(); draw.DrawGeometry(Water, null, shape);
+        draw.Pop();
     }
 }
