@@ -76,7 +76,15 @@ internal static class GuideTextRegions
         var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream).AsTask(token);
         if (decoder.PixelWidth > OcrEngine.MaxImageDimension || decoder.PixelHeight > OcrEngine.MaxImageDimension)
             return [];
-        using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied).AsTask(token);
+        // Tight one-line selections can fall below OCR's useful character size. Resample locally;
+        // neither the authorized capture nor the image sent to the model is enlarged.
+        var scale = Math.Min(Math.Min(4, Math.Max(1, 96d / decoder.PixelHeight)),
+            OcrEngine.MaxImageDimension / (double)Math.Max(decoder.PixelWidth, decoder.PixelHeight));
+        var width = (uint)Math.Max(1, Math.Floor(decoder.PixelWidth * scale));
+        var height = (uint)Math.Max(1, Math.Floor(decoder.PixelHeight * scale));
+        using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied,
+            new BitmapTransform { ScaledWidth = width, ScaledHeight = height },
+            ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage).AsTask(token);
         var result = await engine.RecognizeAsync(bitmap).AsTask(token);
         ProbeLog.Log("guide_text_regions", ("lines", result.Lines.Count), ("angle", result.TextAngle));
         var lines = result.Lines.Select(line =>
@@ -86,11 +94,11 @@ internal static class GuideTextRegions
             {
                 var r = word.BoundingRect;
                 bounds.Union(ImageBounds(new Rect(r.X, r.Y, r.Width, r.Height),
-                    (int)decoder.PixelWidth, (int)decoder.PixelHeight, result.TextAngle));
+                    (int)width, (int)height, result.TextAngle));
             }
             return new Line(line.Text, bounds);
         });
         token.ThrowIfCancellationRequested();
-        return Candidates(lines, region, (int)decoder.PixelWidth, (int)decoder.PixelHeight);
+        return Candidates(lines, region, (int)width, (int)height);
     }
 }

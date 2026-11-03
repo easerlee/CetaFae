@@ -2,6 +2,8 @@
 
 ## Foundation closeout (authorized 2026-11-03)
 
+The first preview.2 native text-region attempt failed: the user received a correct initial summary, but the selected crop reached the model without any eligible candidates. Preserve that failure. A generated249×24 Chinese highlighted line reproduces zero OCR lines through the MTA/crop/payload path, while larger text passes; the exact native cause remains unconfirmed without reading the user's image. Normalize short crops locally toward96 pixels high, capped at4× and the platform dimension limit. OCR bounds must project from the actual normalized dimensions back to the unchanged selected physical region; send the original crop only, without padding or extra capture. Validate Chinese highlighted small text and the worker/plugin/payload boundaries before another native retry. Accept only actual local text bounds; do not infer coordinates from the model's readable description. Missing-location replies must use everyday language, never mention internal candidates or handles.
+
 Execute the following dependency order in the existing host/plugin architecture. Preserve accepted art and interaction. Desktop acceptance is a separate, consent-bound batch; no claim of arbitrary application support or formal release follows from generated checks.
 
 1. **Recognition:** preserve target-only screenshot-first collection, optional accessibility and source-specific plain failures. Reuse existing snapshot, privacy and transport fixtures; correct contradictory public documentation.

@@ -52,6 +52,11 @@ static class TextRegionChecks
         var package = CetaFae.Plugins.PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).GeneralProvider!;
         check(package.SchemaVersion == 6 && package.InterpretationPolicy?.LocateTextRegions == true,
             "only a declared version-six general capability enables OCR text regions");
+        var workerRequest = new ObservationWorker.Request(42, true, package, "generated text location", new Rect(1, 1, 20, 20));
+        var workerCopy = System.Text.Json.JsonSerializer.Deserialize<ObservationWorker.Request>(
+            ObservationWorker.SerializeRequest(workerRequest), ObservationWorker.Json)!;
+        check(workerCopy.Plugin.InterpretationPolicy?.LocateTextRegions == true && workerCopy.Selection == workerRequest.Selection,
+            "the production worker request preserves the declared OCR capability and selected crop");
         var rejectedVersion = false;
         try { CetaFae.Plugins.PluginCatalog.ParsePlugin(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "plugins", package.Id, "plugin.json"))
             .Replace("\"schemaVersion\": 6", "\"schemaVersion\": 5")); }
@@ -61,6 +66,7 @@ static class TextRegionChecks
 
     internal static async Task RunOcrAsync(Action<bool, string> check)
     {
+        Console.WriteLine($"OCR LANGUAGE: {Windows.Media.Ocr.OcrEngine.TryCreateFromUserProfileLanguages()?.RecognizerLanguage.LanguageTag ?? "unavailable"}; AVAILABLE: {string.Join(',', Windows.Media.Ocr.OcrEngine.AvailableRecognizerLanguages.Select(language => language.LanguageTag))}");
         var drawing = new DrawingVisual();
         var expected = new Rect(40, 40, 600, 75);
         using (var dc = drawing.RenderOpen())
@@ -82,6 +88,40 @@ static class TextRegionChecks
         // Deskew interpolation may expand the raster edge by less than one physical pixel.
         check(digits.Count == 1 && digits[0].Name == "714382" && new Rect(29, 19, 242, 67).Contains(digits[0].Bounds),
             "actual OCR restores its nonzero deskew estimate into the known unrotated digit rectangle");
+        var chinese = new DrawingVisual();
+        const string chineseLine = "生成测试：待办事项是整理材料、核对结果。";
+        using (var dc = chinese.RenderOpen())
+        {
+            dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, 900, 100));
+            dc.DrawRectangle(Brushes.LightYellow, null, new Rect(15, 15, 850, 55));
+            dc.DrawText(new FormattedText(chineseLine, CultureInfo.GetCultureInfo("zh-CN"), FlowDirection.LeftToRight,
+                new Typeface("Microsoft YaHei"), 24, Brushes.Black, 1), new Point(20, 20));
+        }
+        var chineseBitmap = new RenderTargetBitmap(900, 100, 96, 96, PixelFormats.Pbgra32);
+        chineseBitmap.Render(chinese);
+        var chineseEncoder = new PngBitmapEncoder(); chineseEncoder.Frames.Add(BitmapFrame.Create(chineseBitmap));
+        using var chineseBytes = new MemoryStream(); chineseEncoder.Save(chineseBytes);
+        var chineseCandidates = await GuideTextRegions.ReadAsync(chineseBytes.ToArray(), new Rect(0, 0, 900, 100), deadline.Token);
+        Console.WriteLine($"GENERATED CHINESE OCR CANDIDATES: {chineseCandidates.Count}");
+        check(chineseCandidates.Any(line => line.Name.Replace(" ", "").Contains("整理材料、核对结果") &&
+                new Rect(15, 15, 850, 55).Contains(line.Bounds)),
+            "actual Chinese OCR retains the generated highlighted task line with independently known bounds");
+        foreach (var fontSize in new[] { 12d, 16d })
+        {
+            var (smallPng, width, height, ink) = SmallChineseImage(fontSize);
+            var inkMargin = ink; inkMargin.Inflate(2, 2);
+            var localRegion = new Rect(-700, 200, width, height);
+            var local = await Task.Run(() => GuideTextRegions.Read(smallPng, localRegion, CancellationToken.None));
+            var observation = new GuideObservation(new IntPtr(42), 5, new Rect(-800, 100, 1000, 400), local,
+                smallPng, PluginId: "generated.plugin", Scope: new GuideScope(localRegion, null, true), ScopeIntent: "generated text location");
+            var payload = GuidePayload.From(observation);
+            Console.WriteLine($"GENERATED SMALL CHINESE OCR: font={fontSize}, local={local.Count}, payload={payload.Candidates.Count}, image={width}x{height}");
+            check(payload.Candidates.Any(line => line.Name.Replace(" ", "").Contains("核对结果") &&
+                    new Rect(0, 0, width, height).Contains(line.Bounds) &&
+                    inkMargin.Contains(line.Bounds) &&
+                    Rect.Inflate(line.Bounds, 2, 2).Contains(ink)) && payload.Png!.SequenceEqual(smallPng),
+                $"MTA worker-shaped Chinese {fontSize}px crop retains actual text regions through outbound payload reduction");
+        }
     }
 
     internal static async Task RunLiveAsync(Action<bool, string> check)
@@ -102,5 +142,48 @@ static class TextRegionChecks
             candidates, png, CancellationToken.None);
         check(absent.Mode == "explain" && absent.CandidateId is null,
             "real model does not turn a text region into an absent icon button");
+        var (smallPng, width, height, ink) = SmallChineseImage(16);
+        var localRegion = new Rect(-700, 200, width, height);
+        var local = await Task.Run(() => GuideTextRegions.Read(smallPng, localRegion, CancellationToken.None));
+        var observation = new GuideObservation(new IntPtr(42), 5, new Rect(-800, 100, 1000, 400), local,
+            smallPng, PluginId: "generated.plugin", Scope: new GuideScope(localRegion, null, true), ScopeIntent: "generated text location");
+        var payload = GuidePayload.From(observation);
+        var chinese = await model.AskAsync("标出包含‘整理材料、核对结果’的整行文字的位置，只指出文字，不执行操作。",
+            payload.Candidates, payload.Png, CancellationToken.None);
+        var marked = payload.Candidates.SingleOrDefault(line => line.Id == chinese.CandidateId);
+        check(chinese.Mode == "point" && marked is not null && Rect.Inflate(marked.Bounds, 2, 2).Contains(ink),
+            "real model selects actual small Chinese text through the production scoped-payload path");
+        var missing = await model.AskAsync("标出图片中714382这段文字的位置，不执行操作。", [], png, CancellationToken.None);
+        Console.WriteLine("GENERATED MISSING-LOCATION REPLY: " + missing.Explanation);
+        check(missing.Mode == "explain" && missing.CandidateId is null &&
+            !new[] { "候选", "OCR", "控件树", "坐标", "元数据" }.Any(word => missing.Explanation.Contains(word, StringComparison.OrdinalIgnoreCase)),
+            "real model explains unavailable location in everyday language without internal candidate details");
+    }
+
+    static (byte[] Png, int Width, int Height, Rect Ink) SmallChineseImage(double fontSize)
+    {
+        var drawing = new DrawingVisual();
+        var text = new FormattedText("生成测试：待办事项是整理材料、核对结果。", CultureInfo.GetCultureInfo("zh-CN"),
+            FlowDirection.LeftToRight, new Typeface("Microsoft YaHei"), fontSize, Brushes.Black, 1);
+        var width = (int)Math.Ceiling(text.Width) + 8;
+        var height = (int)Math.Ceiling(text.Height) + 8;
+        using (var dc = drawing.RenderOpen())
+        {
+            dc.DrawRectangle(Brushes.LightYellow, null, new Rect(0, 0, width, height));
+            dc.DrawText(text, new Point(4, 4));
+        }
+        var raster = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); raster.Render(drawing);
+        var pixels = new byte[width * height * 4]; raster.CopyPixels(pixels, width * 4, 0);
+        var ink = Rect.Empty;
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+            {
+                var offset = (y * width + x) * 4;
+                if (pixels[offset] < 160 && pixels[offset + 1] < 160 && pixels[offset + 2] < 160)
+                    ink.Union(new Rect(x, y, 1, 1));
+            }
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(raster));
+        using var bytes = new MemoryStream(); encoder.Save(bytes);
+        return (bytes.ToArray(), width, height, ink);
     }
 }

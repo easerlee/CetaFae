@@ -510,6 +510,8 @@ public sealed class GuideSession : IDisposable
             observation = observation with { Png = null };
             ProbeLog.Log("guide_request_start", ("observeMs", observeMs),
                 ("candidates", payload.Candidates.Count), ("image", _options.IncludeImage),
+                ("localTextRegions", observation.Candidates.Count(c => c.ControlType == GuideTextRegions.ControlType)),
+                ("sentTextRegions", payload.Candidates.Count(c => c.ControlType == GuideTextRegions.ControlType)),
                 ("scoped", observation.Scope is not null), ("imageBytes", payload.Png?.Length ?? 0));
             var task = intent is null ? GuideObservation.TaskDescription :
                 "用户明确提出的目标：" + intent + "。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。";
