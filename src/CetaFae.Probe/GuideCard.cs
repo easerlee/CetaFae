@@ -80,7 +80,7 @@ internal sealed class GuideCard : Border
     {
         Background = Brushes.White;
         BorderBrush = GuideTheme.WhaleBlue;
-        BorderThickness = new Thickness(2);
+        BorderThickness = new Thickness(GuideTheme.CardOutline);
         CornerRadius = new CornerRadius(0, 0, 19, 19);
         Padding = new Thickness(0);
         TextElement.SetForeground(this, GuideTheme.Ink);
@@ -322,7 +322,9 @@ internal sealed class GuideCard : Border
         CornerRadius = session ? (bubble ? new CornerRadius(20, 20, 5, 20) : new CornerRadius(0, 0, 19, 19)) : new CornerRadius(16);
         _header.CornerRadius = session && !bubble ? new CornerRadius(0) : new CornerRadius(14, 14, 0, 0);
         _header.Height = notice ? double.NaN : GuideTheme.CardHeaderHeight;
-        _header.Background = notice ? GuideTheme.WhaleBlue : GuideTheme.CardHeader;
+        var reader = session && !bubble && !compact;
+        Background = reader ? GuideTheme.ReaderBackground : Brushes.White;
+        _header.Background = notice ? GuideTheme.WhaleBlue : reader ? Brushes.Transparent : GuideTheme.CardHeader;
         BodyScroll.Margin = new Thickness(16, session ? -12 : 12, 16, 14);
         _status.MaxHeight = double.PositiveInfinity;
         _status.TextTrimming = TextTrimming.None;

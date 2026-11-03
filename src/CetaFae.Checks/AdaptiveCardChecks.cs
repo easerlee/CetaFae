@@ -63,6 +63,27 @@ internal static class AdaptiveCardChecks
         check(Alpha((int)headerBounds.Top + 1) == 255 && Alpha((int)headerBounds.Bottom - 1) == 255 &&
             Alpha((int)headerBounds.Bottom + 10) == 255,
             "the entire card, including the end of the header fade, masks the application below");
+        var band = new DrawingVisual();
+        using (var draw = band.RenderOpen())
+            draw.DrawRectangle(GuideTheme.WhaleBlue, null, new Rect(0, 0, size.Width + 2, 8));
+        var dockedCard = Create(text);
+        Layout(dockedCard, new Size(900, 700));
+        var shiftedCard = new ContainerVisual { Offset = new Vector(.4, .4) };
+        shiftedCard.Children.Add(dockedCard);
+        var dockedScene = new ContainerVisual();
+        dockedScene.Children.Add(band);
+        dockedScene.Children.Add(shiftedCard);
+        var docked = new RenderTargetBitmap((int)Math.Ceiling((size.Width + 2) * 1.25), 10, 120, 120, PixelFormats.Pbgra32);
+        docked.Render(dockedScene);
+        var topPixels = new byte[docked.PixelWidth * 4 * docked.PixelHeight];
+        docked.CopyPixels(topPixels, docked.PixelWidth * 4, 0);
+        var blue = ((SolidColorBrush)GuideTheme.WhaleBlue).Color;
+        var seam = Enumerable.Range(0, 6 * docked.PixelWidth).FirstOrDefault(pixel =>
+            pixel % docked.PixelWidth < docked.PixelWidth - 1 &&
+            (Math.Abs(topPixels[pixel * 4] - blue.B) > 3 ||
+             Math.Abs(topPixels[pixel * 4 + 1] - blue.G) > 3 ||
+             Math.Abs(topPixels[pixel * 4 + 2] - blue.R) > 3), -1);
+        check(seam == -1, $"a fractional-pixel attached header joins the blue band without a light outline (first difference: {seam})");
         var notice = new GuideCard(Options);
         notice.SetNotice("生成测试通知");
         Layout(notice, new Size(900, 700));
@@ -72,11 +93,13 @@ internal static class AdaptiveCardChecks
             "standalone notice title bar fits its title and close button");
         check(card.DismissButton.Visibility == Visibility.Collapsed,
             "session reader has no duplicate close beside the input bar close");
-        var gradient = (LinearGradientBrush)card.Header.Background;
-        check(gradient.GradientStops[0].Color == ((SolidColorBrush)GuideTheme.WhaleBlue).Color &&
+        check(card.Background is LinearGradientBrush gradient &&
+            gradient.GradientStops[0].Color == blue &&
             gradient.GradientStops.Any(stop => stop.Offset > 0 && stop.Color == gradient.GradientStops[0].Color) &&
-            gradient.GradientStops[^1].Color.A == 0,
-            "header uses the perimeter solid-blue plateau and transparent inner fade");
+            gradient.GradientStops[^1].Color == Colors.White &&
+            gradient.GradientStops.Select(stop => stop.Offset).SequenceEqual(
+                ((LinearGradientBrush)GuideTheme.CardHeader).GradientStops.Select(stop => stop.Offset)),
+            "reader paints the perimeter gradient over opaque white as one surface");
         card.SetStatus(string.Concat(Enumerable.Repeat("整理材料，核对结果。", 34)));
         var mediumSize = Layout(card, new Size(900, 800));
         check(mediumSize.Width == GuideTheme.CardWidth && mediumSize.Height > 360 && card.PageCount == 1,
@@ -84,7 +107,7 @@ internal static class AdaptiveCardChecks
         card.SetStatus(text); size = Layout(card, new Size(900, 700));
         check(size.Width == GuideTheme.CardWidth && size.Height <= GuideTheme.CardMaxHeight,
             "short feedback uses the shared baseline width and height cap");
-        check(card.Heading.Text == "窗口解读" && card.Heading.Foreground == Brushes.White && card.Header.Background == GuideTheme.CardHeader &&
+        check(card.Heading.Text == "窗口解读" && card.Heading.Foreground == Brushes.White && card.Background == GuideTheme.ReaderBackground &&
             !Descendants(card).OfType<TextBlock>().Any(block => block.Text.Contains("解释与指路") || block.Text.Contains("仅指路")),
             "reading header uses white title on the shared blue gradient without explanatory captions");
         card.SetPoint(true); size = Layout(card, new Size(900, 700));
