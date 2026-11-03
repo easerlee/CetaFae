@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Installation agreement and versioning
+
+For v1.29, inspect the exported agreement and privacy disclosure in both image modes using generated connection settings. Check that export leaves consent untouched, a changed agreement digest cannot grant consent, and matching explicit installation completion still works. Verify the executable and compiled installer version metadata. Keep the visible agreement page, cancel and upgrade checks in the authorized desktop pass.
+
 ## Persistent binding and compact reader spacing
 
 For v1.28 cover activation already satisfied, delayed confirmation despite a false API result, genuine refusal and cancellation. Verify background/minimized bindings retain identity while work/results are invalidated; returning restores only local input, old results remain rejected, and explicit re-question uses fresh scope. Check destroy/reused handle/PID, rapid away-return, close, drag, settings withdrawal and content/geometry changes. Verify compact measured title-to-body spacing, opaque gradient, standalone notice sizing, long text pagination and narrow/maximized layouts offscreen. Native acceptance after permission must exercise drop activation, switch-away/return, minimization/restoration, content change and close/drag. Headless results do not prove Windows foreground permission or native lifecycle.

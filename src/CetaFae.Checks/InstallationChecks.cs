@@ -24,9 +24,10 @@ static class InstallationChecks
                 "installer can export fresh-machine disclosure without granting consent");
             var text = File.ReadAllText(prefix + ".txt");
             var scope = File.ReadAllText(prefix + ".scope");
-            check(text.Contains("同意协议并安装") && text.Contains(GuidePreferences.Default.BaseUrl) &&
-                  text.Contains(GuidePreferences.Default.Model) && scope.Length == 64,
-                "installer displays actual default receiver/model and exact agreement scope");
+            check(text.StartsWith("鲸汐（CetaFae）软件许可协议与隐私说明") && text.Contains("同意协议并安装") &&
+                  text.Contains("软件许可条款") && text.Contains(GuidePreferences.Default.BaseUrl) &&
+                  text.Contains(GuidePreferences.Default.Model) && scope == InstallationAgreement.Scope(GuidePreferences.Default.Options),
+                "installer exports the license, configured receiver/model and matching agreement scope");
             check(InstallationAgreement.Complete("", preferences, grant) != 0 &&
                   InstallationAgreement.Complete(new string('0', 64), preferences, grant) != 0 && !File.Exists(grant),
                 "missing or mismatched installation acceptance never grants consent");
@@ -38,8 +39,8 @@ static class InstallationChecks
             check(preferences.Save(changed) && InstallationAgreement.Complete(scope, preferences, grant) != 0 && !File.Exists(grant),
                 "configuration change after showing the installer agreement prevents a stale grant");
             check(InstallationAgreement.Export(prefix, preferences) == 0 && File.ReadAllText(prefix + ".txt").Contains(changed.BaseUrl) &&
-                  File.ReadAllText(prefix + ".txt").Contains(changed.Model),
-                "upgrade agreement preserves and truthfully discloses existing non-secret connection choices");
+                  File.ReadAllText(prefix + ".txt").Contains(changed.Model) && File.ReadAllText(prefix + ".txt").Contains("当前为纯文字模式"),
+                "upgrade agreement discloses existing non-secret connection choices including text-only mode");
             scope = File.ReadAllText(prefix + ".scope");
             Directory.CreateDirectory(grant);
             check(InstallationAgreement.Complete(scope, preferences, grant) == 3,

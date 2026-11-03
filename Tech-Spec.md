@@ -2,6 +2,10 @@
 
 Updated: 2026-11-03
 
+## Installation terms and versioning
+
+For v1.29, the installer export and settings render the same license and privacy terms, including the current endpoint, model and image mode. The agreement digest covers the displayed text. An upgrade requires agreement to the updated terms through the existing single installation action. Use the project version for both the executable and installer. Numbered builds remain subject to the existing release gates.
+
 ## Persistent selected-window binding
 
 Requirements v1.28 separates binding lifetime from recognition versions. Confirm activation before showing overlay windows or starting the decorative dock. Make one platform activation attempt and await actual foreground confirmation; never simulate input or read a refused background target. Retain the selected HWND and PID across foreground loss and minimization, cancel/invalidate in-flight work and hide all attached UI. Returning only restores a local ready prompt; it does not collect content or call the model. A new explicit answer obtains a fresh identity/geometry anchor before scoped collection, without requiring an extra full accessibility traversal. The actual collection still performs privacy checks and scope validation. Content/geometry changes invalidate observations, pickers, answers and markers without ending the binding. Destruction, process identity mismatch, explicit close/drag, withdrawal and configuration changes end it. Guard queued events against rebindings and late request results. Reuse the existing presence timer and event hooks. Keep the48 DIP header gradient; overlap the body into its transparent tail to remove redundant vertical padding without changing standalone notices.

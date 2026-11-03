@@ -15,6 +15,7 @@
 AppId={{57C7F34B-4F1C-49F1-93EE-995F8B12DB6D}
 AppName=鲸汐 CetaFae
 AppVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}
 AppPublisher=CetaFae contributors
 AppPublisherURL=https://github.com/easerlee/CetaFae
 DefaultDirName={localappdata}\Programs\CetaFae
@@ -73,8 +74,8 @@ var
   Prefix: String;
   ScopeBytes: AnsiString;
 begin
-  AgreementPage := CreateCustomPage(wpWelcome, '欢迎使用鲸汐',
-    '安装会关闭正在运行的已安装鲸汐。请先阅读使用协议与隐私说明。');
+  AgreementPage := CreateCustomPage(wpWelcome, '软件许可协议与隐私说明',
+    '请先阅读协议及当前连接配置。同意安装后，安装程序会关闭正在运行的鲸汐。');
   AgreementText := TNewMemo.Create(WizardForm);
   AgreementText.Parent := AgreementPage.Surface;
   AgreementText.SetBounds(0, 0, AgreementPage.SurfaceWidth, AgreementPage.SurfaceHeight);

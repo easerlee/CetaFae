@@ -287,7 +287,7 @@ static class PrivacyChecks
             "consent discloses answer-triggered reads, local revalidation and submitted user intent");
         check(disclosure.Contains(options.BaseUrl.AbsoluteUri) && disclosure.Contains(options.Model),
             "consent identifies the configured endpoint path and model");
-        check(disclosure.Contains("不含图片") && !disclosure.Contains("发送所选整窗画面"),
+        check(disclosure.Contains("不含图片") && !disclosure.Contains("所选整窗画面"),
             "text-only consent does not claim an image is sent");
         check(GuidePanel.Disclosure(options with { IncludeImage = true }).Contains("目标未明") &&
               GuidePanel.Disclosure(options with { IncludeImage = true }).Contains("局部画面") &&
