@@ -152,7 +152,7 @@ internal sealed class GuideFrameVisual(bool control = false, bool wash = false) 
 
     internal static Geometry OuterClip(Size size)
     {
-        var radius = Math.Min(12, Math.Min(size.Width, size.Height) / 2);
+        var radius = Math.Min(8, Math.Min(size.Width, size.Height) / 2);
         return new RectangleGeometry(new Rect(size), radius, radius);
     }
 

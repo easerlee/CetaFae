@@ -4,7 +4,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.7**. CetaFae explains the selected window and shows where to act. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.8**. CetaFae explains the selected window and shows where to act. You operate the target application. Release acceptance is pending.
 
 ## Features
 

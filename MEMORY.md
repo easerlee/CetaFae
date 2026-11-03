@@ -4,7 +4,7 @@
 
 Updated: 2026-11-03
 
-- Preview.7 reuses plugin-declared scope anchors as local page evidence for the initial reader. A confirmed change clears the old explanation and preserves the bound input. Unknown or unsupported page evidence keeps snapshot behavior. The check is bounded, captures no image and sends no model request. Scope rules are not a universal page identifier. Native Edge navigation and 125% attachment/marker acceptance remain open. The whole-window blue frame and scan share a 12-DIP outer radius in both layouts.
+- Preview.7 reuses plugin-declared scope anchors as local page evidence for the initial reader. A confirmed change clears the old explanation and preserves the bound input. Unknown or unsupported page evidence keeps snapshot behavior. The check is bounded, captures no image and sends no model request. Scope rules are not a universal page identifier. The user accepted the preview.7 native batch for Edge navigation, 125% attachment/marker alignment, and 12-DIP corners, without reporting timing. Preview.8 uses the Windows 11 overlay reference of 8 DIP for the shared frame and scan corners in both layouts.
 
 - A one-pixel pale blue line can be visible around the top of the attached reader even when the prompt and card are geometrically flush. Treat edge color and dock position as separate checks. Preview.6 unifies the reader title and white body into one opaque background using the perimeter gradient. A generated fractional-pixel composition checks the revised join. The user confirmed the line revision; the reply does not establish native DPI docking or marker alignment.
 
