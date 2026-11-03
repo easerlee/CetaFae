@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace CetaFae.Probe;
 
@@ -118,6 +119,9 @@ internal static class Native
 
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
     [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access, bool inherit, uint processId);
+    [DllImport("kernel32.dll", EntryPoint = "OpenProcess", SetLastError = true)]
+    static extern SafeProcessHandle OpenProcessForLifetime(uint access, bool inherit, uint processId);
+    [DllImport("kernel32.dll")] static extern uint WaitForSingleObject(SafeProcessHandle handle, uint milliseconds);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
     [DllImport("advapi32.dll")] static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
     [DllImport("advapi32.dll")] static extern bool GetTokenInformation(IntPtr token, int infoClass,
@@ -128,6 +132,18 @@ internal static class Native
         GetWindowThreadProcessId(hwnd, out var pid);
         return pid;
     }
+
+    internal static SafeProcessHandle PinProcess(uint processId)
+    {
+        // Query-limited and synchronize only: binding never needs control over another process.
+        var handle = OpenProcessForLifetime(0x00101000, false, processId);
+        if (!handle.IsInvalid) return handle;
+        var error = Marshal.GetLastWin32Error(); handle.Dispose();
+        throw new System.ComponentModel.Win32Exception(error);
+    }
+
+    internal static bool ProcessAlive(SafeProcessHandle handle) =>
+        !handle.IsInvalid && !handle.IsClosed && WaitForSingleObject(handle, 0) == 0x102;
 
     public static bool IsNonElevated(IntPtr hwnd)
     {
@@ -160,10 +176,23 @@ internal static class Native
     [StructLayout(LayoutKind.Sequential)]
     struct MONITORINFO { public int Size; public RECT Monitor, Work; public uint Flags; }
     [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
+    [DllImport("user32.dll")] static extern IntPtr MonitorFromPoint(POINT point, uint flags);
     [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
     [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr window, out RECT rect);
     [DllImport("user32.dll")] static extern IntPtr GetShellWindow();
     [DllImport("user32.dll")] static extern IntPtr GetDesktopWindow();
+
+    internal static System.Windows.Rect WorkAreaAt(System.Windows.Point physicalPoint)
+    {
+        if (!double.IsFinite(physicalPoint.X) || !double.IsFinite(physicalPoint.Y)) return System.Windows.Rect.Empty;
+        var monitor = MonitorFromPoint(new POINT { X = (int)Math.Clamp(physicalPoint.X, int.MinValue, int.MaxValue),
+            Y = (int)Math.Clamp(physicalPoint.Y, int.MinValue, int.MaxValue) }, 2);
+        var info = new MONITORINFO { Size = Marshal.SizeOf<MONITORINFO>() };
+        return monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref info) &&
+            info.Work.Right > info.Work.Left && info.Work.Bottom > info.Work.Top
+            ? new System.Windows.Rect(info.Work.Left, info.Work.Top, info.Work.Right - info.Work.Left, info.Work.Bottom - info.Work.Top)
+            : System.Windows.Rect.Empty;
+    }
 
     internal static bool IsFullscreenGeometry(System.Windows.Rect frame, System.Windows.Rect client, System.Windows.Rect monitor)
     {

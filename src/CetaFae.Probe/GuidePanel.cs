@@ -14,6 +14,7 @@ public sealed class GuidePanel : Window
     Func<double>? _scale;
     Func<bool>? _hasTarget;
     Func<bool>? _topAttached;
+    Func<Rect>? _workspace;
     readonly DispatcherTimer _noticePointer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(50) };
     bool _pointerDown;
     Rect? _control;
@@ -136,8 +137,9 @@ public sealed class GuidePanel : Window
                 ("textInViewport", state.TextInViewport), ("viewportReady", state.ViewportReady));
         }));
     }
-    internal void BindEntry(Func<Rect> entry, Func<double> scale, Func<bool> hasTarget, Func<bool>? topAttached = null)
-    { _entry = entry; _scale = scale; _hasTarget = hasTarget; _topAttached = topAttached; }
+    internal void BindEntry(Func<Rect> entry, Func<double> scale, Func<bool> hasTarget, Func<bool>? topAttached = null,
+        Func<Rect>? workspace = null)
+    { _entry = entry; _scale = scale; _hasTarget = hasTarget; _topAttached = topAttached; _workspace = workspace; }
     internal void DismissNotice() => _card.DismissNotice();
     internal void SetPoint(bool visible)
     {
@@ -157,7 +159,7 @@ public sealed class GuidePanel : Window
         "一、识别用途、发送范围和接收方\n" +
         $"当前接收地址：{options.BaseUrl.AbsoluteUri}\n当前模型：{options.Model}\n" +
         (options.IncludeImage
-            ? "当前为图文模式。目标未明时，鲸汐可能发送所选整窗画面及可用控件文字，以解释软件和界面用途。目标明确后，发送可可靠确定或由你框选的局部画面、范围内控件文字及用户输入的回答。你可以主动框选整个目标窗口。范围不明时等待你框选。截图仅针对所选窗口。部分截图方式会在本机内存绘制所选整窗，再裁剪出发送范围。\n"
+            ? "当前为图文模式。目标未明时，鲸汐可能发送所选整窗画面及可用控件文字，以解释软件和界面用途。目标明确后，发送可可靠确定或由你框选的局部画面、范围内控件文字及用户输入的回答。本机可识读该范围内的文字及位置，并随图片提供给模型，用于提示文字位置；这不代表按钮的点击范围。你可以主动框选整个目标窗口。范围不明时等待你框选。截图仅针对所选窗口。部分截图方式会在本机内存绘制所选整窗，再裁剪出发送范围。\n"
             : "当前为纯文字模式。目标未明时发送所选窗口控件文字。目标明确后，仅发送可可靠确定或由你框选范围内的控件文字及用户输入的回答，不含图片。范围不明时等待你框选。\n") +
         "接收地址可能是代理，代理可能继续转发。鲸汐尚未核实代理与模型服务商的实际留存期限及处理地点。现阶段仅用于开发验证，正式发布前仍须核实。请先隐藏不愿发送的内容。鲸汐尽力检查密码字段和明显密钥，发现时停止识别。部分软件提供的检查信息有限，检查可能遗漏敏感内容。鲸汐不会读取密码框的值。\n\n" +
         "二、何时读取与本机处理\n" +
@@ -191,7 +193,7 @@ public sealed class GuidePanel : Window
         _placing = true;
         try
         {
-            var work = SystemParameters.WorkArea;
+            var work = _workspace?.Invoke() ?? SystemParameters.WorkArea;
             var entry = _entry?.Invoke() ?? new Rect(work.Right - 96, work.Bottom - 96, 88, 88);
             var session = _card.View is GuideCardView.Session or GuideCardView.Notice;
             var compactBubble = session && _card.IsBubble;

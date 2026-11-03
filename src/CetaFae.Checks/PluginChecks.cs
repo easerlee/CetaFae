@@ -75,6 +75,8 @@ static class PluginChecks
                      (generated.Replace("\"schemaVersion\":1", "\"endpoint\":\"https://invalid.example\",\"schemaVersion\":1"), "recipient override"),
                      (generated.Replace("\"schemaVersion\":1", "\"schemaVersion\":1,\"schemaVersion\":1"), "duplicate fields"),
                      (generated.Replace("\"version\":\"0.1.0\"", "\"version\":\"future\""), "invalid package version"),
+                     (generated.Replace("\"schemaVersion\":1", "\"schemaVersion\":999"), "unknown future contract"),
+                     (generated.Replace("\"schemaVersion\":1", "\"permissions\":[\"screen-all\",\"execute\"],\"schemaVersion\":1"), "additional permissions"),
                      (generated.Replace("\"processNames\":[\"generated-editor\"]", "\"processNames\":[]"), "empty target"),
                      (generated.Replace("\"intentContainsAny\":[\"keep\"]", "\"intentContainsAny\":[]"), "empty rule"),
                      (generated.Replace("\"blockedPoints\":[{\"intentContainsAny\":[\"keep\"],\"candidateNameContainsAny\":[\"delete\"]}",

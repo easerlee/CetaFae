@@ -23,6 +23,7 @@ internal sealed class GuideSettingsView : Border
     readonly Button _cloudAction;
     internal Button SaveButton { get; }
     internal Button TestButton { get; }
+    internal Button ImageTestButton { get; }
     internal Button CancelTestButton { get; }
     internal Expander Advanced { get; }
     internal ScrollViewer BodyScroll => _scroll;
@@ -30,6 +31,7 @@ internal sealed class GuideSettingsView : Border
     internal TextBox Model => _model;
     internal event Action? Changed;
     internal event Action? TestRequested;
+    internal event Action? ImageTestRequested;
     internal event Action? TestCancelled;
     internal event Action<GuidePreferences>? SaveRequested;
     internal event Action? CloudRequested;
@@ -70,8 +72,10 @@ internal sealed class GuideSettingsView : Border
         _pages[0].Children.Add(Text("检测仅访问下方服务地址的模型列表，可能携带运行时配置的凭证；不读取屏幕，不验证图片理解。"));
         var testActions = new WrapPanel();
         TestButton = Action("检测连接", () => TestRequested?.Invoke());
+        ImageTestButton = Action("检测图片识别", () => ImageTestRequested?.Invoke());
         CancelTestButton = Action("取消检测", () => TestCancelled?.Invoke()); CancelTestButton.IsEnabled = false;
-        testActions.Children.Add(TestButton); testActions.Children.Add(CancelTestButton); _pages[0].Children.Add(testActions);
+        testActions.Children.Add(TestButton); testActions.Children.Add(ImageTestButton); testActions.Children.Add(CancelTestButton); _pages[0].Children.Add(testActions);
+        _pages[0].Children.Add(Text("“检测图片识别”只发送一张鲸汐生成的数字图片到下方服务，可能消耗一次模型额度；不读取你的窗口，也不自动重试。"));
         var advanced = new StackPanel();
         advanced.Children.Add(Text("服务地址（远程服务须使用 HTTPS）")); advanced.Children.Add(_endpoint);
         advanced.Children.Add(Text("模型名称")); advanced.Children.Add(_model); advanced.Children.Add(_image);
@@ -123,6 +127,7 @@ internal sealed class GuideSettingsView : Border
     {
         _connection.Text = GuideConnection.Message(status);
         TestButton.IsEnabled = status != ConnectionStatus.Checking; CancelTestButton.IsEnabled = !TestButton.IsEnabled;
+        ImageTestButton.IsEnabled = TestButton.IsEnabled;
     }
     internal void SetCloud(bool enabled, GuideOptions options)
     {

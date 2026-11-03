@@ -45,7 +45,8 @@ internal sealed class GuideSettingsWindow : Window
         Background = GuideTheme.Surface;
         Content = _view = new GuideSettingsView(preferences, shipped, cloudEnabled(), invalid);
         _view.Changed += () => CancelDiagnostic();
-        _view.TestRequested += Test;
+        _view.TestRequested += () => Test(false);
+        _view.ImageTestRequested += () => Test(true);
         _view.TestCancelled += () => CancelDiagnostic(ConnectionStatus.Cancelled);
         _view.CloseRequested += Close;
         _view.CloudRequested += () => { Close(); cloudAction(); };
@@ -61,7 +62,7 @@ internal sealed class GuideSettingsWindow : Window
         if (!_closed) _view.SetConnection(status);
     }
 
-    async void Test()
+    async void Test(bool image)
     {
         GuideOptions options;
         try { options = _view.Read().Options; }
@@ -71,7 +72,8 @@ internal sealed class GuideSettingsWindow : Window
         var version = _generation;
         using var request = new CancellationTokenSource(); _test = request;
         _view.SetConnection(ConnectionStatus.Checking);
-        var result = await GuideConnection.TestAsync(options, request.Token);
+        var result = image ? await GuideConnection.TestImageAsync(options, request.Token) :
+            await GuideConnection.TestAsync(options, request.Token);
         if (!_closed && version == _generation && !request.IsCancellationRequested)
         { _result = result; _view.SetConnection(result); }
         if (ReferenceEquals(_test, request)) _test = null;

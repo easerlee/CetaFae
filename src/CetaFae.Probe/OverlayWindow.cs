@@ -85,9 +85,8 @@ public sealed class OverlayWindow : Window
 
     internal bool PlaceControl(Rect control, Rect target, double scale)
     {
-        var work = SystemParameters.WorkArea;
-        var bounds = ControlBounds(control, target,
-            new Rect(work.X * scale, work.Y * scale, work.Width * scale, work.Height * scale), scale);
+        var work = GuideCoordinates.WorkspaceAt(new Point(target.X + target.Width / 2, target.Y + target.Height / 2), scale);
+        var bounds = ControlBounds(control, target, new Rect(work.X * scale, work.Y * scale, work.Width * scale, work.Height * scale), scale);
         if (bounds.IsEmpty || bounds.Width <= 0 || bounds.Height <= 0) return false;
         Left = bounds.Left / scale; Top = bounds.Top / scale;
         Width = bounds.Width / scale; Height = bounds.Height / scale;

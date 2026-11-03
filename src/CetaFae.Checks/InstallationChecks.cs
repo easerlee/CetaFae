@@ -7,6 +7,8 @@ static class InstallationChecks
 {
     internal static void Run(Action<bool, string> check)
     {
+        check(InstallationAgreement.Text(GuidePreferences.Default.Options).Contains("本机可识读该范围内的文字及位置"),
+            "installation discloses scoped OCR text and geometry before enabling its model payload");
         var root = Path.GetFullPath(Path.Combine(".artifacts", "checks", "installation-" + Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(root);
         var preferences = new GuidePreferencesStore(Path.Combine(root, "settings.json"));

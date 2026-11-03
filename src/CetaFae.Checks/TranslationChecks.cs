@@ -19,7 +19,7 @@ internal static class TranslationChecks
         var shipped = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
         var general = shipped.GeneralProvider!;
         var policy = general.InterpretationPolicy!;
-        check(general.SchemaVersion == 5 && policy.TranslateSelectedText && policy.Languages.SequenceEqual(new[] { "zh-CN", "en" }),
+        check(general.SchemaVersion == 6 && policy.TranslateSelectedText && policy.Languages.SequenceEqual(new[] { "zh-CN", "en" }),
             "translation is an enabled data-only general capability, not an application-name branch");
         check(new PluginCatalog(shipped.Plugins.Where(p => p != general)).GeneralProvider is null &&
               PluginCatalog.ParsePlugin(GeneralGuideChecks.Package).InterpretationPolicy is null,
@@ -35,7 +35,7 @@ internal static class TranslationChecks
         }
         Reject(() => new InterpretationPolicy(["unknown"], true), "unknown language codes cannot broaden interpretation policy");
         var package = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "plugins", general.Id, "plugin.json"));
-        Reject(() => PluginCatalog.ParsePlugin(package.Replace("\"schemaVersion\": 5", "\"schemaVersion\": 3")),
+        Reject(() => PluginCatalog.ParsePlugin(package.Replace("\"schemaVersion\": 6", "\"schemaVersion\": 3")),
             "legacy schema cannot silently acquire a new interpretation capability");
         Reject(() => PluginCatalog.ParsePlugin(package.Replace("\"kind\": \"general\"", "\"kind\": \"application\"")),
             "application packages cannot impersonate the general interpretation policy");

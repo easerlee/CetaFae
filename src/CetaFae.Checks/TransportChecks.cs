@@ -56,6 +56,29 @@ static class TransportChecks
         try { await sentContent!.ReadAsStringAsync(); }
         catch (ObjectDisposedException) { disposed = true; }
         check(disposed, "request content is disposed after the model response");
+        foreach (var failure in new[] { "auth", "quota", "limited", "offline", "invalid", "truncated" })
+        {
+            var requests = 0;
+            using var recovering = new GuideModel(Options, new Handler((_, _) =>
+            {
+                if (++requests != 1) return Task.FromResult(Completion());
+                if (failure == "offline") throw new HttpRequestException("generated network failure");
+                return Task.FromResult(failure switch
+                {
+                    "auth" => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+                    "quota" => new HttpResponseMessage(HttpStatusCode.PaymentRequired),
+                    "limited" => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+                    "invalid" => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"unexpected\":true}") },
+                    _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"choices\":[") }
+                });
+            }));
+            var failed = false;
+            try { await recovering.AskAsync("Generated recovery", [], image, CancellationToken.None); }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidDataException) { failed = true; }
+            check(failed && requests == 1, $"{failure} produces one bounded failure without an automatic retry");
+            check((await recovering.AskAsync("User explicitly retries", [], image, CancellationToken.None)).Mode == "explain" && requests == 2,
+                $"the same model client recovers from {failure} after an explicit new request without restart");
+        }
     }
 
     public static async Task MeasureAsync()

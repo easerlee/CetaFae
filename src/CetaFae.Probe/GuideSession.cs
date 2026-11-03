@@ -46,7 +46,8 @@ public sealed class GuideSession : IDisposable
         _plugins = plugins;
         _model = new GuideModel(options);
         _panel = new GuidePanel(options);
-        _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget, () => _ball.TopAttached);
+        _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget, () => _ball.TopAttached,
+            () => _ball.Workspace);
         _ball.FullscreenHidden += OnFullscreenHidden;
         _ball.LocationChanged += OnEntryChanged;
         _ball.SizeChanged += OnEntryChanged;
@@ -444,6 +445,7 @@ public sealed class GuideSession : IDisposable
             if (!Native.IsWindow(window) || !Native.IsWindowVisible(window) || Native.IsIconic(window))
                 throw new InvalidDataException("target_unavailable");
             using var targetProcess = Process.GetProcessById((int)Native.ProcessId(window));
+            using var targetOwner = Native.PinProcess((uint)targetProcess.Id);
             var selectedStart = targetProcess.StartTime.ToUniversalTime().Ticks;
             var plugin = _plugins.Resolve(targetProcess.ProcessName, Native.Title(window));
             if (previous is not null && previous.PluginId != plugin.Id)
@@ -477,7 +479,7 @@ public sealed class GuideSession : IDisposable
                 _contextCheckPending = false;
                 previous = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, false, plugin, t));
                 if (!_gate.Accepts(version)) return;
-                if (previous.ProcessId != flowTarget.ProcessId || targetProcess.HasExited)
+                if (previous.ProcessId != flowTarget.ProcessId || !Native.ProcessAlive(targetOwner))
                     throw new InvalidDataException("target_changed");
             }
             else if (previous is not null)
@@ -543,7 +545,7 @@ public sealed class GuideSession : IDisposable
             if (remaining <= TimeSpan.Zero) throw new OperationCanceledException();
             using var resumedDeadline = deferred.Value ? new GuideDeadline(remaining, requestToken) : null;
             var resultToken = resumedDeadline?.Token ?? token;
-            if (targetProcess.HasExited) throw new InvalidDataException("target_changed");
+            if (!Native.ProcessAlive(targetOwner)) throw new InvalidDataException("target_changed");
             stage = ProcessingStage.ResultValidation;
             if (!GuideObservation.IsCurrent(window, observation.ProcessId, observation.Frame))
                 throw new InvalidDataException("target_changed");
@@ -562,7 +564,9 @@ public sealed class GuideSession : IDisposable
             }
             _panel.SetControl(bounds);
             _ball.SetProcessing(false);
-            _panel.SetStatus(answer.Explanation);
+            var textRegion = answer.CandidateId is { } selected &&
+                observation.Candidates.Single(c => c.Id == selected).ControlType == GuideTextRegions.ControlType;
+            _panel.SetStatus(textRegion ? "这里标出的是文字所在区域，不是按钮的点击范围。\n" + answer.Explanation : answer.Explanation);
             _panel.SetPoint(bounds is not null && _marker.IsVisible);
             _ball.SetResult();
             _panel.SetRegionAvailable(identification is { Page: null });
@@ -696,6 +700,8 @@ public sealed class GuideSession : IDisposable
             "识别服务没有允许这次请求。\n请在“鲸汐设置 → 连接”检查服务是否可用；这不代表你选择的窗口有问题。",
         HttpRequestException { StatusCode: System.Net.HttpStatusCode.TooManyRequests } =>
             "识别服务暂时无法接受更多请求。\n可能是请求过多或可用额度不足，请稍后再试或查看服务账户。",
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.PaymentRequired } =>
+            "识别服务提示可用额度不足。\n请检查所用服务的账户额度；恢复后可以直接再问，不用重启鲸汐。",
         HttpRequestException { StatusCode: not null } =>
             "识别服务这次未能完成请求。\n请稍后再试；这不代表你选择的窗口有问题。",
         HttpRequestException => "暂时连接不上识别服务。\n请稍后再试，或在“鲸汐设置”里查看连接状态。",

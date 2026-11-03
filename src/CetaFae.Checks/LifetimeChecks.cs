@@ -148,11 +148,14 @@ static class LifetimeChecks
         worker.CreateNoWindow = true;
         using var orphan = new Process { StartInfo = worker };
         orphan.Start();
+        using var pinned = Native.PinProcess((uint)orphan.Id);
+        check(Native.ProcessAlive(pinned), "limited-rights owner handle pins a live generated worker without process-control authority");
         try
         {
             using var timeout = new CancellationTokenSource(18000);
             await orphan.WaitForExitAsync(timeout.Token);
             check(orphan.ExitCode == 3, "production watchdog terminates a stalled headless worker without a parent cancellation");
+            check(!Native.ProcessAlive(pinned), "pinned identity reports original owner exit instead of attaching to a recycled PID");
         }
         finally
         {

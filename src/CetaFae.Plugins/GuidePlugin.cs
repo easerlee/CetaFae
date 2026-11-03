@@ -71,9 +71,11 @@ public sealed class InterpretationPolicy
     public bool TranslateSelectedText { get; }
     public bool ExplainVisibleErrors { get; }
     public bool UserLedFollowup { get; }
+    public bool LocateTextRegions { get; }
 
     [JsonConstructor]
-    public InterpretationPolicy(IReadOnlyList<string> languages, bool translateSelectedText, bool explainVisibleErrors = false, bool userLedFollowup = false)
+    public InterpretationPolicy(IReadOnlyList<string> languages, bool translateSelectedText, bool explainVisibleErrors = false, bool userLedFollowup = false,
+        bool locateTextRegions = false)
     {
         Languages = PluginData.Texts(languages, 2, 8);
         if (Languages.Any(language => language is not ("zh-CN" or "en")))
@@ -81,6 +83,7 @@ public sealed class InterpretationPolicy
         TranslateSelectedText = translateSelectedText;
         ExplainVisibleErrors = explainVisibleErrors;
         UserLedFollowup = userLedFollowup;
+        LocateTextRegions = locateTextRegions;
     }
 }
 
@@ -108,9 +111,10 @@ public sealed class GuidePlugin
         IReadOnlyList<PointBlockRule> blockedPoints, IReadOnlyList<ObservationScopeRule>? observationScopes = null,
         string kind = "application", string? identityPolicy = null, InterpretationPolicy? interpretationPolicy = null)
     {
-        if (schemaVersion is not (1 or 2 or 3 or 4 or 5) || kind is not ("application" or "general" or "identity") ||
-            kind == "general" && schemaVersion is not (3 or 5) ||
-            (schemaVersion == 5 ? kind != "general" || interpretationPolicy is null : interpretationPolicy is not null) ||
+        if (schemaVersion is not (1 or 2 or 3 or 4 or 5 or 6) || kind is not ("application" or "general" or "identity") ||
+            kind == "general" && schemaVersion is not (3 or 5 or 6) ||
+            (schemaVersion is 5 or 6 ? kind != "general" || interpretationPolicy is null : interpretationPolicy is not null) ||
+            schemaVersion != 6 && interpretationPolicy?.LocateTextRegions == true ||
             (kind == "identity" ? schemaVersion != 4 || identityPolicy != "local-metadata-public-reference" : identityPolicy is not null || schemaVersion == 4) ||
             !PluginData.IsToken(id, 64) ||
             !System.Version.TryParse(version, out _) || !PluginData.IsText(displayName, 200) ||

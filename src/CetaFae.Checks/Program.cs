@@ -135,6 +135,9 @@ public static class Program
         await IdentificationChecks.RunAsync(Check);
         CaretChecks.Run(Check);
         ScopeChecks.Run(Check);
+        TextRegionChecks.Run(Check);
+        CoordinateChecks.Run(Check);
+        if (args.Contains("--ocr-generated")) TextRegionChecks.RunOcrAsync(Check).GetAwaiter().GetResult();
         await ScopeChecks.CheckTransportAsync(Check);
         await TransportChecks.RunAsync(Check);
         TaskChecks.Run(Check);
@@ -396,6 +399,7 @@ public static class Program
         await IdentificationChecks.CheckLateReplyAsync(Check);
         await SoftwareIdentityChecks.RunTransportAsync(Check);
         if (args.Contains("--live-reference")) await SoftwareIdentityChecks.RunLiveAsync(Check);
+        if (args.Contains("--live-foundation")) await TextRegionChecks.RunLiveAsync(Check);
         if (args.Contains("--live-scopes")) await ScopeChecks.RunLiveAsync(Check);
         if (args.Contains("--live-general")) await GeneralGuideChecks.RunLiveAsync(Check);
         if (args.Contains("--live-translation")) await TranslationChecks.RunLiveAsync(Check);

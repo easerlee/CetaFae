@@ -77,7 +77,8 @@ public sealed class GuideModel : IDisposable
     public GuideModel(GuideOptions options, HttpMessageHandler? handler = null)
     {
         _options = options;
-        _http = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
+        _http = new HttpClient(handler ?? new HttpClientHandler
+            { AllowAutoRedirect = false, UseProxy = false, UseCookies = false, UseDefaultCredentials = false })
         { Timeout = Timeout.InfiniteTimeSpan };
     }
 
@@ -133,6 +134,9 @@ public sealed class GuideModel : IDisposable
                     "Return exactly one JSON object with exactly mode, explanation, candidateId. " +
                     "mode is point, explain, or ask. explanation is concise plain Chinese text, at most 600 characters unless an enabled language policy permits another language. " +
                     "For point, candidateId must be an integer from the supplied candidates, never invent coordinates or IDs. " +
+                    "A Visual.Text candidate is locally recognized text, NOT a clickable control. Select it only to show the explicitly requested text location; " +
+                    "describe it as a text-region hint, never claim it covers a button, icon, switch or click target. " +
+                    "If the user asks for an unlabeled control or text does not uniquely establish the requested location, explain without pointing. " +
                     "For explain or ask, candidateId must be null. If intent or the correct control is uncertain, briefly describe the page and ask one short question. " +
                     "A settings page does not establish which setting the user wants to change. Never invent that goal. " +
                     "toggleState is On, Off, Indeterminate, or null (unknown); never infer a missing state from the control name. " +
@@ -193,6 +197,8 @@ public sealed class GuideModel : IDisposable
             return result;
         }
         catch (OperationCanceledException) { outcome = "cancelled"; throw; }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+        { throw new InvalidDataException("model_response_invalid"); }
         finally { Trace(outcome); }
     }
 

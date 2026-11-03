@@ -30,6 +30,15 @@ internal static class SettingsChecks
             check(PresentationSource.FromVisual(view) is null, "settings layout creates no native handle");
         }
         var edit = new GuideSettingsView(GuidePreferences.Default, catalog, false);
+        var imageRequests = 0; edit.ImageTestRequested += () => imageRequests++;
+        edit.ImageTestButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        check(imageRequests == 1, "image capability checks require an explicit settings action without target collection");
+        edit.SetConnection(ConnectionStatus.Checking);
+        check(!edit.TestButton.IsEnabled && !edit.ImageTestButton.IsEnabled && edit.CancelTestButton.IsEnabled,
+            "one diagnostic disables both dispatch actions and exposes cancellation");
+        edit.SetConnection(ConnectionStatus.Cancelled);
+        check(edit.TestButton.IsEnabled && edit.ImageTestButton.IsEnabled && !edit.CancelTestButton.IsEnabled,
+            "diagnostic cancellation restores explicit testing without restarting settings");
         var privacyAction = ((Grid)edit.BodyScroll.Content).Children.OfType<Panel>()
             .SelectMany(page => page.Children.OfType<Button>()).Single(button => Equals(button.Content, "查看使用协议"));
         var consentRequests = 0; edit.CloudRequested += () => consentRequests++;
@@ -126,6 +135,29 @@ internal static class SettingsChecks
         var unused = new Handler(HttpStatusCode.OK, "{}");
         check(await GuideConnection.TestAsync(original.Options, cancelled.Token, unused) == ConnectionStatus.Cancelled && unused.Requests == 0,
             "cancelled connection test sends no new request");
+        check(await GuideConnection.TestImageAsync(original.Options, cancelled.Token, unused) == ConnectionStatus.Cancelled && unused.Requests == 0,
+            "cancelled image capability test sends no generated or target content");
+        foreach (var status in new[] { HttpStatusCode.Unauthorized, HttpStatusCode.PaymentRequired, HttpStatusCode.TooManyRequests, HttpStatusCode.InternalServerError })
+            check(await GuideConnection.TestImageAsync(original.Options, CancellationToken.None, new ImageHandler(status)) == GuideConnection.HttpFailure(status),
+                "image capability diagnostic classifies service errors without retrying a window");
+        check(await GuideConnection.TestImageAsync(original.Options, CancellationToken.None, new ImageHandler(HttpStatusCode.OK)) == ConnectionStatus.ImageUnconfirmed,
+            "an HTTP success without the actual image challenge is not called image support");
+    }
+
+    sealed class ImageHandler(HttpStatusCode code) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
+        {
+            if (request.Method != HttpMethod.Post || !request.RequestUri!.AbsolutePath.EndsWith("/chat/completions"))
+                throw new InvalidDataException("unexpected_image_diagnostic");
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync(token));
+            var content = body.RootElement.GetProperty("messages")[1].GetProperty("content");
+            var image = content[1].GetProperty("image_url").GetProperty("url").GetString()!;
+            if (!image.StartsWith("data:image/png;base64,", StringComparison.Ordinal)) throw new InvalidDataException("missing_generated_image");
+            var answer = JsonSerializer.Serialize(new { mode = "explain", explanation = "Not the generated digits", candidateId = (int?)null });
+            return new HttpResponseMessage(code) { Content = new StringContent(JsonSerializer.Serialize(new
+            { choices = new[] { new { finish_reason = "stop", message = new { content = answer } } } })) };
+        }
     }
 
     sealed class Handler(HttpStatusCode code, string body) : HttpMessageHandler

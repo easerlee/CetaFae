@@ -83,6 +83,13 @@ public sealed record GuideObservation(IntPtr Window, uint ProcessId, Rect Frame,
         ProbeLog.Log("guide_capture_complete", ("elapsedMs", clock.ElapsedMilliseconds - uiaMs),
             ("imageBytes", png?.Length ?? 0));
         if (!IsCurrent(window, pid, frame)) throw new InvalidDataException("target_changed");
+        if (!snapshot && png is not null && plugin.InterpretationPolicy?.LocateTextRegions == true)
+        {
+            stageChanged?.Invoke("controls");
+            try { candidates = GuideTextRegions.Merge(candidates, GuideTextRegions.Read(png, scope?.Region ?? frame, token)); }
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException or NotSupportedException)
+            { /* Missing language/platform support must not block screenshot explanation. */ }
+        }
         stageChanged?.Invoke("visual");
         var hash = !snapshot && png is not null && (plugin.Kind == "general" || scope?.UserSelected == true) ? Fingerprint(png) : null;
         var visual = hash is not null ? GuideVisual.Read(png!, scope?.Region ?? frame, caret) : null;

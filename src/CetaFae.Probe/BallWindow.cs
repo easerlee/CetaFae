@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Microsoft.Win32.SafeHandles;
 
 namespace CetaFae.Probe;
 
@@ -21,6 +22,7 @@ public sealed class BallWindow : Window
     IntPtr _contentHook;
     IntPtr _hwnd;
     IntPtr _target;
+    SafeProcessHandle? _targetOwner;
     readonly GuideBinding _binding = new();
     bool _dragging;
     bool _pressed;
@@ -56,6 +58,15 @@ public sealed class BallWindow : Window
     bool ReducedMotion => !SystemParameters.ClientAreaAnimation;
 
     public double Scale => _scale;
+    internal Rect Workspace
+    {
+        get
+        {
+            var frame = Native.Frame(HasTarget ? _target : _hwnd);
+            return GuideCoordinates.WorkspaceAt(new Point((frame.Left + (double)frame.Right) / 2,
+                (frame.Top + (double)frame.Bottom) / 2), _scale);
+        }
+    }
     internal bool HasTarget => _target != IntPtr.Zero;
     internal IntPtr BoundTarget => _target;
     internal bool BindingSuspended => _binding.Suspended;
@@ -103,7 +114,9 @@ public sealed class BallWindow : Window
 
     void PlaceBall(Point position)
     {
-        var visible = ConstrainPosition(position, SystemParameters.WorkArea, new Size(Width, Height));
+        var work = GuideCoordinates.WorkspaceAt(new Point((position.X + Width / 2) * _scale,
+            (position.Y + Height / 2) * _scale), _scale);
+        var visible = ConstrainPosition(position, work, new Size(Width, Height));
         Left = visible.X; Top = visible.Y;
     }
 
@@ -157,7 +170,7 @@ public sealed class BallWindow : Window
             _pressed = false; _dragging = false;
             StopAnimation();
         };
-        Closed += (_, _) => { _presence.Stop(); _animation.Stop(); _whale.Release(); _wake.Close(); _overlay.Close(); };
+        Closed += (_, _) => { _presence.Stop(); _animation.Stop(); _targetOwner?.Dispose(); _targetOwner = null; _whale.Release(); _wake.Close(); _overlay.Close(); };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { if (HasTarget) GuidanceCleared?.Invoke(); e.Handled = true; }
@@ -172,7 +185,7 @@ public sealed class BallWindow : Window
 
     void UpdateIdleSwim()
     {
-        var home = HomePosition(SystemParameters.WorkArea);
+        var home = HomePosition(Workspace);
         var eligible = CanIdleSwim(IsVisible && !_fullscreenHidden,
             Math.Abs(Left - home.X) < 2 && Math.Abs(Top - home.Y) < 2,
             _pressed || HasTarget || _inline || _state is not (Motion.Idle or Motion.Swim), ReducedMotion);
@@ -197,7 +210,7 @@ public sealed class BallWindow : Window
         _fullscreenHidden = hide;
         if (hide)
         {
-            if (_state == Motion.Return) PlaceBall(HomePosition(SystemParameters.WorkArea));
+            if (_state == Motion.Return) PlaceBall(HomePosition(Workspace));
             StopAnimation();
             FullscreenHidden?.Invoke();
             Hide();
@@ -231,7 +244,7 @@ public sealed class BallWindow : Window
         if (IsLoaded)
         {
             if (HasTarget) { UpdateOverlay(-1); TargetMoved?.Invoke(); }
-            else PlaceBall(HomePosition(SystemParameters.WorkArea));
+            else PlaceBall(HomePosition(Workspace));
         }
     }
 
@@ -284,7 +297,7 @@ public sealed class BallWindow : Window
         }
         else if (_state == Motion.Return)
         {
-            var work = SystemParameters.WorkArea;
+            var work = Workspace;
             PlaceBall(ReturnPosition(_returnFrom, work, ReducedMotion ? .6 : seconds));
             if (ReducedMotion || seconds >= .6)
             {
@@ -312,9 +325,9 @@ public sealed class BallWindow : Window
     {
         if (_target == IntPtr.Zero || _state == Motion.Dock || _inline) return;
         var frame = Native.Frame(_target);
-        Width = WhalePrompt.DockWidth((frame.Right - frame.Left) / _scale, SystemParameters.WorkArea.Width);
+        Width = WhalePrompt.DockWidth((frame.Right - frame.Left) / _scale, Workspace.Width);
         var position = TopDockPosition(new Rect(frame.Left / _scale, frame.Top / _scale,
-            (frame.Right - frame.Left) / _scale, (frame.Bottom - frame.Top) / _scale), SystemParameters.WorkArea, Width);
+            (frame.Right - frame.Left) / _scale, (frame.Bottom - frame.Top) / _scale), Workspace, Width);
         PlaceBall(position);
         SetDockLayout(position.Y >= frame.Top / _scale);
         BeginDockMotion();
@@ -456,6 +469,12 @@ public sealed class BallWindow : Window
 
         _target = target;
         _binding.Begin(target, Native.ProcessId(target));
+        try
+        {
+            _targetOwner = Native.PinProcess(_binding.ProcessId);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        { _targetOwner?.Dispose(); _targetOwner = null; }
         StartTracking();
         TargetSelected?.Invoke(target);
     }
@@ -482,9 +501,9 @@ public sealed class BallWindow : Window
     {
         var r = Native.Frame(target);
         if (_inline || _state == Motion.Dock)
-            Width = WhalePrompt.DockWidth((r.Right - r.Left) / _scale, SystemParameters.WorkArea.Width);
+            Width = WhalePrompt.DockWidth((r.Right - r.Left) / _scale, Workspace.Width);
         PlaceBall(TopDockPosition(new Rect(r.Left / _scale, r.Top / _scale,
-            (r.Right - r.Left) / _scale, (r.Bottom - r.Top) / _scale), SystemParameters.WorkArea, Width));
+            (r.Right - r.Left) / _scale, (r.Bottom - r.Top) / _scale), Workspace, Width));
 
         ProbeLog.Log("snap",
             ("edge", "top"),
@@ -616,6 +635,7 @@ public sealed class BallWindow : Window
         if (_destroyHook != IntPtr.Zero) { Native.UnhookWinEvent(_destroyHook); _destroyHook = IntPtr.Zero; }
         if (_contentHook != IntPtr.Zero) { Native.UnhookWinEvent(_contentHook); _contentHook = IntPtr.Zero; }
         _target = IntPtr.Zero;
+        _targetOwner?.Dispose(); _targetOwner = null;
         _binding.Clear();
         if (had != IntPtr.Zero && !_fullscreenHidden && !IsVisible && IsLoaded) Show();
         if (had != IntPtr.Zero || _state != Motion.Return || reason is "drag_start" or "exit") ResetArt();
@@ -657,7 +677,7 @@ public sealed class BallWindow : Window
     {
         if (!HasTarget) return;
         var foreground = Native.GetForegroundWindow();
-        var change = _binding.Update(Native.IsWindow(_target) && Native.ProcessId(_target) == _binding.ProcessId,
+        var change = _binding.Update(TargetOwnerAlive(),
             Native.IsWindowVisible(_target) && !Native.IsIconic(_target),
             foreground == _target || (AllowsForeground?.Invoke(foreground) ?? false));
         if (change == BindingChange.Ended) { StopTracking("target_gone"); return; }
@@ -676,6 +696,14 @@ public sealed class BallWindow : Window
             BindingResumed?.Invoke();
             ProbeLog.Log("binding_resumed");
         }
+    }
+
+    bool TargetOwnerAlive()
+    {
+        try { return _targetOwner is not null && Native.ProcessAlive(_targetOwner) && Native.IsWindow(_target) &&
+            Native.ProcessId(_target) == _binding.ProcessId; }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        { return false; }
     }
 
     internal void ReturnHome()

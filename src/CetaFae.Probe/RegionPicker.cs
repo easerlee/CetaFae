@@ -63,6 +63,12 @@ internal sealed class RegionPicker : Window
         return GuideScope.FromUserSelection(frame, new Rect(a, b)).Region;
     }
 
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        if (IsLoaded && Math.Abs(newDpi.DpiScaleX - _scale) > .001) Finish(null);
+    }
+
     void Finish(Rect? region)
     {
         if (_finished) return;
