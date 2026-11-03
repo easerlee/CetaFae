@@ -4,7 +4,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.3**. CetaFae explains the selected window and shows where to act. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.4**. CetaFae explains the selected window and shows where to act. You operate the target application. Release acceptance is pending.
 
 ## Features
 
@@ -18,7 +18,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 - **Text-region hints (development validation)**: the general plugin can obtain local text and position candidates from the selected image. The model chooses existing IDs rather than inventing coordinates. Hints distinguish text bounds from button hit areas. Duplicate text, unavailable OCR support or insufficient evidence produces no guessed marker. Native application coverage remains unaccepted.
 - **Chinese/English explanation and translation**: describe your translation goal and select a text region when needed. Show the recognized original and translation, checking recognizable error-code, date, numeric and unit literals. Unreadable content is reported honestly; the application's interface is not replaced.
 - **Visible-error guidance**: briefly explain which application has what practical problem, followed by one safe check or one essential question. Default replies avoid raw error dumps, codes and unverified causes. Continue on the same window when needed. The app does not inspect logs, scan other processes or perform repairs automatically.
-- **User-led follow-up**: choose Continue asking after a result, perform any action yourself, then submit the next question. Each submission rechecks the same window, for up to eight steps, without reusing an old image or executing actions. Native multi-step acceptance remains pending.
+- **Follow-up in the same window**. Ask directly after a result, or choose Continue asking if you want to do something yourself before submitting the next question. Each submission rechecks the same window, for up to eight steps. Desktop validation of multi-step guidance is pending.
 - **Plugin-based capabilities**: generic vision, software identity, and application adapters share a declarative contract. First-party features are plugins too.
 - **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
 
@@ -49,7 +49,7 @@ The main branch builds a self-contained Windows x64 installer. It displays the s
 
 Drag onto the target, describe your goal when asked, and select a region if requested. Read the guidance and operate the target yourself, or end the session. Changed recipient, model, sending scope or terms require confirmation again.
 
-To continue, first choose Continue asking in the result, then act manually and submit your next question. Content reads pause while this input is armed. A request that has already been sent keeps running when you switch windows. CetaFae shows the result when you return to the original window and the result passes validation. Close the prompt or drag the whale away to end the binding. Closing the target or withdrawing consent also ends it. Changes to the disclosed sending scope or terms invalidate saved consent.
+You can submit your next question directly from the result. If you want to do something yourself first, choose Continue asking. CetaFae pauses content reads until you submit. A request that has already been sent keeps running when you switch windows. CetaFae shows the result when you return to the original window and the result passes validation. Close the prompt or drag the whale away to end the binding. Closing the target or withdrawing consent also ends it. Changes to the disclosed sending scope or terms invalidate saved consent.
 
 ### Run from source
 

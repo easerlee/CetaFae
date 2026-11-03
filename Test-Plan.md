@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Result details input regression
+
+After a completed located result, expand the control bubble into its attached reader and enter a new question directly in the existing white input. Do not require navigating the target to unlock input. Retain the displayed explanation/marker while merely expanding or typing; submit once through the same bounded follow-up flow and collect fresh scoped evidence. Controlled checks cover the actual prompt/card transition, disabled processing/ended input, stale submission, and the existing eight-step/identity guards. Inspect fixed-data offscreen placement; native typing/focus still requires an authorized targeted retest. The pending preview.3 password-page/recovery questions are not executed evidence.
+
 ## Installation agreement and versioning
 
 For v1.29, inspect the exported agreement and privacy disclosure in both image modes using generated connection settings. Check that export leaves consent untouched, a changed agreement digest cannot grant consent, and matching explicit installation completion still works. Verify the executable and compiled installer version metadata. Keep the visible agreement page, cancel and upgrade checks in the authorized desktop pass.

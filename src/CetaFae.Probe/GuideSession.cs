@@ -331,6 +331,8 @@ public sealed class GuideSession : IDisposable
             await RecognizeAsync(_ball.BoundTarget, request, null);
             return;
         }
+        // Direct result input uses the same guarded transition as the existing continue action.
+        if (!_preview && _followup.CanOffer) OnFollowupRequested();
         if (!_preview && _followup.WaitingForUser && _gate.Accepts(_followupVersion))
         {
             GuideFollowupRequest next;
@@ -581,6 +583,7 @@ public sealed class GuideSession : IDisposable
             {
                 _followup.Complete(flowTarget, intent, allowWithoutGoal: identification?.CanStartErrorFollowup(policy) == true);
                 _panel.SetFollowupAvailable(_followup.CanOffer);
+                _ball.SetResult(_followup.CanOffer);
                 _activeFollowup = null;
             }
             resultToken.ThrowIfCancellationRequested();

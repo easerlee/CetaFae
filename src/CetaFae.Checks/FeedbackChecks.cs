@@ -19,6 +19,7 @@ internal static class FeedbackChecks
     internal static void Run(Action<bool, string> check, bool renderMeasured = false)
     {
         CheckMeasuredReader(check, renderMeasured);
+        CheckDetailsInput(check);
         var work = SystemParameters.WorkArea;
         var entry = new Rect(work.Left + 80, work.Top, 288, 36);
         var panel = new GuidePanel(Options);
@@ -94,6 +95,45 @@ internal static class FeedbackChecks
                 "all native feedback state checks remain offscreen");
         }
         finally { panel.Close(); }
+    }
+
+    static void CheckDetailsInput(Action<bool, string> check)
+    {
+        var ball = new BallWindow();
+        var panel = new GuidePanel(Options);
+        var submitted = new List<string>();
+        ball.AnswerSubmitted += submitted.Add;
+        try
+        {
+            panel.BindEntry(() => new Rect(300, 100, WhalePrompt.WidthDip, 36), () => 1, () => true);
+            ball.ShowQuestion(); ball.ClearQuestion(); ball.SetResult(canContinue: true);
+            panel.Card.SetCloud(true); panel.Card.SetStatus("生成控件说明，展开后应能直接继续提问。");
+            panel.SetControl(new Rect(800, 400, 45, 24)); panel.SetPoint(true);
+            panel.SetFollowupAvailable(true);
+            ball.Prompt.Answer.Text = "请继续说明这个开关。";
+            Click(panel.Card, "展开详情");
+            check(!panel.Card.IsBubble && panel.Card.FullText.Contains("生成控件说明") &&
+                ball.Prompt.CanAnswer && !ball.Prompt.Answer.IsReadOnly && ball.Prompt.Answer.Focusable &&
+                ball.Prompt.Answer.Text == "请继续说明这个开关。" && submitted.Count == 0,
+                "expanded result retains its explanation and an editable inline continuation without target navigation");
+            ball.Prompt.Send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ball.Prompt.Send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            check(submitted.SequenceEqual(new[] { "请继续说明这个开关。" }) && !ball.Prompt.CanAnswer,
+                "expanded-result input submits once and immediately prevents duplicate submission");
+            ball.SetResult(canContinue: false);
+            ball.Prompt.Answer.Text = "不可发送的生成输入";
+            ball.Prompt.Send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            check(ball.Prompt.Answer.IsReadOnly && !ball.Prompt.CanAnswer && submitted.Count == 1,
+                "a result without continuation authority cannot submit through the inline input");
+            ball.SetResult(canContinue: true); ball.SetProcessing(true);
+            ball.Prompt.Answer.Text = "处理中不可发送";
+            ball.Prompt.Send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            check(!ball.Prompt.CanAnswer && ball.Prompt.Answer.IsReadOnly && submitted.Count == 1,
+                "processing disables a previously editable result input without another request");
+            check(ball.Handle == IntPtr.Zero && panel.Handle == IntPtr.Zero,
+                "details-input regression never launches a native window or reads a real target");
+        }
+        finally { panel.Close(); ball.Close(); }
     }
 
     static void CheckMeasuredReader(Action<bool, string> check, bool render)
@@ -257,7 +297,7 @@ internal static class FeedbackChecks
                     }
                     if (i != 3)
                     {
-                        var prompt = new WhalePrompt(); prompt.SetTopAttached(top); prompt.SetQuestion(i is 0 or 4);
+                        var prompt = new WhalePrompt(); prompt.SetTopAttached(top); prompt.SetQuestion(i is 0 or 1 or 2 or 4 or 5 or 6);
                         if (i is 1 or 2 or 5 or 6) prompt.SetResult();
                         var host = new Grid(); host.Children.Add(prompt);
                         draw.DrawImage(RenderElement(host, promptWidth, 88), new Rect(promptPosition, new Size(promptWidth, 88)));
@@ -279,6 +319,7 @@ internal static class FeedbackChecks
                         _ => "高亮的是下载前询问保存位置的开关，当前已开启。这里只指出位置，没有修改设置。"
                     });
                     if (i == 4) card.SetRegionAvailable(true);
+                    if (i is 1 or 2 or 5 or 6) card.SetFollowupAvailable(true);
                     if (i == 1) card.SetPoint(true);
                     if (i == 5) card.Collapse();
                     var surface = new FeedbackSurface(card); surface.SetBubble(i == 1);

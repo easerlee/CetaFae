@@ -370,7 +370,12 @@ public sealed class BallWindow : Window
         ClearQuestion();
         if (_inline && _state != Motion.Dock && !ReducedMotion) Animate(Motion.Scan);
     }
-    public void SetResult() { SetProcessing(false); if (_inline) _prompt.SetResult(); }
+    public void SetResult(bool canContinue = false)
+    {
+        SetProcessing(false);
+        _question = canContinue;
+        if (_inline) { _prompt.SetQuestion(canContinue); _prompt.SetResult(); }
+    }
     internal void ResumeProcessing()
     {
         FinishMorph(complete: true);
