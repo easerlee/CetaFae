@@ -20,6 +20,7 @@ internal static class GuideTheme
     internal static readonly Brush Ink = Frozen("#143747");
     internal static readonly Brush Muted = Frozen("#536F7C");
     internal static readonly Brush Surface = Frozen("#F8FCFF");
+    internal static readonly Brush ChatBubble = Frozen("#E4F2FF");
     internal static readonly Thickness Padding = new(16);
     internal static readonly CornerRadius Radius = new(12);
 

@@ -11,14 +11,15 @@ internal sealed class FreeChatWindow : Window
 {
     internal const double OuterRadius = 8;
     internal const double InputHeight = 32;
-    internal const double FramePadding = 4;
+    internal const double FramePadding = 8;
     internal const double RestingWidth = 240;
     internal const double ConversationWidth = 380;
     internal const double ConversationMaxHeight = 480;
     internal const double ConversationFontSize = 16;
     internal const double InputRadius = OuterRadius * InputHeight / (InputHeight + FramePadding * 2);
-    readonly StackPanel _turns = new();
+    readonly StackPanel _turns = new() { Margin = new Thickness(12) };
     readonly ScrollViewer _transcript;
+    readonly Border _transcriptSurface;
     readonly TextBlock _status = new() { Foreground = GuideTheme.Ink, TextWrapping = TextWrapping.Wrap };
     readonly TextBlock _hint = new() { Text = "输入你的问题", Foreground = GuideTheme.Muted,
         VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
@@ -58,8 +59,10 @@ internal sealed class FreeChatWindow : Window
         row.Children.Add(close);
         var inputRow = new DockPanel();
         _transcript = new ScrollViewer { Content = _turns, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 6) };
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        _transcriptSurface = new Border { Child = _transcript, Background = GuideTheme.Surface,
+            CornerRadius = new CornerRadius(InputRadius), Visibility = Visibility.Collapsed,
+            Margin = new Thickness(0, 0, 0, 8) };
         _send = WhalePrompt.Action("▶", "发送 · Enter", 26, GuideTheme.WhaleBlue, Brushes.Transparent, 15);
         _send.VerticalAlignment = VerticalAlignment.Center;
         AutomationProperties.SetName(_input, "自由问答");
@@ -72,7 +75,7 @@ internal sealed class FreeChatWindow : Window
         inputRow.Children.Add(editor);
         row.Children.Add(new Border { Child = inputRow, Height = InputHeight, Background = Brushes.White,
             CornerRadius = new CornerRadius(InputRadius), Padding = new Thickness(12, 0, 4, 0) });
-        body.Children.Add(_transcript);
+        body.Children.Add(_transcriptSurface);
         _statusSurface = new Border { Child = _status, Background = Brushes.White, CornerRadius = new CornerRadius(InputRadius),
             Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 0, 0, 6) };
         body.Children.Add(_statusSurface);
@@ -114,9 +117,11 @@ internal sealed class FreeChatWindow : Window
             _statusSurface.Measure(new Size(Math.Max(1, Width - FramePadding * 2), double.PositiveInfinity));
             fixedHeight += _statusSurface.DesiredSize.Height;
         }
-        _transcript.MaxHeight = Math.Max(0, available - fixedHeight - _transcript.Margin.Bottom);
+        _transcript.MaxHeight = Math.Max(0, available - fixedHeight - _transcriptSurface.Margin.Bottom);
         var surface = (Border)Content;
         // A reply can replace the status at the same width before WPF's next layout pass.
+        _transcript.InvalidateMeasure();
+        _transcriptSurface.InvalidateMeasure();
         surface.Child.InvalidateMeasure();
         surface.InvalidateMeasure();
         surface.Measure(new Size(Width, double.PositiveInfinity));
@@ -153,15 +158,29 @@ internal sealed class FreeChatWindow : Window
     {
         _started = true;
         if (_turns.Children.Count == FreeChatSession.MaxTurns) _turns.Children.RemoveAt(0);
-        _turns.Children.Add(new Border
+        var exchange = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+        exchange.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+        exchange.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+        exchange.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        exchange.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var question = new Border
         {
-            Background = Brushes.White, CornerRadius = new CornerRadius(InputRadius),
-            Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 0, 0, 4),
-            Child = new TextBlock { Text = "你  " + turn.Question + "\n\n" + turn.Reply,
+            Background = GuideTheme.ChatBubble, CornerRadius = new CornerRadius(8),
+            HorizontalAlignment = HorizontalAlignment.Right, Padding = new Thickness(12, 8, 12, 8),
+            Child = new TextBlock { Text = turn.Question,
                 FontSize = ConversationFontSize, LineHeight = 26,
                 Foreground = GuideTheme.Ink, TextWrapping = TextWrapping.Wrap }
-        });
-        _transcript.Visibility = Visibility.Visible;
+        };
+        Grid.SetColumn(question, 1);
+        exchange.Children.Add(question);
+        var reply = new TextBlock { Text = turn.Reply, FontSize = ConversationFontSize,
+            LineHeight = 26, Foreground = GuideTheme.Ink, TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 12, 0, 0) };
+        Grid.SetRow(reply, 1);
+        Grid.SetColumnSpan(reply, 2);
+        exchange.Children.Add(reply);
+        _turns.Children.Add(exchange);
+        _transcriptSurface.Visibility = Visibility.Visible;
         _transcript.ScrollToEnd();
         _input.Clear();
         _hint.Text = "可以接着问";

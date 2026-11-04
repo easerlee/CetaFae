@@ -558,7 +558,8 @@ public static class Program
         Check(submissions.SequenceEqual(new[] { "测试问题" }) && home.Input.IsReadOnly,
             "the real capsule send button submits once and prevents repeated sends while waiting");
         home.Place(homeAnchor, area);
-        Check(home.Top < inputBottom - 40 && Math.Abs(home.Top + home.Height - inputBottom) < .01,
+        Check(home.Top < inputBottom - FreeChatWindow.InputHeight - FreeChatWindow.FramePadding * 2 &&
+              Math.Abs(home.Top + home.Height - inputBottom) < .01,
             "pending chat assigns the real window height and holds the bottom edge of the input");
         home.ShowTurn(new ChatTurn("测试问题", "测试回答"));
         home.Place(homeAnchor, area);
@@ -631,6 +632,73 @@ public static class Program
               narrow.Top + ((FrameworkElement)narrow.Content).ActualHeight <= smallWork.Bottom &&
               narrow.Input.ActualWidth >= 60 && narrow.Send.ActualWidth == 26,
             "a constrained work area keeps the conversation and input controls accessible");
+        var turns = (System.Windows.Controls.StackPanel)home.Transcript.Content;
+        Check(turns.Children[0] is System.Windows.Controls.Grid,
+            "chat renders the user question separately from the assistant reply");
+        void CheckBubbles(FreeChatWindow window)
+        {
+            var rows = (System.Windows.Controls.StackPanel)window.Transcript.Content;
+            foreach (System.Windows.Controls.Grid exchange in rows.Children)
+            {
+                var bubble = (System.Windows.Controls.Border)exchange.Children[0];
+                var question = (System.Windows.Controls.TextBlock)bubble.Child;
+                var answer = (System.Windows.Controls.TextBlock)exchange.Children[1];
+                var bubbleBounds = bubble.TransformToAncestor(exchange).TransformBounds(new Rect(bubble.RenderSize));
+                var answerBounds = answer.TransformToAncestor(exchange).TransformBounds(new Rect(answer.RenderSize));
+                Check(bubble.ActualWidth <= exchange.ActualWidth * .6 + .01 &&
+                      Math.Abs(bubbleBounds.Right - exchange.ActualWidth) < .01 &&
+                      bubble.CornerRadius == new CornerRadius(8) && bubble.Background == GuideTheme.ChatBubble,
+                    "user bubbles sit at the right edge and never exceed 60 percent of text width");
+                Check(question.TextWrapping == System.Windows.TextWrapping.Wrap &&
+                      question.ActualWidth <= bubble.ActualWidth - bubble.Padding.Left - bubble.Padding.Right + .01 &&
+                      answerBounds.Left == 0 && answer.TextAlignment == TextAlignment.Left &&
+                      answer.Background is null && rows.Margin == new Thickness(12) &&
+                      ((System.Windows.Controls.Border)window.Content).Padding == new Thickness(8),
+                    "questions wrap inside their bubbles, replies start at the left and both have breathing room");
+            }
+        }
+        CheckBubbles(home);
+        CheckBubbles(narrow);
+        CheckBubbles(longChat);
+        var shortBubble = (System.Windows.Controls.Border)((System.Windows.Controls.Grid)turns.Children[0]).Children[0];
+        Check(shortBubble.ActualWidth < ((FrameworkElement)turns.Children[0]).ActualWidth * .6,
+            "a short question shrinks naturally instead of filling the 60-percent limit");
+        var conversation = new FreeChatWindow();
+        conversation.ShowTurn(new ChatTurn("鲸汐能帮我做什么？", "我可以帮你看懂软件界面、理解报错和寻找操作位置，具体操作由你完成。"));
+        conversation.ShowTurn(new ChatTurn("那我不知道某个按钮在哪里，要怎么问你？", "把我拖到那个软件窗口，再告诉我你想完成什么。我会结合可见内容解释，并在有依据时指出位置。"));
+        conversation.Place(bottom, roomy);
+        ArrangeChat(conversation);
+        CheckBubbles(conversation);
+        var rowsBefore = (System.Windows.Controls.StackPanel)conversation.Transcript.Content;
+        var wrappedBubble = (System.Windows.Controls.Border)((System.Windows.Controls.Grid)rowsBefore.Children[1]).Children[0];
+        Check(Math.Abs(((System.Windows.Controls.Grid)rowsBefore.Children[1]).ColumnDefinitions[1].ActualWidth -
+                       ((FrameworkElement)rowsBefore.Children[1]).ActualWidth * .6) < .01 &&
+              ((FrameworkElement)wrappedBubble.Child).ActualHeight > 26,
+            "a long question wraps within the 60-percent column while retaining natural line width");
+        var history = new FreeChatWindow();
+        for (var index = 0; index < FreeChatSession.MaxTurns + 1; index++)
+            history.ShowTurn(new ChatTurn("question " + index, new string('x', 100)));
+        history.Place(bottom, roomy);
+        ArrangeChat(history);
+        CheckBubbles(history);
+        var historyRows = (System.Windows.Controls.StackPanel)history.Transcript.Content;
+        var oldest = (System.Windows.Controls.Grid)historyRows.Children[0];
+        Check(historyRows.Children.Count == FreeChatSession.MaxTurns &&
+              ((System.Windows.Controls.TextBlock)((System.Windows.Controls.Border)oldest.Children[0]).Child).Text == "question 1" &&
+              history.Transcript.ExtentWidth <= history.Transcript.ViewportWidth + .01,
+            "the fifth exchange removes only the oldest pair and unbroken text cannot cause horizontal overflow");
+        home.SetStatus("正在回答…", busy: true);
+        home.Place(homeAnchor, area);
+        ArrangeChat(home);
+        Check(Math.Abs(home.Top + home.Height - inputBottom) < .01 && home.Input.IsReadOnly,
+            "a follow-up pending state preserves the input anchor and prior conversation");
+        home.ShowTurn(new ChatTurn("再说具体一点", "你可以把鲸鱼拖到需要帮助的窗口，再告诉我想完成什么。"));
+        home.Place(homeAnchor, area);
+        ArrangeChat(home);
+        Check(Math.Abs(home.Top + home.Height - inputBottom) < .01 && !home.Input.IsReadOnly &&
+              turns.Children.Count == 2 &&
+              home.Input.TransformToAncestor(surface).TransformBounds(new Rect(home.Input.RenderSize)).Bottom <= home.Height,
+            "a second completed answer preserves the first pair, fixed input and usable next-question entry");
         if (!render) return;
         var folder = Path.Combine(".artifacts", "checks");
         Directory.CreateDirectory(folder);
@@ -643,7 +711,8 @@ public static class Program
         foreach (var (window, name, scale) in new[] { (initial, "chat-input", 1d), (home, "chat-home", 1d),
                      (anchored, "chat-reply", 1.25), (longChat, "chat-overflow", 1d),
                      (longChat, "chat-overflow-200", 2d), (narrow, "chat-narrow", 1d),
-                     (introduction, "chat-product-sample", 1d) })
+                     (introduction, "chat-product-sample", 1d), (conversation, "chat-conversation", 1d),
+                     (conversation, "chat-conversation-125", 1.25), (conversation, "chat-conversation-200", 2d) })
         {
             var content = (FrameworkElement)window.Content;
             var size = new Size(window.Width, window.Height);
@@ -656,6 +725,27 @@ public static class Program
             png.Frames.Add(BitmapFrame.Create(bitmap));
             using var stream = File.Create(Path.Combine(folder, name + ".png"));
             png.Save(stream);
+            var comparison = new DrawingVisual();
+            using (var drawing = comparison.RenderOpen())
+            {
+                var bounds = new Rect(0, 0, size.Width, size.Height);
+                drawing.DrawImage(bitmap, bounds);
+                drawing.PushTransform(new TranslateTransform(size.Width + 12, 0));
+                drawing.DrawImage(bitmap, bounds);
+                var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(65, 0, 90, 140)), .5);
+                for (var x = 0d; x < size.Width; x += 10)
+                    drawing.DrawLine(gridPen, new Point(x, 0), new Point(x, size.Height));
+                for (var y = 0d; y < size.Height; y += 10)
+                    drawing.DrawLine(gridPen, new Point(0, y), new Point(size.Width, y));
+                drawing.Pop();
+            }
+            var paired = new RenderTargetBitmap((int)Math.Ceiling((size.Width * 2 + 12) * scale),
+                bitmap.PixelHeight, 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            paired.Render(comparison);
+            var pairedPng = new PngBitmapEncoder();
+            pairedPng.Frames.Add(BitmapFrame.Create(paired));
+            using var pairedStream = File.Create(Path.Combine(folder, name + "-comparison.png"));
+            pairedPng.Save(pairedStream);
         }
     }
 

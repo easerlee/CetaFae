@@ -1,5 +1,9 @@
 # Selected-Window Guidance: Implementation Specification
 
+## Resting-chat message layout (requirements v1.36)
+
+Keep the existing four-turn session and transport. Each completed turn is a two-row Grid: two star columns weighted 2:3 constrain a right-aligned, natural-width user bubble to 60 percent of the text area; the plain reply spans both columns below. Use an 8-DIP corner and pale blue fill for questions. A single light transcript surface contains all turns with 12-DIP inner spacing; the blue shell uses 8-DIP padding. Preserve the bottom input anchor, proportional inner corners, 480-DIP cap and custom overflow scrollbar. Use finite layout widths, so the ratio also applies to narrow work areas and when the scrollbar appears. Verify fixed-data layouts before any real model or desktop integration.
+
 ## Product-grounded dialogue and readable resting chat (requirements v1.35)
 
 Text replies speak as CetaFae, a computer/software explanation and guidance assistant. Pin product identity, supported assistance and action boundaries in the system message for both resting chat and bound-question routing. The session supplies whether enabled packages support window guidance; a disabled capability must not be advertised. Distinguish a text-only request with no observed window from the product ability to inspect a deliberately selected window. Never claim file access, browsing, continuous monitoring or execution. Do not classify questions by local phrases or sanitize answers by deleting arbitrary keywords. Keep text-only transport, bounded history and guarded window handoff unchanged. These instructions constrain generation; their semantic effectiveness requires the deferred direct-provider matrix.
