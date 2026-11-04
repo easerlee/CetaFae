@@ -1,5 +1,9 @@
 # CetaFae Concentrated Verification Plan
 
+## Resting-chat cache and clear (v1.37)
+
+Use a fake transport to verify dismiss cancellation preserves completed context, a new question receives that context and a late old reply cannot enter it. Verify reset removes context and permits a fresh request. Offscreen, populate the real chat surface, type a draft, scroll, then dismiss; verify the transcript, draft and scroll offset remain unchanged. Invoke the real clear button and verify one clear notification, no message rows or draft, editable compact input and no stale busy state. Check accessible button name and the supplied packaged PNG mask. Render normal, scrolled and freshly cleared states. Inspect host call sites for hidden-cache versus visible-window guards and cleanup on withdrawal/configuration/disposal. Native click-away, reopen and IME behavior remains a separate consolidated acceptance gate; no visible launch or real model call is needed for this increment.
+
 ## Resting-chat bubbles (v1.36)
 
 Render fixed-data short and wrapped questions, long replies, four-turn history, overflow and a narrow work area. Assert user bubbles align with the right content edge, occupy at most 60 percent of actual text width, shrink for short questions and wrap without horizontal overflow. Assert plain replies start at the left content edge, transcript padding is at least 12 DIP, shell padding is 8 DIP and a fifth turn evicts only the oldest pair. Retain bottom-anchor, 480-DIP cap, pending/reply and custom-scroll checks. Inspect clean and matched-coordinate grid renders at 100/125/200 percent. Do not launch a visible window or call a model for this presentation change; native interaction remains a separate acceptance gate.

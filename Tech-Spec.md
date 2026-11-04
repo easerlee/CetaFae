@@ -1,5 +1,9 @@
 # Selected-Window Guidance: Implementation Specification
 
+## Resting-chat dismissal and memory cache (requirements v1.37)
+
+Retain one hidden FreeChatWindow and its four-pair FreeChatSession during the process lifetime. Deactivation, Escape, full-screen suppression, dragging and opening settings dismiss the surface without destroying completed turns, the draft or scroll offset. Cancel only the pending request on dismiss. Reopening shows the same window; a hidden cache must not suppress bound-window freshness checks. A request generation prevents a cancelled completion from mutating a cleared or reused surface. Clear uses the supplied PNG alpha mask in a white icon, resets UI and model history together and leaves the compact input usable. Revocation, invalidated connection configuration, unexpected window destruction and disposal destroy both caches. Do not write chat text to disk or add request/capture paths.
+
 ## Resting-chat message layout (requirements v1.36)
 
 Keep the existing four-turn session and transport. Each completed turn is a two-row Grid: two star columns weighted 2:3 constrain a right-aligned, natural-width user bubble to 60 percent of the text area; the plain reply spans both columns below. Use an 8-DIP corner and pale blue fill for questions. A single light transcript surface contains all turns with 12-DIP inner spacing; the blue shell uses 8-DIP padding. Preserve the bottom input anchor, proportional inner corners, 480-DIP cap and custom overflow scrollbar. Use finite layout widths, so the ratio also applies to narrow work areas and when the scrollbar appears. Verify fixed-data layouts before any real model or desktop integration.

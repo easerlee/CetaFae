@@ -699,6 +699,44 @@ public static class Program
               turns.Children.Count == 2 &&
               home.Input.TransformToAncestor(surface).TransformBounds(new Rect(home.Input.RenderSize)).Bottom <= home.Height,
             "a second completed answer preserves the first pair, fixed input and usable next-question entry");
+        Check(home.ClearButton.Content is System.Windows.Controls.Border { OpacityMask: ImageBrush } &&
+              System.Windows.Automation.AutomationProperties.GetName(home.ClearButton) == "清除对话",
+            "resting chat replaces close with the accessible supplied clear icon");
+        home.Input.Text = "尚未发送的草稿";
+        var dismissed = 0;
+        home.Dismissed += () => dismissed++;
+        home.SetStatus("正在回答…", busy: true);
+        home.Dismiss();
+        home.Place(homeAnchor, area);
+        ArrangeChat(home);
+        Check(dismissed == 1 && turns.Children.Count == 2 && home.Input.Text == "尚未发送的草稿" &&
+              !home.Input.IsReadOnly && home.Handle == IntPtr.Zero,
+            "dismiss preserves completed messages and the draft without leaving an invisible busy state");
+        longChat.Transcript.ScrollToTop();
+        longChat.Transcript.PageDown();
+        ArrangeChat(longChat);
+        var readingOffset = longChat.Transcript.VerticalOffset;
+        longChat.Dismiss();
+        longChat.Place(bottom, roomy);
+        ArrangeChat(longChat);
+        Check(readingOffset > 0 && Math.Abs(longChat.Transcript.VerticalOffset - readingOffset) < .01,
+            "dismiss and restoration preserve a scrolled conversation's reading position");
+        var cleared = 0;
+        home.Cleared += () => cleared++;
+        home.SetStatus("正在回答…", busy: true);
+        home.ClearButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        home.Place(homeAnchor, area);
+        ArrangeChat(home);
+        Check(cleared == 1 && turns.Children.Count == 0 && home.Input.Text.Length == 0 &&
+              !home.Input.IsReadOnly && !home.Send.IsEnabled && home.Width == FreeChatWindow.RestingWidth &&
+              home.Height == FreeChatWindow.InputHeight + FreeChatWindow.FramePadding * 2,
+            "the real brush button clears messages, draft and busy state and restores a compact usable input");
+        home.ShowTurn(new ChatTurn("新的问题", "可以继续提问。"));
+        home.Place(homeAnchor, area);
+        ArrangeChat(home);
+        Check(turns.Children.Count == 1 && home.Width == FreeChatWindow.ConversationWidth &&
+              !home.Input.IsReadOnly,
+            "a cleared chat can start a fresh conversation without bringing back old rows");
         if (!render) return;
         var folder = Path.Combine(".artifacts", "checks");
         Directory.CreateDirectory(folder);
@@ -708,11 +746,16 @@ public static class Program
         introduction.ShowTurn(new ChatTurn("你都能干点啥？",
             "我是鲸汐，帮你看懂软件界面、理解报错和找到操作位置。把我拖到想了解的窗口就能开始；也可以直接问电脑使用问题，具体操作由你完成。"));
         introduction.Place(bottom, roomy);
+        var emptyChat = new FreeChatWindow();
+        emptyChat.ShowTurn(new ChatTurn("生成问题", "生成回答"));
+        emptyChat.ClearConversation();
+        emptyChat.Place(bottom, roomy);
         foreach (var (window, name, scale) in new[] { (initial, "chat-input", 1d), (home, "chat-home", 1d),
                      (anchored, "chat-reply", 1.25), (longChat, "chat-overflow", 1d),
                      (longChat, "chat-overflow-200", 2d), (narrow, "chat-narrow", 1d),
                      (introduction, "chat-product-sample", 1d), (conversation, "chat-conversation", 1d),
-                     (conversation, "chat-conversation-125", 1.25), (conversation, "chat-conversation-200", 2d) })
+                     (conversation, "chat-conversation-125", 1.25), (conversation, "chat-conversation-200", 2d),
+                     (emptyChat, "chat-cleared", 1d) })
         {
             var content = (FrameworkElement)window.Content;
             var size = new Size(window.Width, window.Height);
@@ -848,7 +891,7 @@ public static class Program
         await RejectAsync(() => chat.SubmitAsync("密码：generated-test"), "detected credentials are rejected before sending chat");
         chat.Reset();
         await chat.SubmitAsync("新会话");
-        Check(historySeen.Length == 0, "switching away clears the text history");
+        Check(historySeen.Length == 0, "an explicit reset clears the text history");
         await RejectAsync(() => chat.SubmitAsync(""), "blank chat input cannot send");
         await RejectAsync(() => chat.SubmitAsync(new string('x', 301)), "oversized chat input cannot send");
         await RejectAsync(() => chat.SubmitAsync("line\nline"), "multiline chat input cannot bypass the single-line contract");
@@ -868,7 +911,32 @@ public static class Program
         race.Reset();
         var current = await race.SubmitAsync("新问题");
         late.SetResult("旧回答");
-        Check(await pending is null && current?.Reply == "新回答", "closing or switching discards a late reply without affecting a new session");
+        Check(await pending is null && current?.Reply == "新回答", "clearing discards a late reply without affecting a new session");
+        var cachedHistory = Array.Empty<ChatTurn>();
+        var hiddenReply = new TaskCompletionSource<string?>();
+        var pendingToken = CancellationToken.None;
+        var cached = new FreeChatSession((history, question, token) =>
+        {
+            cachedHistory = history.ToArray();
+            if (question != "收起中的问题") return Task.FromResult<string?>("答：" + question);
+            pendingToken = token;
+            return hiddenReply.Task;
+        });
+        await cached.SubmitAsync("已完成的问题");
+        var hiddenPending = cached.SubmitAsync("收起中的问题");
+        cached.CancelPending();
+        cached.CancelPending();
+        var restored = await cached.SubmitAsync("继续提问");
+        hiddenReply.SetResult("迟到的旧回答");
+        Check(pendingToken.IsCancellationRequested && await hiddenPending is null && restored?.Reply == "答：继续提问" &&
+              cachedHistory.Select(turn => turn.Question).SequenceEqual(new[] { "已完成的问题" }),
+            "dismiss cancels only the pending request, retains completed context and rejects a late hidden reply");
+        await cached.SubmitAsync("再次追问");
+        Check(cachedHistory.Select(turn => turn.Question).SequenceEqual(new[] { "已完成的问题", "继续提问" }),
+            "reopened dialogue continues with its completed cache and excludes the cancelled question");
+        cached.Reset();
+        await cached.SubmitAsync("清除后提问");
+        Check(cachedHistory.Length == 0, "explicit clear deletes the cached model context");
         var lateRoute = new TaskCompletionSource<string?>();
         var handoff = new FreeChatSession((_, _, _) => lateRoute.Task);
         using var lifetime = new CancellationTokenSource();
@@ -881,8 +949,10 @@ public static class Program
         Check(await stopped.SubmitAsync("已经关闭", lifetime.Token) is null && sends == 0,
             "a cancelled binding cannot start a text routing request");
         Check(InstallationAgreement.Text(options).Contains("自由问答仅在你发送时", StringComparison.Ordinal) &&
-            InstallationAgreement.Text(options).Contains("最近四组问答", StringComparison.Ordinal),
-            "the installation agreement discloses the exact new text scope");
+            InstallationAgreement.Text(options).Contains("最近四组问答", StringComparison.Ordinal) &&
+            InstallationAgreement.Text(options).Contains("本次运行的内存", StringComparison.Ordinal) &&
+            InstallationAgreement.Text(options).Contains("不写磁盘", StringComparison.Ordinal),
+            "the installation agreement discloses text scope, in-memory cache and its clearing boundaries");
     }
 
     static HttpResponseMessage Completion(string answer) => new(HttpStatusCode.OK)

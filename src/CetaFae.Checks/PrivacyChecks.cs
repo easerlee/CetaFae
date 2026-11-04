@@ -293,7 +293,7 @@ static class PrivacyChecks
               GuidePanel.Disclosure(options with { IncludeImage = true }).Contains("局部画面") &&
               GuidePanel.Disclosure(options with { IncludeImage = true }).Contains("本机内存绘制所选整窗"),
             "image consent distinguishes scoped outbound content from initial and local whole-window rendering");
-        check(disclosure.Contains("7天") && disclosure.Contains("不保存") && disclosure.Contains("会话结束") &&
+        check(disclosure.Contains("7天") && disclosure.Contains("不持久保存") && disclosure.Contains("会话结束") &&
               disclosure.Contains("代理") && disclosure.Contains("模型服务商") && disclosure.Contains("正式发布") &&
               disclosure.Contains("无法从上游撤回"),
             "consent separates client retention, unknown upstream policy and revocation limits");

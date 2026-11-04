@@ -40,12 +40,17 @@ internal sealed class FreeChatSession(Func<IReadOnlyList<ChatTurn>, string, Canc
         return turn;
     }
 
-    internal void Reset()
+    internal void CancelPending()
     {
         var pending = _pending;
         _pending = null;
-        _history.Clear();
         pending?.Cancel();
+    }
+
+    internal void Reset()
+    {
+        CancelPending();
+        _history.Clear();
     }
 
     internal static string ValidateReply(string? value)

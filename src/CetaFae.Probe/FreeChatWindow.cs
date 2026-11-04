@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace CetaFae.Probe;
 
@@ -28,12 +29,16 @@ internal sealed class FreeChatWindow : Window
         BorderThickness = new Thickness(0), Background = Brushes.Transparent, VerticalContentAlignment = VerticalAlignment.Center,
         Foreground = GuideTheme.Ink };
     readonly Button _send;
+    readonly Button _clear;
     bool _busy;
     bool _started;
     internal event Action<string>? Submitted;
+    internal event Action? Dismissed;
+    internal event Action? Cleared;
     internal IntPtr Handle => new WindowInteropHelper(this).Handle;
     internal TextBox Input => _input;
     internal Button Send => _send;
+    internal Button ClearButton => _clear;
     internal ScrollViewer Transcript => _transcript;
 
     internal FreeChatWindow()
@@ -52,11 +57,20 @@ internal sealed class FreeChatWindow : Window
         });
         var body = new StackPanel();
         var row = new DockPanel();
-        var close = WhalePrompt.Action("×", "关闭对话", 26, Brushes.White, Brushes.Transparent, 20);
-        close.VerticalAlignment = VerticalAlignment.Center;
-        close.Click += (_, _) => Close();
-        DockPanel.SetDock(close, Dock.Right);
-        row.Children.Add(close);
+        var clearIcon = new BitmapImage();
+        clearIcon.BeginInit();
+        clearIcon.UriSource = new Uri("pack://application:,,,/CetaFae.Probe;component/Art/Ui/clear-chat.png", UriKind.Absolute);
+        clearIcon.DecodePixelWidth = 64;
+        clearIcon.CacheOption = BitmapCacheOption.OnLoad;
+        clearIcon.EndInit();
+        clearIcon.Freeze();
+        _clear = WhalePrompt.Action("", "清除对话", 26, Brushes.White, Brushes.Transparent, 20);
+        _clear.Content = new Border { Width = 24, Height = 24, Background = Brushes.White,
+            OpacityMask = new ImageBrush(clearIcon) { Stretch = Stretch.Uniform } };
+        _clear.VerticalAlignment = VerticalAlignment.Center;
+        _clear.Click += (_, _) => ClearConversation();
+        DockPanel.SetDock(_clear, Dock.Right);
+        row.Children.Add(_clear);
         var inputRow = new DockPanel();
         _transcript = new ScrollViewer { Content = _turns, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
@@ -93,10 +107,31 @@ internal sealed class FreeChatWindow : Window
         {
             if (e.Key != Key.Escape) return;
             e.Handled = true;
-            Close();
+            Dismiss();
         };
+        Deactivated += (_, _) => { if (IsVisible) Dismiss(); };
         Loaded += (_, _) => _input.Focus();
         SetStatus(null);
+    }
+
+    internal void Dismiss()
+    {
+        if (IsVisible) Hide();
+        SetStatus(null);
+        Dismissed?.Invoke();
+    }
+
+    internal void ClearConversation()
+    {
+        _turns.Children.Clear();
+        _transcriptSurface.Visibility = Visibility.Collapsed;
+        _transcript.ScrollToTop();
+        _input.Clear();
+        _hint.Text = "输入你的问题";
+        _started = false;
+        SetStatus(null);
+        Cleared?.Invoke();
+        _input.Focus();
     }
 
     internal void Place(Rect anchor, Rect work)

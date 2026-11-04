@@ -22,6 +22,7 @@ public sealed class GuideSession : IDisposable
     readonly FreeChatSession _chat;
     readonly FreeChatSession _questions;
     FreeChatWindow? _chatWindow;
+    int _chatVersion;
     readonly CloudConsentStore _consent;
     readonly GuideMenu _menu;
     readonly PluginCatalog _plugins;
@@ -100,14 +101,13 @@ public sealed class GuideSession : IDisposable
 
     void OnFullscreenHidden()
     {
-        CloseChat();
+        DismissChat();
         _panel.DismissNotice();
     }
 
     void ToggleChat()
     {
         if (_plugins.ChatProvider is null) return;
-        if (_chatWindow is { } existing) { existing.Close(); return; }
         if (_preview || !_gate.CloudEnabled)
         {
             _panel.SetStatus(_preview ? "这是静态预览。安装后可以使用自由问答。" : "请先通过安装程序确认使用协议，再使用自由问答。");
@@ -115,13 +115,35 @@ public sealed class GuideSession : IDisposable
         }
         if (_ball.HasTarget) return;
         ResetRecognition();
+        if (_chatWindow is { } existing)
+        {
+            existing.Place(_ball.FeedbackBounds, _ball.Workspace);
+            existing.Show();
+            existing.Activate();
+            existing.Input.Focus();
+            return;
+        }
         var capsule = new FreeChatWindow { Owner = _ball };
         _chatWindow = capsule;
         capsule.Submitted += text => SubmitChat(capsule, text);
+        capsule.Dismissed += () =>
+        {
+            if (_chatWindow != capsule) return;
+            _chatVersion++;
+            _chat.CancelPending();
+        };
+        capsule.Cleared += () =>
+        {
+            if (_chatWindow != capsule) return;
+            _chatVersion++;
+            _chat.Reset();
+            capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
+        };
         capsule.Closed += (_, _) =>
         {
             if (_chatWindow != capsule) return;
             _chatWindow = null;
+            _chatVersion++;
             _chat.Reset();
         };
         capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
@@ -131,33 +153,38 @@ public sealed class GuideSession : IDisposable
     async void SubmitChat(FreeChatWindow capsule, string text)
     {
         if (_chatWindow != capsule || !_gate.CloudEnabled) return;
+        var version = ++_chatVersion;
         capsule.SetStatus("鲸汐正在回答…", busy: true);
         capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
         try
         {
             var turn = await _chat.SubmitAsync(text);
-            if (_chatWindow == capsule && turn is not null) capsule.ShowTurn(turn);
+            if (_chatWindow == capsule && _chatVersion == version && turn is not null) capsule.ShowTurn(turn);
         }
         catch (Exception ex) when (ex is InvalidDataException or JsonException or HttpRequestException or IOException or OperationCanceledException)
         {
-            if (_chatWindow == capsule)
+            if (_chatWindow == capsule && _chatVersion == version)
                 capsule.SetStatus(ex.Message == "sensitive_content" ? "请去掉密钥等敏感内容后再发送。" : "这次没能回答，请再试一次。");
         }
-        if (_chatWindow == capsule) capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
+        if (_chatWindow == capsule && _chatVersion == version) capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
     }
+
+    void DismissChat() => _chatWindow?.Dismiss();
 
     void CloseChat()
     {
-        if (_chatWindow is not { } capsule) return;
+        var capsule = _chatWindow;
         _chatWindow = null;
+        _chatVersion++;
         _chat.Reset();
-        capsule.Close();
+        capsule?.Close();
     }
 
     internal bool CloudEnabled => _gate.CloudEnabled;
     internal void EndForSettings() => ResetRecognition();
     internal void RevokeForConfiguration()
     {
+        CloseChat();
         _ball.StopTracking("configuration_changed");
         _gate.SetCloud(false);
         _panel.SetCloud(false); _menu.SetCloud(false);
@@ -174,6 +201,7 @@ public sealed class GuideSession : IDisposable
     void RevokeConsent()
     {
         if (_preview) { _panel.SetStatus("这是静态预览，不会更改使用同意。"); return; }
+        CloseChat();
         _ball.StopTracking("consent_withdrawn");
         _gate.SetCloud(false); _panel.SetCloud(false); _menu.SetCloud(false);
         var saved = _consent.Revoke();
@@ -194,7 +222,7 @@ public sealed class GuideSession : IDisposable
 
     void ResetRecognition(bool preserveConversation = false)
     {
-        CloseChat();
+        DismissChat();
         if (!preserveConversation) _questions.Reset();
         _boundQuestionReady = false;
         _activationVersion = null;
@@ -305,7 +333,7 @@ public sealed class GuideSession : IDisposable
 
     async void OnTargetChanged()
     {
-        if (_ball.BindingSuspended || _chatWindow is not null || _routingVersion is not null) return;
+        if (_ball.BindingSuspended || _chatWindow is { IsVisible: true } || _routingVersion is not null) return;
         _contextCheckPending = true;
         if (_context is { Snapshot: true } snapshot)
         {
@@ -386,7 +414,7 @@ public sealed class GuideSession : IDisposable
     void OnEntryChanged(object? sender, EventArgs args)
     {
         if (_panel.IsVisible) _panel.Reposition();
-        _chatWindow?.Place(_ball.FeedbackBounds, _ball.Workspace);
+        if (_chatWindow is { IsVisible: true } capsule) capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
     }
 
     bool IsInputForeground(IntPtr window) =>
@@ -394,7 +422,7 @@ public sealed class GuideSession : IDisposable
         ((_context is not null || _boundQuestionReady) && _gate.Accepts(_contextVersion) || _followup.WaitingForUser && _gate.Accepts(_followupVersion));
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
-        _chatWindow is { } capsule && window != IntPtr.Zero && window == capsule.Handle ||
+        _chatWindow is { IsVisible: true } capsule && window != IntPtr.Zero && window == capsule.Handle ||
         _menu.OwnsForeground(window) ||
         _picker is not null && (window == _picker.Handle || window == IntPtr.Zero) ||
         _activationVersion is { } version && _gate.Accepts(version) &&
