@@ -702,6 +702,19 @@ public static class Program
         Check(home.ClearButton.Content is System.Windows.Controls.Border { OpacityMask: ImageBrush } &&
               System.Windows.Automation.AutomationProperties.GetName(home.ClearButton) == "清除对话",
             "resting chat replaces close with the accessible supplied clear icon");
+        var clearGlyph = (FrameworkElement)home.ClearButton.Content;
+        var clearBounds = home.ClearButton.TransformToAncestor(surface).TransformBounds(new Rect(home.ClearButton.RenderSize));
+        var whiteInput = (FrameworkElement)((FrameworkElement)((FrameworkElement)home.Input.Parent).Parent).Parent;
+        var whiteBounds = whiteInput.TransformToAncestor(surface).TransformBounds(new Rect(whiteInput.RenderSize));
+        var glyphBounds = clearGlyph.TransformToAncestor(home.ClearButton).TransformBounds(new Rect(clearGlyph.RenderSize));
+        Check(clearGlyph.ActualWidth == 18 && clearGlyph.ActualHeight == 18 &&
+              Math.Abs(glyphBounds.Left + glyphBounds.Width / 2 - home.ClearButton.ActualWidth / 2) < .01 &&
+              Math.Abs(glyphBounds.Top + glyphBounds.Height / 2 - home.ClearButton.ActualHeight / 2) < .01,
+            "the smaller clear glyph is horizontally and vertically centered in its click target");
+        Check(Math.Abs(clearBounds.Left + clearBounds.Width / 2 - (whiteBounds.Right + surface.ActualWidth) / 2) < .01 &&
+              Math.Abs(clearBounds.Top + clearBounds.Height / 2 - whiteBounds.Top - whiteBounds.Height / 2) < .01 &&
+              clearBounds.Right <= surface.ActualWidth && home.ClearButton.ActualWidth >= 26,
+            "the clear action is centered in the full blue region to the right of the white input without shrinking its hit target");
         home.Input.Text = "尚未发送的草稿";
         var dismissed = 0;
         home.Dismissed += () => dismissed++;

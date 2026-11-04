@@ -56,7 +56,8 @@ internal sealed class FreeChatWindow : Window
             Source = new Uri("/CetaFae.Probe;component/ChatScrollBar.xaml", UriKind.Relative)
         });
         var body = new StackPanel();
-        var row = new DockPanel();
+        // Include the outer right gutter in the clear action's blue region.
+        var row = new DockPanel { Margin = new Thickness(0, 0, -FramePadding, 0) };
         var clearIcon = new BitmapImage();
         clearIcon.BeginInit();
         clearIcon.UriSource = new Uri("pack://application:,,,/CetaFae.Probe;component/Art/Ui/clear-chat.png", UriKind.Absolute);
@@ -65,7 +66,9 @@ internal sealed class FreeChatWindow : Window
         clearIcon.EndInit();
         clearIcon.Freeze();
         _clear = WhalePrompt.Action("", "清除对话", 26, Brushes.White, Brushes.Transparent, 20);
-        _clear.Content = new Border { Width = 24, Height = 24, Background = Brushes.White,
+        _clear.Width = 26 + FramePadding;
+        _clear.Height = InputHeight;
+        _clear.Content = new Border { Width = 18, Height = 18, Background = Brushes.White,
             OpacityMask = new ImageBrush(clearIcon) { Stretch = Stretch.Uniform } };
         _clear.VerticalAlignment = VerticalAlignment.Center;
         _clear.Click += (_, _) => ClearConversation();

@@ -2,6 +2,8 @@
 
 ## Resting-chat cache and clear (v1.37)
 
+Check the18DIP glyph's center within the button and the button's center within the complete right blue region, including the outer gutter. Keep the full hit target and the existing white-input width. Render100/125/200-percent states without launching a native window.
+
 Use a fake transport to verify dismiss cancellation preserves completed context, a new question receives that context and a late old reply cannot enter it. Verify reset removes context and permits a fresh request. Offscreen, populate the real chat surface, type a draft, scroll, then dismiss; verify the transcript, draft and scroll offset remain unchanged. Invoke the real clear button and verify one clear notification, no message rows or draft, editable compact input and no stale busy state. Check accessible button name and the supplied packaged PNG mask. Render normal, scrolled and freshly cleared states. Inspect host call sites for hidden-cache versus visible-window guards and cleanup on withdrawal/configuration/disposal. Native click-away, reopen and IME behavior remains a separate consolidated acceptance gate; no visible launch or real model call is needed for this increment.
 
 ## Resting-chat bubbles (v1.36)

@@ -2,6 +2,8 @@
 
 ## Resting-chat dismissal and memory cache (requirements v1.37)
 
+The clear glyph is18DIP inside a34-by-32DIP hit target. Extend the input row through the shell's right gutter so the action is geometrically centered between the white input edge and the outer blue edge, without reducing the input width or adding an arbitrary icon translation.
+
 Retain one hidden FreeChatWindow and its four-pair FreeChatSession during the process lifetime. Deactivation, Escape, full-screen suppression, dragging and opening settings dismiss the surface without destroying completed turns, the draft or scroll offset. Cancel only the pending request on dismiss. Reopening shows the same window; a hidden cache must not suppress bound-window freshness checks. A request generation prevents a cancelled completion from mutating a cleared or reused surface. Clear uses the supplied PNG alpha mask in a white icon, resets UI and model history together and leaves the compact input usable. Revocation, invalidated connection configuration, unexpected window destruction and disposal destroy both caches. Do not write chat text to disk or add request/capture paths.
 
 ## Resting-chat message layout (requirements v1.36)
