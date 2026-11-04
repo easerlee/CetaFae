@@ -16,6 +16,7 @@ public sealed class GuideSession : IDisposable
     readonly GuideRunGate _gate = new();
     readonly GuideFollowup _followup = new();
     readonly GuideUnderstanding _understanding = new();
+    readonly GuideRegionContext _region = new();
     GuideFollowupRequest? _activeFollowup;
     int _followupVersion;
     readonly GuideOptions _options;
@@ -250,7 +251,7 @@ public sealed class GuideSession : IDisposable
     void ResetRecognition(bool preserveConversation = false)
     {
         DismissChat();
-        if (!preserveConversation) { _questions.Reset(); _followup.Clear(); _understanding.Clear(); }
+        if (!preserveConversation) { _questions.Reset(); _followup.Clear(); _understanding.Clear(); _region.Clear(); }
         else { _questions.CancelPending(); _followup.Restore(); }
         _boundQuestionReady = false;
         _activationVersion = null;
@@ -276,6 +277,7 @@ public sealed class GuideSession : IDisposable
 
     void OnBindingSuspended()
     {
+        _region.Invalidate();
         if (_modelVersion is { } sent && _gate.Accepts(sent))
         {
             _foregroundReturn ??= new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -325,10 +327,11 @@ public sealed class GuideSession : IDisposable
         }
         return accepts() && !requestToken.IsCancellationRequested ? deferred : null;
     }
-    void OnGuidanceCleared() => ReadyBoundQuestion("本次识别已停止。你想了解什么？");
+    void OnGuidanceCleared() => ReadyBoundQuestion("本次识别已停止。你想了解什么？", invalidateRegion: true);
 
-    void ReadyBoundQuestion(string message, bool preserveConversation = true)
+    void ReadyBoundQuestion(string message, bool preserveConversation = true, bool invalidateRegion = false)
     {
+        if (invalidateRegion) _region.Invalidate();
         ResetRecognition(preserveConversation);
         if (!_gate.CloudEnabled || !_ball.HasTarget || _ball.BindingSuspended) return;
         _contextVersion = _gate.Begin();
@@ -373,7 +376,7 @@ public sealed class GuideSession : IDisposable
                 Native.IsIconic(snapshot.Window) || Native.ProcessId(snapshot.Window) != snapshot.ProcessId ||
                 GuideObservation.WindowRect(snapshot.Window) != snapshot.Frame)
             {
-                ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
+                ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？", invalidateRegion: true);
                 return;
             }
             if (snapshot.PageAnchors is null || _modelVersion == _contextVersion)
@@ -386,7 +389,7 @@ public sealed class GuideSession : IDisposable
         {
             // Geometry/lifetime checks are allowed while armed, but do not inspect changed content.
             if (!Native.IsWindow(armed.Window) || !Native.IsWindowVisible(armed.Window) || Native.IsIconic(armed.Window) ||
-                Native.ProcessId(armed.Window) != armed.ProcessId) ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
+                Native.ProcessId(armed.Window) != armed.ProcessId) ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？", invalidateRegion: true);
             _contextCheckPending = false;
             return;
         }
@@ -395,7 +398,7 @@ public sealed class GuideSession : IDisposable
             if (!Native.IsWindow(selecting.Window) || !Native.IsWindowVisible(selecting.Window) ||
                 Native.IsIconic(selecting.Window) || Native.ProcessId(selecting.Window) != selecting.ProcessId ||
                 GuideObservation.WindowRect(selecting.Window) != selecting.Frame)
-                ReadyBoundQuestion("窗口已有变化，旧选区已清除。你想了解什么？");
+                ReadyBoundQuestion("窗口已有变化，旧选区已清除。你想了解什么？", invalidateRegion: true);
             return;
         }
         if (_checkingContext || _context is null || IsInputForeground(Native.GetForegroundWindow())) return;
@@ -422,7 +425,7 @@ public sealed class GuideSession : IDisposable
                     if (_gate.CancelIfContextChanged(version, context.Candidates, current.Candidates) ||
                         _gate.Accepts(version) && (!context.HasSamePage(current) ||
                             !context.HasSameScope(current) || !context.HasSameVisual(current)))
-                        ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？");
+                        ReadyBoundQuestion("窗口已有变化，旧说明已清除。你想了解什么？", invalidateRegion: true);
                     else if (_gate.Accepts(version)) ProbeLog.Log("guide_context_unchanged");
                 }
                 catch (OperationCanceledException) when (!_gate.Accepts(version) || token.IsCancellationRequested) { }
@@ -588,7 +591,7 @@ public sealed class GuideSession : IDisposable
     {
         if (_preview || !_gate.CloudEnabled || _context is not { } previous || !_gate.Accepts(_contextVersion) || _picker is not null) return;
         var version = _contextVersion;
-        var intent = _pendingIntent;
+        var intent = _pendingIntent ?? "请用简短易懂的话解释所选区域的内容和含义，不执行操作。";
         var followup = _activeFollowup;
         _marker.HideAndReset();
         _picker = new RegionPicker(previous.Frame, _ball.Scale);
@@ -597,7 +600,7 @@ public sealed class GuideSession : IDisposable
         {
             if (!ReferenceEquals(_picker, picker)) return;
             if (region is null || !_gate.Accepts(version) || !_gate.CloudEnabled)
-            { ReadyBoundQuestion("已取消框选。你想了解什么？"); return; }
+            { ReadyBoundQuestion("已取消框选。你想了解什么？", invalidateRegion: true); return; }
             // Admit the owned picker until the existing activation path resumes the bound target.
             picker.Hide();
             var processing = RecognizeAsync(previous.Window, intent, previous, region, followup);
@@ -681,6 +684,7 @@ public sealed class GuideSession : IDisposable
             else if (previous is not null)
                 previous.ValidateContext(await ReadContextAsync(previous, token), null);
             stage = ProcessingStage.Collection;
+            selection = _region.Resolve(flowTarget, GuideObservation.WindowRect(window), selection);
             var observation = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, _options.IncludeImage, plugin, t, intent, selection,
                 intent is null && selection is null ? _plugins.IdentityProvider : null));
             if (!_gate.Accepts(version)) return;
@@ -770,7 +774,7 @@ public sealed class GuideSession : IDisposable
             if (intent is not null && _plugins.ChatProvider is not null)
                 _questions.Remember(followup?.Clarification ?? intent, answer.Explanation[..Math.Min(answer.Explanation.Length, 1200)]);
             _ball.SetResult();
-            _panel.SetRegionAvailable(identification is { Page: null });
+            _panel.SetRegionAvailable(_options.IncludeImage && policy?.TranslateSelectedText == true || identification is { Page: null });
             if (answer.Mode == "ask")
             {
                 _gate.AwaitClarification(version);
@@ -825,7 +829,7 @@ public sealed class GuideSession : IDisposable
             }
             if (ex is InvalidDataException changed && changed.Message == "target_changed")
             {
-                if (_gate.Accepts(version)) ReadyBoundQuestion("窗口已有变化，本次识别已停止。你想了解什么？");
+                if (_gate.Accepts(version)) ReadyBoundQuestion("窗口已有变化，本次识别已停止。你想了解什么？", invalidateRegion: true);
                 return;
             }
             if (_gate.Accepts(version))
@@ -1005,6 +1009,7 @@ public sealed class GuideSession : IDisposable
         _activeFollowup = null;
         _followup.Clear();
         _understanding.Clear();
+        _region.Clear();
         _picker?.Abort();
         _picker = null;
         _panel.EndSession();

@@ -32,6 +32,28 @@ static class ScopeChecks
             throw new InvalidOperationException(name);
         }
         var plugin = PluginCatalog.ParsePlugin(Package);
+        var boundary = new GuideRegionContext();
+        var owner = new GuideFlowTarget(new IntPtr(123), 456, 789, "generated.scope");
+        var selectedFrame = new Rect(-1200, 80, 1000, 600);
+        var selectedInput = new Rect(-1180.2, 130.5, 300.2, 75.2);
+        var crop = GuideScope.FromUserSelection(selectedFrame, selectedInput).Region;
+        check(boundary.Resolve(owner, selectedFrame) is null, "an unselected conversation keeps its existing default scope");
+        check(boundary.Resolve(owner, selectedFrame, selectedInput) == crop && boundary.Resolve(owner, selectedFrame) == crop,
+            "same-window follow-up reuses the integer selected crop, including negative coordinates");
+        foreach (var changed in new[] { owner with { Window = new IntPtr(124) }, owner with { ProcessId = 457 },
+                     owner with { StartedAt = 790 }, owner with { PluginId = "other" } })
+            Reject(() => boundary.Resolve(changed, selectedFrame), "selected region cannot cross target identity");
+        Reject(() => boundary.Resolve(owner, selectedFrame, new Rect(0, 0, 10, 10)), "invalid replacement cannot remove the old boundary");
+        check(boundary.Resolve(owner, selectedFrame) == crop, "invalid replacement leaves the selected crop intact");
+        Reject(() => boundary.Resolve(owner, new Rect(-1200, 80, 900, 600)), "resize cannot silently widen the selected request");
+        Reject(() => boundary.Resolve(owner, selectedFrame), "returning to old geometry cannot revive an invalidated crop");
+        boundary.Invalidate();
+        Reject(() => boundary.Resolve(owner, selectedFrame), "invalidated page or suspended selection requires explicit selection again");
+        var replacement = new Rect(-1100, 250, 400, 80);
+        check(boundary.Resolve(owner, selectedFrame, replacement) == replacement && boundary.Resolve(owner, selectedFrame) == replacement,
+            "explicit valid replacement restores only the new region");
+        boundary.Clear();
+        check(boundary.Resolve(owner with { ProcessId = 457 }, selectedFrame) is null, "close or new drag clears the earlier crop restriction");
         var installedWinrar = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).Get("cetafae.winrar");
         var destinationRule = installedWinrar.ScopeFor("在哪里选择解压到哪个文件夹？只指出位置，不修改。");
         const string destinationLabel = "目的地路径（如果不存在，将创建）(P)";

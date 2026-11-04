@@ -93,6 +93,25 @@ static class CardChecks
             "attention", "这份文件现在仍被另一个软件使用").ToAnswer("generated").Explanation);
         unresolved.ShowQuestion();
         yield return ("33 Necessary error context", unresolved);
+        var translationPolicy = new CetaFae.Plugins.InterpretationPolicy(["zh-CN", "en"], true);
+        var translation = New(); translation.SetCloud(true);
+        translation.SetStatus(GuideAnswer.Parse("""{"mode":"translate","sourceText":"Storage: 1024MB. Save as","translation":"存储：1024MB。另存为","language":"zh-CN","candidateId":null}""", [], translationPolicy).Explanation);
+        translation.SetRegionAvailable(true); translation.SetFollowupAvailable(true);
+        yield return ("34 Region translation", translation);
+        var interpretation = New(); interpretation.SetCloud(true);
+        interpretation.SetStatus("Save as就是另存一份文件；画面里的1024MB是存储容量，不能据此判断还能保存多少份文件。");
+        interpretation.SetRegionAvailable(true); interpretation.SetFollowupAvailable(true);
+        yield return ("35 Simpler region explanation", interpretation);
+        var unclear = New(); unclear.SetCloud(true);
+        unclear.SetStatus("这块区域的部分文字看不清，不能可靠翻译。请框选更清楚、较短的文字。"); unclear.SetRegionAvailable(true);
+        yield return ("36 Unreadable region recovery", unclear);
+        var longTranslation = New(); longTranslation.SetCloud(true);
+        longTranslation.SetStatus(GuideAnswer.Parse(System.Text.Json.JsonSerializer.Serialize(new
+            { mode = "translate", sourceText = string.Concat(Enumerable.Repeat("Generated option. ", 15)),
+              translation = string.Concat(Enumerable.Repeat("这是生成的选项说明，用于核对较长原文和译文的完整显示。", 20)),
+              language = "zh-CN", candidateId = (int?)null }), [], translationPolicy).Explanation);
+        longTranslation.SetRegionAvailable(true); longTranslation.SetFollowupAvailable(true);
+        yield return ("37 Long source and translation", longTranslation);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)
@@ -296,7 +315,8 @@ static class CardChecks
     internal static void Render(bool recognitionOnly = false)
     {
         var states = (recognitionOnly ? States().Where(state => int.Parse(state.Name[..2], CultureInfo.InvariantCulture) >= 23) : States()).ToArray();
-        var height = (int)Math.Ceiling(states.Length / 3d) * 506;
+        var rowHeight = GuideTheme.CardMaxHeight + 62;
+        var height = (int)Math.Ceiling(Math.Ceiling(states.Length / 3d) * rowHeight);
         var visual = new DrawingVisual();
         using (var draw = visual.RenderOpen())
         {
@@ -305,7 +325,7 @@ static class CardChecks
             foreach (var (name, card) in states)
             {
                 Layout(card);
-                var point = new Point(index % 3 * 380 + 10, index / 3 * 506 + 38);
+                var point = new Point(index % 3 * 380 + 10, index / 3 * rowHeight + 38);
                 draw.DrawText(new FormattedText(name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                     new Typeface("Segoe UI"), 13, Brushes.Black, 1), new Point(point.X, point.Y - 24));
                 // Render the arranged viewport, not VisualBrush's descendant bounds (which include scroll overflow).

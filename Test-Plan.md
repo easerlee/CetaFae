@@ -1,5 +1,12 @@
 # CetaFae Concentrated Verification Plan
 
+## Region explanation and translation continuity (v1.42)
+
+1. Freeze a failing literal-multiplicity case and same-target region continuation before implementation. Original and translated repeated codes/values must match counts, not just distinct sets; changed/missing/added literals, unsupported language, unsafe text, oversized output and unauthorized policy remain refused.
+2. Generated crop with visible inside text and an outside decoy: follow-up and clarification send only the selected region and in-region candidates. Test whole-window default without selection, repeated crop, explicit replacement, negative coordinates, geometry change and every target identity component. Invalidated selection cannot silently become whole-window capture; reset/new binding can clear it. A rejected explicit rectangle must not remove an existing boundary.
+3. Controlled explanation → translation → simpler explanation through the existing model/task APIs: keep original labels, source/translation separation and historical-context disclaimers, no marker/completion, original facts and crop scope. Include Chinese↔English, ambiguous text, unreadable/empty region, long text, quoted errors and hostile instructions. Mock outputs prove contracts, not model accuracy.
+4. Scope invalidation and cancellation retain no pixels, never trigger requests automatically, and keep the existing input/picker recovery. Default-position conversation remains separate. Use existing offscreen reader for translation and interpretation, including maximum-length content; inspect actual renders. Debug/Release checks, publish and worker null-request smoke precede authorized local update. No paid model or target-app read; native/direct-provider semantics remain separate acceptance.
+
 ## User-led error solution increment (v1.41)
 
 1. Reproduce the old contract's rejection of actionable advice with a failing instruction assertion. Check both first-drop and submitted-error requests use the revised same policy; disabled error policy must not gain it.

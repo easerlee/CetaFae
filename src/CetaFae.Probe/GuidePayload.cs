@@ -6,6 +6,33 @@ using CetaFae.Plugins;
 namespace CetaFae.Probe;
 
 public sealed record GuideScopeAnchor(string Name, string ControlType, Rect Bounds, int[] RuntimeId);
+
+/// <summary>Keeps an explicit crop restrictive across questions without retaining its contents.</summary>
+internal sealed class GuideRegionContext
+{
+    GuideFlowTarget? _target;
+    Rect _frame;
+    Rect _region;
+    bool _invalid;
+
+    internal Rect? Resolve(GuideFlowTarget target, Rect frame, Rect? selection = null)
+    {
+        if (_target is not null && _target != target) throw new InvalidDataException("target_changed");
+        if (selection is { } chosen)
+        {
+            var scope = GuideScope.FromUserSelection(frame, chosen);
+            _target = target; _frame = frame; _region = scope.Region; _invalid = false;
+        }
+        if (_target is null) return null;
+        if (frame != _frame) _invalid = true;
+        if (_invalid) throw new InvalidDataException("scope_unavailable");
+        return _region;
+    }
+
+    internal void Invalidate() { if (_target is not null) _invalid = true; }
+    internal void Clear() { _target = null; _frame = _region = Rect.Empty; _invalid = false; }
+}
+
 public sealed record GuideScope(Rect Region, GuideScopeAnchor? Anchor, bool UserSelected = false)
 {
     public static GuideScope? ForQuestion(Rect frame, GuidePlugin plugin, string? intent,

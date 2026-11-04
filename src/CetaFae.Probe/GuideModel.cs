@@ -323,7 +323,7 @@ public sealed class GuideModel : IDisposable
     static string InterpretationInstructions(InterpretationPolicy? policy) => policy is null ? "" :
         "Enabled general interpretation policy: use Chinese by default; use another allowed language only when explicitly requested by the user. " +
         "Allowed languages: " + string.Join(", ", policy.Languages) + ". " +
-        (policy.TranslateSelectedText ?
+        (policy.TranslateSelectedText ? GuideTranslation.RegionInstructions +
             "Only for an explicit request to translate supplied visible text, instead return exactly mode, sourceText, translation, language, candidateId. " +
             "mode must be translate, candidateId null, language one of the allowed codes. sourceText is the exact recognized original (1-280 characters); " +
             "translation is its translation (1-600 characters). Both must be single-line strings. Preserve original labels by quoting the complete source. " +
