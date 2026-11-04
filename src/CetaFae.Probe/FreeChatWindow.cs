@@ -23,10 +23,10 @@ internal sealed class FreeChatWindow : Window
     readonly Border _transcriptSurface;
     readonly TextBlock _status = new() { Foreground = GuideTheme.Ink, TextWrapping = TextWrapping.Wrap };
     readonly TextBlock _hint = new() { Text = "输入你的问题", Foreground = GuideTheme.Muted,
-        VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+        VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0), IsHitTestVisible = false };
     readonly Border _statusSurface;
     readonly TextBox _input = new() { MaxLength = FreeChatSession.MaxQuestionLength, MinHeight = 30,
-        BorderThickness = new Thickness(0), Background = Brushes.Transparent, VerticalContentAlignment = VerticalAlignment.Center,
+        BorderThickness = new Thickness(0), Padding = new Thickness(0), Background = Brushes.Transparent, VerticalContentAlignment = VerticalAlignment.Center,
         Foreground = GuideTheme.Ink };
     readonly Button _send;
     readonly Button _clear;
@@ -155,7 +155,14 @@ internal sealed class FreeChatWindow : Window
             _statusSurface.Measure(new Size(Math.Max(1, Width - FramePadding * 2), double.PositiveInfinity));
             fixedHeight += _statusSurface.DesiredSize.Height;
         }
-        _transcript.MaxHeight = Math.Max(0, available - fixedHeight - _transcriptSurface.Margin.Bottom);
+        var transcriptWidth = Math.Max(1, Width - FramePadding * 2);
+        var transcriptLimit = Math.Max(0, available - fixedHeight - _transcriptSurface.Margin.Bottom);
+        // Measure messages independently of the previous ScrollViewer viewport and its queued scroll commands.
+        _turns.Measure(new Size(transcriptWidth, double.PositiveInfinity));
+        if (_turns.DesiredSize.Height > transcriptLimit)
+            _turns.Measure(new Size(Math.Max(1, transcriptWidth - 10), double.PositiveInfinity));
+        _transcript.Height = Math.Min(transcriptLimit, _turns.DesiredSize.Height);
+        _transcript.MaxHeight = transcriptLimit;
         var surface = (Border)Content;
         // A reply can replace the status at the same width before WPF's next layout pass.
         _transcript.InvalidateMeasure();

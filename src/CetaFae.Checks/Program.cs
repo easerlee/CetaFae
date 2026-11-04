@@ -574,6 +574,50 @@ public static class Program
             content.Arrange(new Rect(new Size(window.Width, window.Height)));
             content.UpdateLayout();
         }
+        void ArrangeFiniteChat(FreeChatWindow window)
+        {
+            var content = (FrameworkElement)window.Content;
+            content.Measure(new Size(window.Width, window.Height));
+            content.Arrange(new Rect(new Size(window.Width, window.Height)));
+            content.UpdateLayout();
+        }
+        var greeting = new FreeChatWindow();
+        var greetingWork = new Rect(0, 0, 1200, 850);
+        var greetingAnchor = new Rect(1100, 750, 72, 72);
+        greeting.Place(greetingAnchor, greetingWork);
+        ArrangeFiniteChat(greeting);
+        var greetingHint = (System.Windows.Controls.TextBlock)((System.Windows.Controls.Grid)greeting.Input.Parent).Children[1];
+        Check(greeting.Input.Padding == new Thickness(0) && greetingHint.Margin.Left >= 6 &&
+              greetingHint.TransformToAncestor((Visual)greeting.Input.Parent).Transform(new Point()).X >= 6,
+            "resting placeholder leaves a visible gap after the empty editor caret without moving typed text");
+        for (var index = 0; index < 5; index++)
+        {
+            greeting.Input.Text = "hi";
+            greeting.SetStatus("鲸汐正在回答…", busy: true);
+            greeting.Place(greetingAnchor, greetingWork);
+            ArrangeFiniteChat(greeting);
+            greeting.ShowTurn(new ChatTurn("hi", "你好，有什么电脑或软件使用问题？"));
+            ArrangeFiniteChat(greeting);
+            greeting.Place(greetingAnchor, greetingWork);
+            ArrangeFiniteChat(greeting);
+            var greetingRows = (System.Windows.Controls.StackPanel)greeting.Transcript.Content;
+            var lastPair = (System.Windows.Controls.Grid)greetingRows.Children[^1];
+            var lastBounds = lastPair.TransformToAncestor(greeting.Transcript).TransformBounds(new Rect(lastPair.RenderSize));
+            Check(lastBounds.Top >= -.01 && lastBounds.Bottom <= greeting.Transcript.ActualHeight + .01,
+                $"greeting exchange {index + 1} remains fully visible after finite waiting/reply layout passes");
+            Check(greeting.Transcript.Height >= lastPair.DesiredSize.Height &&
+                  greeting.Transcript.Height <= FreeChatWindow.ConversationMaxHeight &&
+                  greeting.Input.TransformToAncestor((FrameworkElement)greeting.Content)
+                      .TransformBounds(new Rect(greeting.Input.RenderSize)).Bottom <= greeting.Height,
+                $"greeting exchange {index + 1} reserves message space independently of the previous scroll viewport");
+        }
+        var greetingPreview = new FreeChatWindow();
+        greetingPreview.SetStatus("鲸汐正在回答…", busy: true);
+        greetingPreview.Place(greetingAnchor, greetingWork);
+        ArrangeFiniteChat(greetingPreview);
+        greetingPreview.ShowTurn(new ChatTurn("hi", "你好，有什么电脑或软件使用问题？"));
+        greetingPreview.Place(greetingAnchor, greetingWork);
+        ArrangeFiniteChat(greetingPreview);
         var longChat = new FreeChatWindow();
         var roomy = new Rect(-800, -120, 900, 850);
         var bottom = new Rect(-20, 650, 72, 72);
@@ -768,7 +812,8 @@ public static class Program
                      (longChat, "chat-overflow-200", 2d), (narrow, "chat-narrow", 1d),
                      (introduction, "chat-product-sample", 1d), (conversation, "chat-conversation", 1d),
                      (conversation, "chat-conversation-125", 1.25), (conversation, "chat-conversation-200", 2d),
-                     (emptyChat, "chat-cleared", 1d) })
+                     (emptyChat, "chat-cleared", 1d), (greetingPreview, "chat-greeting", 1d),
+                     (greetingPreview, "chat-greeting-125", 1.25), (greetingPreview, "chat-greeting-200", 2d) })
         {
             var content = (FrameworkElement)window.Content;
             var size = new Size(window.Width, window.Height);

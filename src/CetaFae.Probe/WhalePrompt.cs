@@ -26,7 +26,8 @@ internal sealed class WhalePrompt : Border
         Foreground = GuideTheme.Ink, CaretBrush = GuideTheme.WhaleBlue,
         FontSize = 13, MinWidth = 60, ToolTip = "点击输入，按 Enter 回答；最多300字" };
     readonly TextBlock _hint = new() { Text = "正在识别当前窗口…", VerticalAlignment = VerticalAlignment.Center,
-        FontSize = 12, Foreground = GuideTheme.Muted, IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
+        FontSize = 12, Foreground = GuideTheme.Muted, Margin = new Thickness(6, 0, 0, 0),
+        IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
     internal readonly Button Send;
     internal readonly Button Dismiss;
     internal readonly PromptShell DragSurface;

@@ -28,6 +28,11 @@ internal static class PromptChecks
             prompt.Measure(new Size(width, 88)); prompt.Arrange(new Rect(0, 0, width, 88)); prompt.UpdateLayout();
             new RenderTargetBitmap((int)width, 88, 96, 96, PixelFormats.Pbgra32).Render(prompt);
             Rect Bounds(FrameworkElement element) => element.TransformToAncestor(prompt).TransformBounds(new Rect(element.RenderSize));
+            var hint = (TextBlock)((Grid)prompt.Answer.Parent).Children[1];
+            if (state == "question")
+                check(hint.Margin.Left >= 6 && Bounds(hint).Left - Bounds(prompt.Answer).Left >= 6 &&
+                      prompt.Answer.Padding == new Thickness(0),
+                    $"attached prompt {width}/{topAttached}: placeholder starts clear of the empty editor caret");
             var area = new Rect(prompt.RenderSize);
             check(WhalePrompt.WidthDip == 288 && area.Contains(Bounds(prompt.Dismiss)) && area.Contains(Bounds(prompt.Answer)) && area.Contains(Bounds(prompt.DragSurface)) &&
                 area.Contains(Bounds(prompt.Send)) && prompt.Answer.ActualWidth >= (width < 240 ? 60 : 120),
