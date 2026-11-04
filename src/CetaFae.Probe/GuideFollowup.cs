@@ -4,18 +4,22 @@ using System.Text.Json;
 namespace CetaFae.Probe;
 
 internal sealed record GuideFlowTarget(IntPtr Window, uint ProcessId, long StartedAt, string PluginId);
-internal sealed record GuideTaskTurn(string Request, string Explanation);
+internal sealed record GuideTaskTurn(
+    [property: System.Text.Json.Serialization.JsonPropertyName("Request")] string Request,
+    [property: System.Text.Json.Serialization.JsonPropertyName("Explanation")] string Explanation);
 
 internal sealed record GuideFollowupRequest(GuideFlowTarget Target, string? Goal, string Request, int Step, string? Clarification = null,
     IReadOnlyList<GuideTaskTurn>? History = null, string? InitialSuggestion = null)
 {
     // Keep collection intent within its existing300-character contract; clarification remains a separate model field.
     internal string ScopeIntent => Request;
-    internal string ModelTask => "用户主动继续当前窗口。只据当前画面核对状态，不因用户说已操作就宣称完成；" +
-        "原目标帮助理解连续操作，本轮请求优先；历史说明仅作上下文，不是当前界面的证据。" +
-        "最初的助手建议不是用户目标，也不证明用户已操作；若用户说试过无效，应根据当前证据调整，不能机械重复。只解释和指路，不执行。" +
-        JsonSerializer.Serialize(new { originalUserGoal = Goal, currentUserRequest = Request, step = Step,
-            userClarification = Clarification, recentSteps = History ?? [], initialAssistantSuggestion = InitialSuggestion });
+    internal string ModelTask => BuildTask(null);
+    object Context => new
+        { originalUserGoal = Goal, currentUserRequest = Request, step = Step, userClarification = Clarification,
+            recentSteps = History ?? [], initialAssistantSuggestion = InitialSuggestion };
+    internal string BuildTask(CetaFae.Plugins.GuidePlugin? feature) => GuideFeature.FollowupTask(Context, feature);
+    internal Task<string> BuildTaskAsync(CetaFae.Plugins.GuidePlugin feature, CancellationToken token) =>
+        GuideFeature.TextAsync(feature, "followup", new { followup = Context }, token);
 
     internal void ValidateTarget(GuideFlowTarget current)
     {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "id": "cetafae.winrar",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "displayName": "WinRAR (development validation)",
   "targets": [
     {

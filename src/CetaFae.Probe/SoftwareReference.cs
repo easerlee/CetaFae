@@ -27,7 +27,7 @@ internal sealed class SoftwareReference : IDisposable
     {
         // Validate the full query again at the transport boundary, not just at the disclosure button.
         if (!query.EndsWith(" software", StringComparison.Ordinal) ||
-            new SoftwareIdentity(1, 1, query[..^9], null, null, null, null, "unavailable", null).ReferenceQuery != query)
+            !SoftwareIdentity.IsQualifiedProduct(query[..^9]))
             throw new InvalidDataException("reference_query");
         token.ThrowIfCancellationRequested();
         var uri = new Uri(Receiver + "?action=query&format=json&formatversion=2&generator=search&gsrnamespace=0&gsrlimit=3" +

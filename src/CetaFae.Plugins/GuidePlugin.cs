@@ -101,6 +101,7 @@ public sealed class GuidePlugin
     public IReadOnlyList<ObservationScopeRule> ObservationScopes { get; }
     public string? IdentityPolicy { get; }
     public InterpretationPolicy? InterpretationPolicy { get; }
+    public PluginProgram? Program { get; }
 
     [JsonIgnore]
     public bool UsesRawView => UiaView == "raw";
@@ -109,7 +110,8 @@ public sealed class GuidePlugin
     public GuidePlugin(int schemaVersion, string id, string version, string displayName,
         IReadOnlyList<PluginTarget> targets, string uiaView, IReadOnlyList<string> taskIds,
         IReadOnlyList<PointBlockRule> blockedPoints, IReadOnlyList<ObservationScopeRule>? observationScopes = null,
-        string kind = "application", string? identityPolicy = null, InterpretationPolicy? interpretationPolicy = null)
+        string kind = "application", string? identityPolicy = null, InterpretationPolicy? interpretationPolicy = null,
+        PluginProgram? program = null)
     {
         if (schemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7) || kind is not ("application" or "general" or "identity" or "chat") ||
             (schemaVersion == 7) != (kind == "chat") ||
@@ -128,6 +130,7 @@ public sealed class GuidePlugin
         Kind = kind;
         IdentityPolicy = identityPolicy;
         InterpretationPolicy = interpretationPolicy;
+        Program = program;
         Id = id;
         Version = version;
         DisplayName = displayName;

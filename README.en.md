@@ -4,7 +4,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.24**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.25**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
 
 ## Features
 
@@ -21,7 +21,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 - **Chinese/English explanation and translation**: describe your translation goal and select a region when needed. Show the recognized original and translation; ask follow-up questions or request a simpler explanation. Subsequent image requests stay within that selection; an invalidated region requires reselection rather than a whole-window fallback. Check recognizable error-code, date, numeric and unit literals, including repeated occurrences. Unreadable content is reported honestly; the application's interface is not replaced.
 - **User-led error solutions**: briefly summarize the problem and prioritize one low-risk solution when the available facts support it, including save-first precautions when needed. Ask one necessary question when context is missing. Report the outcome to continue with fresh window evidence and adjusted advice, rather than repeating a failed step. No guaranteed fix, raw error dump, hidden log/process inspection or automatic action; consequential changes require explaining the risks and clarifying intent.
 - **Multi-step guidance in one window**: retain the user goal and four recent text steps. Ask directly after a result, or act yourself before submitting the next question. Current-state questions recheck the selected window; completion requires current evidence rather than a user's claimed action. Page changes and temporary foreground switches clear stale markers while preserving the goal; ending the session clears it. Bounded to eight steps, with native multi-step acceptance pending.
-- **Plugin-based capabilities**: generic vision, software identity, and application adapters share a declarative contract. First-party features are plugins too. Import, update, enable/disable and remove local third-party data packages in Settings. Imports start disabled for review and save; conflicts never resolve by load order. No plugin code execution.
+- **Plugin-based capabilities**: first-party chat, window understanding, error help, translation and follow-up policy run as TypeScript plugins through the same invocation boundary as third-party features. Import, update, enable/disable and remove local packages in Settings. Imports start disabled for review and save; conflicts never resolve by load order. Programs run in restricted disposable processes, without arbitrary Node/npm, file or network APIs.
 - **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
 
 Representative human-tested flows include locating an Edge download toggle, explaining paused Windows Update status, finding the WinRAR extraction destination, and interpreting generated Notepad text within a selected region. These examples do not establish complete application support or full regression coverage of the latest source.
@@ -34,6 +34,7 @@ Representative human-tested flows include locating an Edge download toggle, expl
 - **Best-effort sensitive-content checks**: detected password fields or recognizable credentials stop processing. Incomplete accessibility data does not block selected-window image interpretation. Checks can miss sensitive content: hide anything you do not want sent. There is no universal secret-detection or automatic-redaction guarantee.
 - **Separate local retention**: completed resting-chat text is encrypted for the current Windows user and retained until cleared. Withdrawing network consent still allows local reading and deletion, but prevents sending. Window images, raw control text and guidance tasks are not persisted. Old-service chat is not automatically sent to a new connection. Fixed metadata logs are retained for seven days; cleanup failures can delay deletion. Proxy and upstream retention policies remain unverified.
 - **User-controlled actions**: no automatic clicks, typing into target applications, settings changes, extraction, or document editing. Switching away, closing the target, revoking consent, or ending the session clears invalid results.
+- **Plugin trust boundary**: enable only trusted packages. Interface and resource limits are not an operating-system security sandbox; independent hostile-code review remains pending.
 
 ## Getting started
 
@@ -43,7 +44,7 @@ The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-fla
 
 Recognition has a 60-second processing budget. Switching windows hides session effects while retaining the target binding. A request already sent keeps running; its result is shown only after returning to the original window and passing validation. No new content is collected in the background. A slow response does not establish a fault in the target application; latency and availability depend on the configured service route.
 
-The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page enables or disables shipped plugins; it does not download or install plugins.
+The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page manages shipped and locally imported packages; there is no automatic download or marketplace.
 
 The image capability check explicitly sends a generated digit image and may consume one model request. It reads no user window and never retries automatically. Success confirms that specific basic image transport/reading test, not interpretation or pointing accuracy for all software. After a service failure, an explicit new question can recover without restarting CetaFae.
 
@@ -55,19 +56,20 @@ You can submit your next question directly from the result. If you want to do so
 
 ### Run from source
 
-Install the .NET 8 SDK on Windows and run from the repository root:
+Install the .NET 8 SDK and Node.js 22 or newer on Windows for development, then run from the repository root:
 
 ```powershell
+npm ci
 dotnet build src/CetaFae.Checks/CetaFae.Checks.csproj -c Debug
 dotnet run --project src/CetaFae.Checks -c Debug --no-build
 dotnet run --project src/CetaFae.Probe -c Release -- --guide
 ```
 
-The first two commands build and run non-desktop checks; the last opens CetaFae. Override the current launch with `--base-url https://your-service.example/v1 --model your-model`; changes persist only after an explicit save in settings. Optional authentication is read only from the process environment variable `CETAFAE_API_KEY`; never commit credentials. Non-secret preferences are stored at `%LOCALAPPDATA%/CetaFae/settings.json`. Invalid configuration disables cloud processing until reviewed, saved and confirmed through the installer again.
+`npm ci` installs pinned development dependencies. The build strictly checks and compiles TS programs; the check command runs without desktop access, and the last command opens CetaFae. Installed users do not need Node. Override the current launch with `--base-url https://your-service.example/v1 --model your-model`; changes persist only after an explicit save in settings. Optional authentication is read only from the process environment variable `CETAFAE_API_KEY`; never commit credentials. Non-secret preferences are stored at `%LOCALAPPDATA%/CetaFae/settings.json`. Invalid configuration disables cloud processing until reviewed, saved and confirmed through the installer again.
 
 ### Build the installer candidate
 
-On Windows, install Inno Setup 6.7.4 with the Simplified Chinese messages file and the .NET 8 SDK, then run:
+On Windows, install Inno Setup 6.7.4 with the Simplified Chinese messages file and the .NET 8 SDK, with Node.js and `npm ci` prepared for development, then run:
 
 ```powershell
 ./installer/Build-Installer.ps1 -Compiler 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' -ChineseMessagesFile 'C:/Program Files (x86)/Inno Setup 6/Languages/ChineseSimplified.isl'
@@ -78,7 +80,7 @@ Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runt
 ## Technical implementation
 
 - **Windows / C# / WPF / .NET 8**: native window management, preferring PrintWindow and trying system window capture when its image is unusable. Both are bound to the selected window. The fallback may show the Windows capture border.
-- **Host/plugin separation**: the host owns consent, generic collection, model transport, validation, and lifecycle. Declarative plugins own application matching, traversal strategies, and task rules.
+- **Host/plugin separation**: the C# host owns UI, consent, generic collection, model transport, trusted validation, persistence and lifecycle. TS plugins own request construction, interpretation/translation/error/follow-up policy and presentation. Matching and scope rules remain declarative. First-party packages have no private execution path.
 - **Image-first understanding, optional controls**: the initial explanation describes the captured view without requiring a complete control tree. Controls assist precise pointing; their absence does not prevent image interpretation. Local software identity remains separate from visual interpretation.
 - **Independent text geometry**: Windows OCR supplies local text evidence without an additional engine installation. Coordinate conversion, duplicate rejection, scope limits and presentation-time checks run locally. Text bounds do not prove a nearby control's clickable area.
 - **Constrained model output**: structured results, candidate/scope validation, and checks before display prevent cancelled requests from restoring stale results.
@@ -88,8 +90,9 @@ Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runt
 | Directory | Purpose |
 |---|---|
 | `src/CetaFae.Probe` | Windows host, interaction, consent, and collection |
-| `src/CetaFae.Plugins` | UI-independent plugin data contract and validation |
-| `plugins` | Declarative capability packages and enabled catalog |
+| `src/CetaFae.Plugins` | Plugin contracts, manifest validation and restricted JS executor |
+| `plugins` | First-party TS features, shared business code, adapter rules and enabled catalog |
+| `plugin-sdk` | TS contract and JSON entry point; compiler at `tools/build-plugins.mjs` |
 | `src/CetaFae.Checks` | Executable checks and generated fixtures |
 
 ## Roadmap
@@ -98,16 +101,17 @@ Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runt
 - Improve generic understanding, translation and visible-error accuracy and failure recovery.
 - Complete real-application acceptance for bounded tasks and user-led follow-up; actions remain manual.
 - Complete consolidated privacy, platform, performance, and real-task acceptance. The 3000ms processing target and 90MB idle-memory gate have not passed full formal acceptance.
-- Validate independent author contributions and real application integration, then stabilize the declarative contract. Executable plugins and a marketplace are not provided.
+- Validate independent author contributions, execution-isolation security review and real application integration, then stabilize the development API. A marketplace and arbitrary native extensions are not provided.
+- Add declarative themes/effects under one contract: the host owns layout, rendering and resource limits; themes provide assets, palettes and bounded motion settings. Only the boundary is designed; theme import is not implemented yet.
 - Develop constrained document editing only after explicit task intent, confirmation, snapshot, and rollback gates are met; it is not currently provided.
 
 Most native validation targets Simplified Chinese Windows 11, one display, and 100% scaling. Protected windows, restricted interfaces, faulty accessibility providers, and dynamic custom rendering may be unsupported. Multiple displays, high DPI, and broad compatibility need further acceptance testing.
 
 ## Third-party plugin API
 
-The development JSON contract supports application matching, local scopes and marker guards without host changes. Open the whale's context menu → 鲸汐设置 → 功能 → 导入插件文件, review the scope, enable and save. Custom packages can be updated or removed; updates return to disabled for review. Program upgrades preserve saved user packages. No downloads, scripts, DLLs or arbitrary network capabilities.
+The development TS feature API and JSON adapter contract support business policy, application matching, local scopes and marker guards without host changes. Authors compile TS to a single importable JSON package. Open the whale's context menu → 鲸汐设置 → 功能 → 导入插件文件, review the scope, enable and save. Custom packages can be updated or removed; updates return to disabled for review. Program upgrades preserve saved user packages. No automatic downloads, DLLs, arbitrary network access or desktop-operation authority. Restricted program execution is not an OS security sandbox; unrestricted untrusted distribution still needs security review.
 
-See [Plugin-API](Plugin-API.md) for author fields, limits, installation and conflicts, and the importable [example package](examples/plugins/example.editor.json) for a generated test application. It is not an adapter claim for a real product. First-party and community packages share validation and authority; disable an existing overlapping adapter or capability before enabling its replacement.
+See [Plugin-API](Plugin-API.md) for author fields, limits, installation and conflicts, and the [adapter example](examples/plugins/example.editor.json) and [TS feature example](examples/plugins/example.chat/plugin.ts). It is not an adapter claim for a real product. First-party and community packages share validation and authority; disable an existing overlapping adapter or capability before enabling its replacement.
 
 ## Maintenance and contributions
 

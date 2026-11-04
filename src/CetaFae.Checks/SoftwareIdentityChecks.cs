@@ -13,6 +13,8 @@ static class SoftwareIdentityChecks
 {
     internal static SoftwareIdentity Generated => new(12, 100, "Generated Editor", "Generated document tool", "1.2.3", "Example", null, "unsigned", null);
 
+    static string? Query(SoftwareIdentity value) => value.ReferenceQueryAsync(GuideFeature.DefaultCatalog().IdentityProvider!).GetAwaiter().GetResult();
+
     internal static void Run(Action<bool, string> check)
     {
         var catalog = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
@@ -36,10 +38,10 @@ static class SoftwareIdentityChecks
             check(SoftwareIdentity.Clean(value) is null, "unsafe local metadata is withheld rather than logged, displayed or queried");
         check(Generated.IsValid(12) && !Generated.IsValid(13) && !(Generated with { Signature = "safe-to-run" }).IsValid(12),
             "identity IPC binds the selected PID and restricts evidence states without a safety verdict");
-        check(Generated.ReferenceQuery == "Generated Editor software" &&
-            (Generated with { Product = null }).ReferenceQuery is null &&
-            (Generated with { Product = @"C:\private" }).ReferenceQuery is null &&
-            (Generated with { Product = "sk-" + new string('a', 48) }).ReferenceQuery is null,
+        check(Query(Generated) == "Generated Editor software" &&
+            Query(Generated with { Product = null }) is null &&
+            Query(Generated with { Product = @"C:\private" }) is null &&
+            Query(Generated with { Product = "sk-" + new string('a', 48) }) is null,
             "public queries use a qualified product label only, never an implicit path/title/process fallback");
         var answer = new GuideIdentification("Another visual brand", "Text editor Another visual brand, showing Generated page", "想处理什么？").ToAnswer("generated", Generated);
         check(!answer.Explanation.Contains("Generated Editor") && answer.Explanation.StartsWith("Text editor Another visual brand") &&
@@ -78,7 +80,7 @@ static class SoftwareIdentityChecks
             await Task.CompletedTask;
             return new(HttpStatusCode.OK) { Content = new StringContent(result) };
         }));
-        var found = await client.FindAsync(Generated.ReferenceQuery!, CancellationToken.None);
+        var found = await client.FindAsync(Query(Generated)!, CancellationToken.None);
         check(calls == 1 && found.Contains("未确认与本机软件相同") && found.Contains("https://en.wikipedia.org/?curid=42"),
             "reference result is attributed candidate evidence, never binary verification or an automatic link launch");
         async Task Reject(Func<Task> action)
@@ -89,7 +91,7 @@ static class SoftwareIdentityChecks
         }
         await Reject(() => client.FindAsync(@"C:\private\document software", CancellationToken.None));
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-        await Reject(() => client.FindAsync(Generated.ReferenceQuery!, cancelled.Token));
+        await Reject(() => client.FindAsync(Query(Generated)!, cancelled.Token));
         check(calls == 1, "invalid or pre-cancelled reference queries cannot reach the handler");
         foreach (var (status, body) in new[] { (HttpStatusCode.Redirect, result), (HttpStatusCode.TooManyRequests, ""),
                      (HttpStatusCode.OK, new string('x', 65537)), (HttpStatusCode.OK, "not json"),
@@ -99,14 +101,14 @@ static class SoftwareIdentityChecks
         {
             using var failure = new SoftwareReference(new Handler((_, _) => Task.FromResult(new HttpResponseMessage(status)
                 { Content = new StringContent(body) })));
-            await Reject(() => failure.FindAsync(Generated.ReferenceQuery!, CancellationToken.None));
+            await Reject(() => failure.FindAsync(Query(Generated)!, CancellationToken.None));
         }
         check(SoftwareReference.Parse(Encoding.UTF8.GetBytes("""{"batchcomplete":true}""")).Contains("未找到"),
             "empty public results remain unknown without changing local/visual evidence");
         var late = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var delayed = new SoftwareReference(new Handler((_, _) => late.Task));
         using var stop = new CancellationTokenSource();
-        var pending = delayed.FindAsync(Generated.ReferenceQuery!, stop.Token);
+        var pending = delayed.FindAsync(Query(Generated)!, stop.Token);
         stop.Cancel();
         late.SetResult(new(HttpStatusCode.OK) { Content = new StringContent(result) });
         await Reject(() => pending);

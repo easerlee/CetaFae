@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "id": "cetafae.windows-settings",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "displayName": "Windows 设置",
   "targets": [
     {

@@ -239,7 +239,7 @@ internal static class SettingsChecks
             {
                 var size = index < 2 ? new Size(640, 600) : new Size(500, 420);
                 var view = new GuideSettingsView(GuidePreferences.Default, catalog, false);
-                var example = ThirdPartyPluginChecks.Example();
+                var example = index < 2 ? PluginCatalog.Import(Path.Combine(AppContext.BaseDirectory, "examples", "example.chat.json")) : ThirdPartyPluginChecks.Example();
                 view.ImportPlugin(PluginCatalog.ParsePlugin(PluginCatalog.SerializePlugin(example)
                     .Replace(example.DisplayName, "Generated external editor guidance with a long wrapping display name")));
                 view.SelectPage(2); Arrange(view, size);

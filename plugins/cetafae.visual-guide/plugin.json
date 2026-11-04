@@ -2,7 +2,7 @@
   "schemaVersion": 6,
   "kind": "general",
   "id": "cetafae.visual-guide",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "displayName": "通用界面理解、翻译与错误说明（开发验证）",
   "targets": [],
   "uiaView": "control",

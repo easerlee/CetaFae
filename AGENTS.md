@@ -1,19 +1,19 @@
 # CetaFae Project Instructions
 
-Updated: 2026-10-27
+Updated: 2026-11-05
 
 ## Authority and Scope
 
 - Read this file, MEMORY.md, and `需求文档.md` before project work. The requirements document is the sole product-scope and acceptance authority.
 - Technical specifications and verification records describe implementation and evidence; they cannot add product requirements.
-- Current stack: C# / WPF, .NET 8. Host: `src/CetaFae.Probe`; UI-independent plugin contract/runtime: `src/CetaFae.Plugins`; application packages: `plugins/`; executable checks: `src/CetaFae.Checks`; actual results: `验证记录.md`.
+- Current stack: C# / WPF, .NET 8 host and TypeScript feature plugins. Host: `src/CetaFae.Probe`; UI-independent plugin contract/runtime: `src/CetaFae.Plugins`; feature/application packages: `plugins/`; JSON-only TS SDK: `plugin-sdk/`; executable checks: `src/CetaFae.Checks`; actual results: `验证记录.md`.
 - Keep changes focused. Preserve the user's work. Document editing and rollback remain conditional on TC-3 and explicit user intent, as defined by the requirements.
 
 ## Engineering Workflow
 
 - Define acceptance, make the smallest sufficient change, run relevant checks, and report actual evidence. The user authorized this workflow without mandatory Ponytail/Karpathy on 2026-10-27.
 - Prefer platform APIs and installed dependencies. Do not add speculative frameworks or abstractions.
-- Follow requirements EXT-01–04 and Tech-Spec: all concrete application features, including first-party features, are plugins using the same contract. Host/runtime code must not branch on application names, process names or domain task phrases. Keep consent, generic collection, model transport, validation and lifecycle host-owned; application identity, traversal choice and task rules belong in `plugins/`. No named-plugin fallback or first-party privilege exception. A new application must use plugin data; a new generic mechanism requires an explicit contract change and checks. Do not load executable third-party plugins or claim public installation support before its gates pass.
+- Follow requirements EXT-01–04, v1.44 and Tech-Spec: all concrete application features, including first-party features, are plugins using the same contract. Host/runtime code must not branch on application names, process names or domain task phrases. Keep consent, generic collection, model transport, validation and lifecycle host-owned; application identity policy, traversal choice and task rules belong in `plugins/`. No named-plugin fallback or first-party privilege exception. A new application must use plugin data; a new generic mechanism requires an explicit contract change and checks. v1.44 authorizes bounded JSON-only TS programs in disposable workers for development; no arbitrary Node/native modules or OS-sandbox claims. Independent hostile-code, native contribution and release gates remain required before unrestricted third-party distribution. Rendering/layout/lifecycle are host mechanisms; future theme content must follow the documented declarative boundary, not a feature-program drawing API.
 - Keep repository roles stable: README for commands, Tech-Spec for the current design, MEMORY for lasting decisions, and `验证记录.md` for actual evidence. Update existing files instead of adding parallel plans or per-attempt reports.
 - Maintain README.md and README.en.md together as public product/maintainer documentation: features, safety, technical implementation, roadmap, practical setup and limitations. Add third-party plugin API documentation only when available. Keep per-attempt development and visual-tuning history out of both READMEs.
 - Build output, intermediates and diagnostic logs belong under ignored `.artifacts/`. Do not leave browser profiles, screenshots, dumps or temporary scripts in the repository.
@@ -31,6 +31,7 @@ Updated: 2026-10-27
 ## Verification and Reporting
 
 - Build: `dotnet build src/CetaFae.Checks/CetaFae.Checks.csproj -c Debug`.
+- Run `npm ci` once before building; Node/TypeScript are development dependencies only. Builds strictly compile feature sources into manifests under ignored `.artifacts/plugin-build/`.
 - Non-desktop checks: `dotnet run --project src/CetaFae.Checks -c Debug --no-build`.
 - Derive acceptance from the touched requirement IDs. Keep local, generated-fixture, real-model, and human desktop evidence separate.
 - Do not infer task correctness from readable controls, successful builds, non-black images, or model confidence.

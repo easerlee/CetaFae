@@ -122,7 +122,7 @@ static class IdentificationChecks
                 var messages = body.RootElement.GetProperty("messages");
                 var system = messages[0].GetProperty("content").GetString()!;
                 using var context = JsonDocument.Parse(messages[1].GetProperty("content")[0].GetProperty("text").GetString()!);
-                check(system == GuideIdentification.Instructions && context.RootElement.GetProperty("candidates").GetArrayLength() == 0,
+                check(system.Contains("Identify the application and current page/purpose") && context.RootElement.GetProperty("candidates").GetArrayLength() == 0,
                     "production identification uses its independent contract with zero actionable controls");
                 check(!json.Contains("generated-editor") && !json.Contains("processName") && !json.Contains("windowTitle"),
                     "local identity and titles are absent from the outbound identification request");

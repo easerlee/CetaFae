@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using System.Text.Json;
+using CetaFae.Plugins;
 
 namespace CetaFae.Probe;
 
@@ -26,17 +28,21 @@ public sealed record SoftwareIdentity(uint ProcessId, long StartedAt, string? Pr
         new[] { Product, Description, Version, Company, Package, Certificate }.All(s => s is null || Clean(s) == s) &&
         Signature is "offline-valid" or "unsigned" or "unverified" or "unavailable";
 
-    public string Describe() =>
-        $"本机文件自报：{Product ?? "产品名未知"}；{Description ?? "描述未知"}；版本 {Version ?? "未知"}；公司 {Company ?? "未知"}。\n" +
-        $"包身份：{Package ?? "无或无法读取"}。\n" +
-        "离线签名：" + (Signature switch { "offline-valid" => "本机缓存校验通过（未在线核验撤销状态，不代表安全）",
-            "unsigned" => "未取得嵌入签名（可能使用目录签名）", "unverified" => "未通过离线校验", _ => "无法读取" }) +
-        (Certificate is null ? "。" : $"；嵌入证书名称：{Certificate}（与资源自报公司独立）。");
+    internal static bool IsQualifiedProduct(string? product) => product is { Length: >= 2 and <= 80 } && Clean(product, 80) == product &&
+        product.All(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '.' or '(' or ')') && product.Any(char.IsLetter);
 
-    // Restrict public lookup to an explicitly confirmed product label; never fall back to filenames/titles.
-    public string? ReferenceQuery => Product is { Length: >= 2 and <= 80 } product && Clean(product, 80) == product &&
-        product.All(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '.' or '(' or ')') && product.Any(char.IsLetter)
-        ? product + " software" : null;
+    public async Task<string?> ReferenceQueryAsync(GuidePlugin feature, CancellationToken token = default)
+    {
+        if (feature.Kind != "identity") throw new InvalidDataException("plugin_identity");
+        using var result = JsonDocument.Parse(await GuideFeature.InvokeAsync(feature, "identity-query",
+            new { product = IsQualifiedProduct(Product) ? Product : null }, token).ConfigureAwait(false));
+        if (result.RootElement.EnumerateObject().Count() != 1 || !result.RootElement.TryGetProperty("query", out var query))
+            throw new InvalidDataException("reference_query");
+        if (query.ValueKind == JsonValueKind.Null) return null;
+        if (query.ValueKind != JsonValueKind.String || !IsQualifiedProduct(Product) || query.GetString() != Product + " software")
+            throw new InvalidDataException("reference_query");
+        return query.GetString();
+    }
 
     internal static SoftwareIdentity Read(uint pid, CancellationToken token)
     {

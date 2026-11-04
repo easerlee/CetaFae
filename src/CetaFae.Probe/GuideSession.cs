@@ -53,7 +53,7 @@ public sealed class GuideSession : IDisposable
         _options = options;
         _plugins = plugins;
         _model = new GuideModel(options, windowGuidanceAvailable:
-            plugins.Plugins.Any(plugin => plugin.Kind is "general" or "application"));
+            plugins.Plugins.Any(plugin => plugin.Kind is "general" or "application"), plugins: plugins);
         _chat = new FreeChatSession(async (history, question, token) => await _model.ChatAsync(history, question, token));
         _chatHistory = new ChatHistoryStore(options);
         _questions = new FreeChatSession((history, question, token) =>
@@ -713,9 +713,9 @@ public sealed class GuideSession : IDisposable
                 ("localTextRegions", observation.Candidates.Count(c => c.ControlType == GuideTextRegions.ControlType)),
                 ("sentTextRegions", payload.Candidates.Count(c => c.ControlType == GuideTextRegions.ControlType)),
                 ("scoped", observation.Scope is not null), ("imageBytes", payload.Png?.Length ?? 0));
-            var task = intent is null ? GuideObservation.TaskDescription :
-                "用户明确提出的目标：" + intent + "。只解释和指路，不执行任何操作；目标已满足时说明现状，不指向相反动作。";
-            if (followup is not null) task = followup.ModelTask;
+            var task = intent ?? GuideObservation.TaskDescription;
+            var feature = GuideFeature.Select(_plugins, plugin);
+            if (followup is not null) task = await deadline.RunAsync(t => followup.BuildTaskAsync(feature, t));
             if (!_gate.Accepts(version)) return;
             stage = ProcessingStage.Model;
             _initialCollectionVersion = null;
@@ -727,12 +727,13 @@ public sealed class GuideSession : IDisposable
             {
                 if (intent is null)
                 {
-                    identification = await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext, policy));
-                    modelAnswer = identification.ToAnswer(identifiedProcess!, observation.Identity);
+                    identification = await deadline.RunAsync(t => _model.IdentifyAsync(payload.Candidates, payload.Png, t, payload.VisibleContext, policy, feature));
+                    modelAnswer = await deadline.RunAsync(t => Task.Run(() =>
+                        identification.ToAnswer(identifiedProcess!, observation.Identity, feature, t), t));
                 }
                 else
                     modelAnswer = await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
-                        policy, _understanding.ForTarget(flowTarget)));
+                        policy, _understanding.ForTarget(flowTarget), feature));
             }
             finally { payload = payload with { Png = null }; }
             var answer = identification?.NextCheck is not null ? modelAnswer :
@@ -902,6 +903,8 @@ public sealed class GuideSession : IDisposable
 
     public static string FailureMessage(Exception ex) => ex switch
     {
+        InvalidDataException plugin when plugin.Message.StartsWith("plugin_", StringComparison.Ordinal) =>
+            "这个功能插件暂时无法使用。\n请在“鲸汐设置 → 功能”中检查已启用的插件，或更换后再试。",
         InvalidDataException { Message: "capture_protected" } =>
             "这个窗口不允许获取画面，本次没有识别。\n你可以用文字描述想了解的提示。",
         InvalidDataException { Message: "target_changed" } =>

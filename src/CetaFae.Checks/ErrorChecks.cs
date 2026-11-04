@@ -17,9 +17,12 @@ internal static class ErrorChecks
     internal static async Task RunAsync(Action<bool, string> check)
     {
         var policy = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).GeneralProvider!.InterpretationPolicy!;
-        check(GuideError.InitialInstructions.Contains("prioritized user-led solution") &&
-              GuideError.Instructions.Contains("prioritized user-led solution") &&
-              !GuideError.Instructions.Contains("not a repair, command"),
+        var feature = GuideFeature.Select(GuideFeature.DefaultCatalog());
+        var initialPolicy = (await GuideFeature.MessagesAsync(feature, "window", new { identifyWindow = true, interpretationPolicy = policy, context = new { } }, default))[0].Content;
+        var guidancePolicy = (await GuideFeature.MessagesAsync(feature, "window", new { identifyWindow = false, interpretationPolicy = policy, context = new { } }, default))[0].Content;
+        check(initialPolicy.Contains("prioritized user-led solution") &&
+              guidancePolicy.Contains("prioritized user-led solution") &&
+              !guidancePolicy.Contains("not a repair, command"),
             "enabled error assistance permits a prioritized user-led solution rather than only a read-only check");
         check(policy.ExplainVisibleErrors && JsonSerializer.Deserialize<InterpretationPolicy>(
             JsonSerializer.Serialize(policy, ObservationWorker.Json), ObservationWorker.Json)!.ExplainVisibleErrors,
@@ -114,7 +117,7 @@ internal static class ErrorChecks
         {
             using var body = JsonDocument.Parse(await http.Content!.ReadAsByteArrayAsync());
             var instructions = body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
-            check(instructions.Contains(GuideError.InitialInstructions), "the production identification request includes the enabled first-drop error policy");
+            check(instructions.Contains("For an actual visible error or warning"), "the production identification request includes the enabled first-drop error policy");
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
                 { choices = new[] { new { finish_reason = "stop", message = new { content = firstError } } } })) };
         }));
@@ -137,7 +140,7 @@ internal static class ErrorChecks
             var messages = body.RootElement.GetProperty("messages");
             var contract = messages[0].GetProperty("content").GetString()!;
             using var data = JsonDocument.Parse(messages[1].GetProperty("content")[0].GetProperty("text").GetString()!);
-            check(contract.Contains(GuideError.SolutionInstructions),
+            check(contract.Contains("Explain briefly what the software cannot do"),
                 "first-drop and continued error transport share the prioritized solution and risk boundaries");
             if (calls == 1)
             {
@@ -217,7 +220,7 @@ internal static class ErrorChecks
             using var simulation = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated", false), new Handler(async http =>
             {
                 using var body = JsonDocument.Parse(await http.Content!.ReadAsStringAsync());
-                check(body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!.Contains(GuideError.SolutionInstructions),
+                check(body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!.Contains("Explain briefly what the software cannot do"),
                     $"SIMULATED {item.Id}: first-drop transport contains the user-led solution policy");
                 return Reply(JsonSerializer.Serialize(new { application = "生成工具", page = "操作遇到问题的提示", state = item.State,
                     question = item.Question, kind = "attention", nextCheck = item.Step }));

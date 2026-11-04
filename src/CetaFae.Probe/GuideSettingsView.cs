@@ -96,7 +96,7 @@ internal sealed class GuideSettingsView : Border
         _pages[1].Children.Add(_disclosure);
 
         _pages[2].Children.Add(Title("功能与插件"));
-        _pages[2].Children.Add(Text("关闭适配只移除它的增强，通用理解仍可独立工作。可导入作者提供的 JSON 数据插件；导入或更新后默认停用，查看范围后勾选并保存才生效。名称由作者填写，不代表经过官方认证。这里只读取规则，不运行代码，也不下载内容。"));
+        _pages[2].Children.Add(Text("可导入软件适配规则或功能插件。导入或更新后默认停用，查看范围后勾选并保存才生效。作者信息未经核实。功能插件包含受限程序，不能自行读取窗口、联网或操作电脑；适配规则使用已启用的通用功能。"));
         _pages[2].Children.Add(Action("导入插件文件", () => ImportRequested?.Invoke()));
         _pages[2].Children.Add(_pluginList);
         RenderPlugins(preferences.DisabledPlugins);
@@ -153,6 +153,8 @@ internal sealed class GuideSettingsView : Border
             var kind = plugin.Kind switch { "general" => "通用界面理解", "identity" => "本机软件身份", "chat" => "自由问答", _ => "软件适配" };
             var item = new StackPanel(); item.Children.Add(enabled);
             item.Children.Add(Text($"{(custom ? "本地导入" : "随软件提供")} · {kind} · 版本 {plugin.Version}"));
+            item.Children.Add(Text(plugin.Program is not null ? "功能插件：包含受限 JavaScript 程序（由 TypeScript 编译）" :
+                plugin.Kind == "application" ? "规则包：使用已启用的通用功能" : "声明式配置：未包含功能程序"));
             item.Children.Add(Text("标识：" + plugin.Id));
             item.Children.Add(Text(plugin.Kind == "application"
                 ? "适配范围：" + string.Join("；", plugin.Targets.Select(t => string.Join("、", t.ProcessNames) +

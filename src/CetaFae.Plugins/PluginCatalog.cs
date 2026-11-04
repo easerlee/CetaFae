@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace CetaFae.Plugins;
 
-/// <summary>A startup snapshot of explicitly enabled, validated data packages.</summary>
+/// <summary>A startup snapshot of explicitly enabled, validated plugin packages.</summary>
 public sealed class PluginCatalog
 {
     public const int MaxFileBytes = 32 * 1024;

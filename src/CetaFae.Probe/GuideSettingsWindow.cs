@@ -95,7 +95,7 @@ internal sealed class GuideSettingsWindow : Window
 
     void Import()
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "导入鲸汐数据插件", Filter = "JSON 数据插件 (*.json)|*.json",
+        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "导入鲸汐插件", Filter = "JSON 插件文件 (*.json)|*.json",
             Multiselect = false, CheckFileExists = true };
         if (dialog.ShowDialog(this) != true) return;
         try { _view.ImportPlugin(PluginCatalog.Import(dialog.FileName)); }
@@ -105,11 +105,11 @@ internal sealed class GuideSettingsWindow : Window
             {
                 "plugin_shipped_identity" => "不能用导入文件覆盖随软件提供的插件。可在功能列表停用它。",
                 "plugin_update_version" => "已存在同标识插件。更新文件的版本必须高于当前版本；原插件保持不变。",
-                _ => "无法导入：文件无效、不兼容、过大或路径不可读取。请选择作者提供的 JSON 数据插件；原列表保持不变。"
+                _ => "无法导入：文件无效、不兼容、过大或路径不可读取。请选择作者提供的 JSON 插件文件；原列表保持不变。"
             });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
-        { _view.SetNotice("无法读取这个数据插件。请核对文件和读取权限；原列表保持不变。"); }
+        { _view.SetNotice("无法读取这个插件文件。请核对文件和读取权限；原列表保持不变。"); }
     }
 
     void Export()

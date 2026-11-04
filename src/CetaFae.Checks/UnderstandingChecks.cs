@@ -35,7 +35,7 @@ static class UnderstandingChecks
                 using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
                 var messages = body.RootElement.GetProperty("messages");
                 var instruction = messages[0].GetProperty("content").GetString()!;
-                if (calls <= 2) check(instruction.Contains(GuideModel.UnderstandingInstructions),
+                if (calls <= 2) check(instruction.Contains("previousWindowUnderstanding, when present"),
                     "both routing and fresh guidance distinguish historical interpretation from current evidence");
                 if (calls == 1)
                 {
@@ -54,7 +54,7 @@ static class UnderstandingChecks
                         "fresh guidance receives the new state independently from the historical error");
                     return Completion("""{"mode":"explain","explanation":"文件已打开，刚才的提示已不在当前画面，不需要继续处理旧提示。","candidateId":null}""");
                 }
-                check(messages.GetArrayLength() == 2 && !instruction.Contains(GuideModel.UnderstandingInstructions) &&
+                check(messages.GetArrayLength() == 2 && !instruction.Contains("previousWindowUnderstanding, when present") &&
                       !messages.GetRawText().Contains("previousWindowUnderstanding"),
                     "resting text chat never inherits the window understanding reference");
                 return Completion("""{"reply":"我是鲸汐，可以帮你理解软件界面和操作步骤。"}""");
@@ -120,7 +120,7 @@ static class UnderstandingChecks
                 var instruction = body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
                 using var data = JsonDocument.Parse(body.RootElement.GetProperty("messages")[1].GetProperty("content")[0].GetProperty("text").GetString()!);
                 check(data.RootElement.GetProperty("visibleContext").GetString() == item.Source &&
-                      instruction.Contains("browser from the website") && instruction.Contains(GuideError.InitialInstructions),
+                      instruction.Contains("browser from the website") && instruction.Contains("For an actual visible error or warning"),
                     $"SIMULATED {item.Id}: source reaches generic interpretation with ordinary/error distinction and no adapter");
                 return Completion(json);
             }));

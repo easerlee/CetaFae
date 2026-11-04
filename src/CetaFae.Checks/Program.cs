@@ -84,7 +84,16 @@ public static class Program
             TransportChecks.MeasureAsync().GetAwaiter().GetResult();
             return 0;
         }
-        try { RunAsync(args).GetAwaiter().GetResult(); return 0; }
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+            var pending = RunAsync(args);
+            var frame = new DispatcherFrame();
+            _ = pending.ContinueWith(_ => frame.Continue = false, CancellationToken.None,
+                TaskContinuationOptions.None, TaskScheduler.FromCurrentSynchronizationContext());
+            if (!pending.IsCompleted) Dispatcher.PushFrame(frame);
+            pending.GetAwaiter().GetResult(); return 0;
+        }
         catch (Exception ex) { Console.Error.WriteLine($"FAIL: {ex.GetType().Name}: {ex.Message}"); return 1; }
     }
 
@@ -114,6 +123,13 @@ public static class Program
 
     static async Task RunAsync(string[] args)
     {
+        if (args.Contains("--plugin-programs"))
+        {
+            TypeScriptPluginChecks.Run(Check);
+            await TypeScriptPluginChecks.RunAsync(Check);
+            Console.WriteLine($"RESULT: {_passed} plugin program checks passed. Desktop observation: NOT RUN.");
+            return;
+        }
         Check(CultureInfo.GetCultureInfo(2052).Name == "zh-CN", "Chinese Windows input locale is available");
         // A console entry point has no WPF dispatcher until explicitly initialized.
         _ = Dispatcher.CurrentDispatcher;
@@ -136,10 +152,12 @@ public static class Program
         await FollowupChecks.RunControlledAsync(Check);
         await PrivacyChecks.RunAsync(Check);
         LogRetentionChecks.Run(Check);
+        TypeScriptPluginChecks.Run(Check);
+        await TypeScriptPluginChecks.RunAsync(Check);
         PluginChecks.Run(Check);
         ThirdPartyPluginChecks.Run(Check);
         CheckChatLayout();
-        FreeChatChecksAsync().GetAwaiter().GetResult();
+        await FreeChatChecksAsync();
         await ChatHistoryChecks.RunAsync(Check);
         GeneralGuideChecks.Run(Check);
         SoftwareIdentityChecks.Run(Check);
@@ -149,7 +167,7 @@ public static class Program
         ScopeChecks.Run(Check);
         TextRegionChecks.Run(Check);
         CoordinateChecks.Run(Check);
-        if (args.Contains("--ocr-generated")) TextRegionChecks.RunOcrAsync(Check).GetAwaiter().GetResult();
+        if (args.Contains("--ocr-generated")) await TextRegionChecks.RunOcrAsync(Check);
         await ScopeChecks.CheckTransportAsync(Check);
         await TransportChecks.RunAsync(Check);
         TaskChecks.Run(Check);

@@ -9,7 +9,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CetaFae.Probe</AssemblyName>
-    <Version>0.3.1-preview.24</Version>
+    <Version>0.3.1-preview.25</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>CetaFae</Product>
     <Description>Whale interaction and selected-window guidance</Description>
@@ -30,9 +30,17 @@
     <Resource Include="Art/Whale/motion.json" />
     <Resource Include="Art/Whale/drop-motion.json" />
     <Resource Include="Art/Whale/droplet.svg" />
-    <Content Include="../../plugins/**/*.json" Link="plugins/%(RecursiveDir)%(Filename)%(Extension)"
-             ExcludeFromSingleFile="true"
-             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <ItemGroup>
+    <_PluginDefinition Include="../../plugins/**/*.json">
+      <Link>plugins/%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </_PluginDefinition>
+    <Content Include="@(_PluginDefinition->'../../.artifacts/plugin-build/%(RecursiveDir)%(Filename)%(Extension)')"
+             ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="BuildFeaturePlugins" BeforeTargets="PrepareForBuild">
+    <Exec Command="node &quot;$(MSBuildProjectDirectory)/../../tools/build-plugins.mjs&quot;" />
+  </Target>
 
 </Project>

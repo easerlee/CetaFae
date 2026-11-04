@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 7,
+  "kind": "chat",
+  "id": "example.chat",
+  "version": "0.1.0",
+  "displayName": "Example software helper",
+  "targets": [],
+  "uiaView": "control",
+  "taskIds": [],
+  "blockedPoints": []
+}
