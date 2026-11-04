@@ -83,6 +83,16 @@ static class CardChecks
         yield return ("30 Context changed", changed);
         var recheck = New(); recheck.SetStatus(GuideSession.FailureMessage(new InvalidDataException("target_context_unavailable")));
         yield return ("31 Context recheck unavailable", recheck);
+        var solution = New(); solution.SetCloud(true);
+        solution.SetStatus(new GuideIdentification("文件工具", "文件被占用的提示", null, "attention", "要处理的文件正在被另一个软件使用",
+            "先保存其他软件中尚未保存的内容，正常关闭其中打开的这份文件，再回来重试。").ToAnswer("generated").Explanation);
+        solution.SetFollowupAvailable(true);
+        yield return ("32 User-led first solution", solution);
+        var unresolved = New(); unresolved.SetCloud(true);
+        unresolved.SetStatus(new GuideIdentification("文件工具", "仍然打不开文件的提示", "你刚才是在哪个软件里保存并关闭这份文件的？",
+            "attention", "这份文件现在仍被另一个软件使用").ToAnswer("generated").Explanation);
+        unresolved.ShowQuestion();
+        yield return ("33 Necessary error context", unresolved);
     }
 
     static void Layout(GuideCard card, double width = GuideTheme.CardWidth)

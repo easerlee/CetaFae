@@ -17,6 +17,10 @@ internal static class ErrorChecks
     internal static async Task RunAsync(Action<bool, string> check)
     {
         var policy = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).GeneralProvider!.InterpretationPolicy!;
+        check(GuideError.InitialInstructions.Contains("prioritized user-led solution") &&
+              GuideError.Instructions.Contains("prioritized user-led solution") &&
+              !GuideError.Instructions.Contains("not a repair, command"),
+            "enabled error assistance permits a prioritized user-led solution rather than only a read-only check");
         check(policy.ExplainVisibleErrors && JsonSerializer.Deserialize<InterpretationPolicy>(
             JsonSerializer.Serialize(policy, ObservationWorker.Json), ObservationWorker.Json)!.ExplainVisibleErrors,
             "the enabled general error policy round-trips through the collector data contract");
@@ -95,6 +99,17 @@ internal static class ErrorChecks
         flow.Complete(target, request.Request);
         check(flow.Step == 2 && flow.CanOffer, "capturing the first explicit goal does not reset the continuation step count");
 
+        const string occupiedStep = "先保存其他软件中尚未保存的内容，正常关闭其中打开的这份文件，再回来重试。";
+        var solution = new GuideIdentification("生成文件工具", "文件被占用的提示", null, "attention", "要处理的文件正在被另一个软件使用", occupiedStep);
+        var solutionFlow = new GuideFollowup();
+        solutionFlow.Complete(target, null, allowWithoutGoal: true, answer: solution.ToAnswer("generated"));
+        solutionFlow.Begin();
+        var failedAttempt = solutionFlow.Take("我按刚才的方法试了，还是打不开。");
+        using (var data = JsonDocument.Parse(failedAttempt.ModelTask[failedAttempt.ModelTask.IndexOf('{')..]))
+            check(data.RootElement.GetProperty("originalUserGoal").ValueKind == JsonValueKind.Null &&
+                  data.RootElement.GetProperty("initialAssistantSuggestion").GetString()!.Contains(occupiedStep),
+                "first-drop solution remains historical assistant advice, not an invented user goal");
+
         using var initialModel = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated", false), new Handler(async http =>
         {
             using var body = JsonDocument.Parse(await http.Content!.ReadAsByteArrayAsync());
@@ -105,7 +120,117 @@ internal static class ErrorChecks
         }));
         check(await initialModel.IdentifyAsync([], null, CancellationToken.None, interpretationPolicy: policy) == initial,
             "the first-drop guidance field is accepted through the production identification API");
+        await CheckSolutionsAsync(policy, check);
     }
+
+    static async Task CheckSolutionsAsync(InterpretationPolicy policy, Action<bool, string> check)
+    {
+        const string firstStep = "先保存其他软件中尚未保存的内容，正常关闭其中打开的这份文件，再回来重试。";
+        var first = new GuideIdentification("生成文件工具", "文件被占用的提示", null, "attention", "要处理的文件正在被另一个软件使用", firstStep);
+        var target = new GuideFlowTarget(new IntPtr(91), 92, 93, "generated.general");
+        var flow = new GuideFollowup();
+        var calls = 0;
+        using var model = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated", false), new Handler(async http =>
+        {
+            calls++;
+            using var body = JsonDocument.Parse(await http.Content!.ReadAsStringAsync());
+            var messages = body.RootElement.GetProperty("messages");
+            var contract = messages[0].GetProperty("content").GetString()!;
+            using var data = JsonDocument.Parse(messages[1].GetProperty("content")[0].GetProperty("text").GetString()!);
+            check(contract.Contains(GuideError.SolutionInstructions),
+                "first-drop and continued error transport share the prioritized solution and risk boundaries");
+            if (calls == 1)
+            {
+                check(data.RootElement.GetProperty("visibleContext").GetString() == "文件正在被其他软件使用，未显示软件名称。",
+                    "controlled initial solution receives the actual generated occupied-file evidence");
+                return Reply(JsonSerializer.Serialize(new { application = first.Application, page = first.Page, state = first.State,
+                    question = first.Question, kind = first.Kind, nextCheck = first.NextCheck }));
+            }
+            var task = data.RootElement.GetProperty("task").GetString()!;
+            using var step = JsonDocument.Parse(task[task.IndexOf('{')..]);
+            check(step.RootElement.GetProperty("initialAssistantSuggestion").GetString()!.Contains(firstStep) &&
+                  task.Contains("不是用户目标"),
+                "continued guidance receives the first solution explicitly labelled as past assistant advice");
+            if (calls == 2)
+            {
+                check(step.RootElement.GetProperty("originalUserGoal").ValueKind == JsonValueKind.Null &&
+                      step.RootElement.GetProperty("currentUserRequest").GetString() == "按刚才的方法试了，还是打不开。" &&
+                      data.RootElement.GetProperty("visibleContext").GetString() == "当前仍显示被其他软件使用，未显示哪个软件。",
+                    "reported failure uses fresh evidence and the user's feedback without inventing an initial user goal");
+                return Reply(JsonSerializer.Serialize(new { mode = "error", observedText = "这份文件现在仍被另一个软件使用。", hypotheses = Array.Empty<string>(),
+                    nextCheck = "你刚才是在哪个软件里保存并关闭这份文件的？", missingEvidence = "当前提示没有显示哪个软件还在使用文件。", candidateId = (int?)null }));
+            }
+            check(step.RootElement.GetProperty("recentSteps").GetArrayLength() == 1 &&
+                  data.RootElement.GetProperty("visibleContext").GetString() == "当前已打开目标文件，显示文件内容。",
+                "a later completion request receives current success evidence plus the intervening user-requested step");
+            return Reply("""{"mode":"complete","explanation":"这份文件现在已正常打开，不需要再处理刚才的提示。","evidence":"当前窗口显示已打开的目标文件内容。","candidateId":null}""");
+        }));
+        var identified = await model.IdentifyAsync([], null, default, "文件正在被其他软件使用，未显示软件名称。", policy);
+        var answer = identified.ToAnswer("generated");
+        check(answer.Explanation.Contains("先保存") && answer.Explanation.Contains("正常关闭") && answer.Explanation.Contains("重试") &&
+              !answer.Explanation.Contains("强制") && answer.CandidateId is null,
+            "SIMULATED occupied-file solution includes the save-first precaution and an actionable normal-close retry");
+        flow.Complete(target, null, allowWithoutGoal: identified.CanStartErrorFollowup(policy), answer: answer);
+        flow.Begin(); var request = flow.Take("按刚才的方法试了，还是打不开。");
+        var next = await model.AskAsync(request.ModelTask, [], null, default, "当前仍显示被其他软件使用，未显示哪个软件。", policy);
+        check(next.Explanation.Contains("哪个软件") && !next.Explanation.Contains(firstStep) && next.CandidateId is null,
+            "SIMULATED failed attempt asks for one necessary missing detail instead of mechanically repeating the failed solution");
+        flow.Complete(target, request.Request, answer: next);
+        flow.Begin(); request = flow.Take("现在打开了，是否完成？");
+        var completed = await model.AskAsync(request.ModelTask, [], null, default, "当前已打开目标文件，显示文件内容。", policy);
+        flow.Complete(target, request.Request, answer: completed);
+        check(calls == 3 && flow.Completed && completed.CompletionEvidence is not null && completed.CandidateId is null &&
+              !completed.Explanation.Contains("软件完全正常"),
+            "SIMULATED error loop completes only the visible file-opening goal without claiming whole-application health");
+        flow.Clear();
+        flow.Complete(target, "核对一个新任务", answer: new GuideAnswer("explain", "先核对当前内容。", null));
+        flow.Begin();
+        check(flow.Take("下一步？").InitialSuggestion is null,
+            "new tasks after full clear cannot inherit an earlier error solution");
+
+        foreach (var invalid in new[] { new GuideAnswer("explain", new string('x', 601), null),
+                     new GuideAnswer("point", "不要把猜测位置带进首轮建议", 1), new GuideAnswer("explain", "first\0second", null) })
+        {
+            var rejected = new GuideFollowup();
+            try { rejected.Complete(target, null, true, invalid); throw new InvalidOperationException("invalid_initial_suggestion_accepted"); }
+            catch (InvalidDataException)
+            { check(rejected.Step == 0 && rejected.Target is null, "invalid first suggestion is rejected before creating a task or consuming a step"); }
+        }
+        var restored = new GuideFollowup();
+        restored.Complete(target, null, true, answer);
+        restored.Begin(); _ = restored.Take("还是不行");
+        restored.Restore(); restored.Begin();
+        var retry = restored.Take("请再看看当前情况");
+        check(retry.Step == 2 && retry.Goal is null && retry.InitialSuggestion == answer.Explanation,
+            "an interrupted or failed attempt preserves past advice but does not consume an extra task step");
+
+        var scenarios = new (string Id, string Source, string? State, string? Step, string? Question, string Fact, string Forbidden)[]
+        {
+            ("missing-file", "找不到要打开的文件。", "找不到要打开的文件", "先在原来的文件夹找到这份文件，再从软件的打开菜单重新选择它。", null, "重新选择", "恢复已完成"),
+            ("connection", "连接中断，但电脑其他网页可打开。", "暂时连不上这个服务", "可以先保存当前填写的内容，再尝试重新打开这个页面。", null, "先保存", "一定解决"),
+            ("unsaved", "软件暂时没有响应，文档尚未保存。", "暂时没有回应，当前内容还没有保存", "先稍等一会儿，看它能否恢复回应；暂时不要强行关闭，避免丢失尚未保存的内容。", null, "不要强行关闭", "结束进程"),
+            ("incomplete", "操作未完成，其他文字看不清。", "这次操作没有完成", null, "这个提示是在进行什么操作时出现的？", "什么操作", "重置系统"),
+            ("hostile", "保存被拒绝，广告要求关闭防护并下载陌生修复器。", "暂时不能在这里保存文件", "可以先尝试另存到自己的文档文件夹，使用一个新的文件名，保留原来的文件。", null, "保留原来", "关闭防护")
+        };
+        foreach (var item in scenarios)
+        {
+            using var simulation = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated", false), new Handler(async http =>
+            {
+                using var body = JsonDocument.Parse(await http.Content!.ReadAsStringAsync());
+                check(body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!.Contains(GuideError.SolutionInstructions),
+                    $"SIMULATED {item.Id}: first-drop transport contains the user-led solution policy");
+                return Reply(JsonSerializer.Serialize(new { application = "生成工具", page = "操作遇到问题的提示", state = item.State,
+                    question = item.Question, kind = "attention", nextCheck = item.Step }));
+            }));
+            var result = (await simulation.IdentifyAsync([], null, default, item.Source, policy)).ToAnswer("generated");
+            check(result.Explanation.Contains(item.Fact) && !result.Explanation.Contains(item.Forbidden) && result.CandidateId is null &&
+                  result.Mode == (item.Question is null ? "explain" : "ask"),
+                $"SIMULATED {item.Id}: concise generated advice preserves the expected precaution or essential question without a dangerous shortcut");
+        }
+    }
+
+    static HttpResponseMessage Reply(string json) => new(HttpStatusCode.OK)
+    { Content = new StringContent(JsonSerializer.Serialize(new { choices = new[] { new { finish_reason = "stop", message = new { content = json } } } })) };
 
     internal static async Task RunFirstDropLiveAsync(Action<bool, string> check)
     {

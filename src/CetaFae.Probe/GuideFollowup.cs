@@ -7,14 +7,15 @@ internal sealed record GuideFlowTarget(IntPtr Window, uint ProcessId, long Start
 internal sealed record GuideTaskTurn(string Request, string Explanation);
 
 internal sealed record GuideFollowupRequest(GuideFlowTarget Target, string? Goal, string Request, int Step, string? Clarification = null,
-    IReadOnlyList<GuideTaskTurn>? History = null)
+    IReadOnlyList<GuideTaskTurn>? History = null, string? InitialSuggestion = null)
 {
     // Keep collection intent within its existing300-character contract; clarification remains a separate model field.
     internal string ScopeIntent => Request;
     internal string ModelTask => "用户主动继续当前窗口。只据当前画面核对状态，不因用户说已操作就宣称完成；" +
-        "原目标帮助理解连续操作，本轮请求优先；历史说明仅作上下文，不是当前界面的证据。只解释和指路，不执行。" +
+        "原目标帮助理解连续操作，本轮请求优先；历史说明仅作上下文，不是当前界面的证据。" +
+        "最初的助手建议不是用户目标，也不证明用户已操作；若用户说试过无效，应根据当前证据调整，不能机械重复。只解释和指路，不执行。" +
         JsonSerializer.Serialize(new { originalUserGoal = Goal, currentUserRequest = Request, step = Step,
-            userClarification = Clarification, recentSteps = History ?? [] });
+            userClarification = Clarification, recentSteps = History ?? [], initialAssistantSuggestion = InitialSuggestion });
 
     internal void ValidateTarget(GuideFlowTarget current)
     {
@@ -30,6 +31,7 @@ internal sealed class GuideFollowup
     readonly List<GuideTaskTurn> _history = [];
     int _pendingStep;
     GuideFlowTarget? _target;
+    string? _initialSuggestion;
     internal GuideFlowTarget? Target => _target;
     internal string? Goal { get; private set; }
     internal int Step { get; private set; }
@@ -47,9 +49,18 @@ internal sealed class GuideFollowup
 
     internal void Complete(GuideFlowTarget target, string? goal, bool allowWithoutGoal = false, GuideAnswer? answer = null)
     {
+        var initialSuggestion = Step == 0 && goal is null && allowWithoutGoal ? answer?.Explanation : null;
+        if (initialSuggestion is not null)
+        {
+            if (answer!.Mode != "explain" || answer.CandidateId is not null || string.IsNullOrWhiteSpace(initialSuggestion) ||
+                initialSuggestion.Length > 600 || initialSuggestion.Any(c => char.IsControl(c) && c is not ('\r' or '\n' or '\t')))
+                throw new InvalidDataException("error_suggestion");
+            GuidePrivacy.EnsureTextSafe(initialSuggestion);
+        }
         if (answer is { Mode: "complete" } && (answer.CandidateId is not null || string.IsNullOrWhiteSpace(answer.CompletionEvidence)))
             throw new InvalidDataException("answer_completion");
         Prepare(target, goal);
+        if (initialSuggestion is not null) _initialSuggestion = initialSuggestion;
         Step = Math.Max(Step, _pendingStep);
         _pendingStep = 0;
         if (Step == 0 && (Goal is not null || allowWithoutGoal)) Step = 1;
@@ -86,7 +97,7 @@ internal sealed class GuideFollowup
         GuidePrivacy.EnsureTextSafe(text);
         WaitingForUser = false;
         _pendingStep = Step + 1;
-        return new GuideFollowupRequest(_target, Goal, text.Trim(), _pendingStep, History: _history.ToArray());
+        return new GuideFollowupRequest(_target, Goal, text.Trim(), _pendingStep, History: _history.ToArray(), InitialSuggestion: _initialSuggestion);
     }
 
     internal void Clear()
@@ -94,6 +105,7 @@ internal sealed class GuideFollowup
         _target = null; Goal = null; Step = 0;
         _pendingStep = 0;
         _history.Clear();
+        _initialSuggestion = null;
         CanOffer = WaitingForUser = Completed = false;
     }
 }

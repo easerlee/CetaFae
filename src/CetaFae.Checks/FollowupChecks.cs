@@ -49,7 +49,8 @@ internal static class FollowupChecks
         using var requestData = JsonDocument.Parse(second.ModelTask[second.ModelTask.IndexOf('{')..]);
         check(second.Step == 2 && second.Goal == "生成目标：说明三步流程" && !flow.WaitingForUser &&
               requestData.RootElement.GetProperty("currentUserRequest").GetString() == second.Request &&
-              requestData.RootElement.EnumerateObject().Count() == 5 && second.ModelTask.Contains("当前画面") &&
+              requestData.RootElement.EnumerateObject().Count() == 6 &&
+              requestData.RootElement.GetProperty("initialAssistantSuggestion").ValueKind == JsonValueKind.Null && second.ModelTask.Contains("当前画面") &&
               requestData.RootElement.GetProperty("recentSteps")[0].GetProperty("Explanation").GetString() == "先核对范围，再查看预览。",
             "fresh request retains bounded task text while explicitly requiring current visual evidence");
         Reject(() => flow.Take("duplicate"), "duplicate submission cannot create an extra step");

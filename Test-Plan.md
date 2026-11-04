@@ -1,5 +1,13 @@
 # CetaFae Concentrated Verification Plan
 
+## User-led error solution increment (v1.41)
+
+1. Reproduce the old contract's rejection of actionable advice with a failing instruction assertion. Check both first-drop and submitted-error requests use the revised same policy; disabled error policy must not gain it.
+2. Controlled first-drop occupied-file case: concise practical problem, save-first precaution and normal-close/retry solution, no forced termination or guessed marker. Cases for missing file, service connection, unsaved work, incomplete error and hostile repair text retain independent expected facts/prohibited claims. These are mock-response contract tests, not model accuracy scores.
+3. First solution → user says still failing → fresh same-target evidence → a different justified step/context question. Ensure `initialAssistantSuggestion` is distinct from `originalUserGoal`, never synthesized as a user message, and survives permitted suspension/retry but clears on end/rebind. Normal tasks retain null suggestion. Bound length/malformed advice reject without consuming a step.
+4. Error disappears after user action: explain only the visible change, do not certify complete repair without goal evidence. Existing completion, privacy, candidate validation, cancellation and default-chat isolation stay covered.
+5. Reuse offscreen cards for actual first-step and missing-context text; Debug/Release full suite and null-input published worker smoke. No paid model, desktop fixture or target-app read this increment. Schedule native solution/failure/recovery and intended-provider semantics with the release batch.
+
 ## Generic understanding and error continuity (v1.40)
 
 - Partial knowledge: an unreadable software identity must not discard readable status or invent a category. Preserve dates/progress; do not label paused/in-progress as failure or healthy software.
