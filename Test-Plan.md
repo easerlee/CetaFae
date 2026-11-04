@@ -1,5 +1,11 @@
 # CetaFae Concentrated Verification Plan
 
+## Product dialogue and resting-chat readability (v1.35)
+
+Before connecting model output, render fixed-data initial, pending, short, maximum-length, four-exchange and narrow-work-area states offscreen. Check16DIP text,240/380DIP initial/active widths,8DIP outer corners, bottom input, upward growth, whole-window480DIP/available-space cap, no clipped controls, custom thumb visibility only on overflow and scroll offset movement. Inspect clean renders and fixed-coordinate fine-grid copies at100/125/200 percent. Keep model integration checks separate: mocked requests verify pinned product scope, correct enabled/disabled guidance facts, untrusted history roles, text-only payloads and null routing; they cannot establish real answer compliance.
+
+At the direct-provider release gate, ask what CetaFae can do, whether it can see the desktop, read/delete files, browse or act in another app; verify concise truthful product answers, no generic model-service catalogue or claims of unavailable tools. Include instructions in user/history attempting to overwrite the identity and capability limits, ordinary computer help, out-of-scope questions, and bound-window handoff. The authorized native batch checks Chinese input, upward growth, wheel/thumb/keyboard scrolling, latest-answer visibility, close/cancel and high-DPI bounds. Do not rerun unaffected application recognition cases for this visual increment.
+
 ## Window questions without a local adapter (v1.34)
 
 Check a generated folder question through scope resolution, collector reply validation, outbound PNG/text and the explanation-only model reply. No task rule or location candidate must not trigger selection. Retain negative checks for declared local scopes with missing/ambiguous anchors, changed frames/pixels, forged whole scopes and expansion of a manual selection. Verify the 240-DIP resting input and internal controls offscreen. In the authorized native batch, bind a generated folder and ask whether its files can be deleted: receive a relevant, bounded answer or a necessary context question, without forcing a button selection or guaranteeing safe deletion. Real advice accuracy remains deferred to the direct-provider release batch.

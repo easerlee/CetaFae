@@ -48,7 +48,8 @@ public sealed class GuideSession : IDisposable
         _ball = ball;
         _options = options;
         _plugins = plugins;
-        _model = new GuideModel(options);
+        _model = new GuideModel(options, windowGuidanceAvailable:
+            plugins.Plugins.Any(plugin => plugin.Kind is "general" or "application"));
         _chat = new FreeChatSession(async (history, question, token) => await _model.ChatAsync(history, question, token));
         _questions = new FreeChatSession(_model.RouteQuestionAsync);
         _panel = new GuidePanel(options);

@@ -4,11 +4,11 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.11**. CetaFae explains the selected window, shows where to act, and answers general questions. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.12**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
 
 ## Features
 
-- **Ask directly**: click the resting whale to open an input. In a bound window, use the same input for interface help and general questions, without choosing a mode. General questions receive a text reply; questions that need the interface continue through selected-window collection. Up to four recent exchanges support follow-up questions.
+- **Ask directly**: click the resting whale to open an input. Use the same input for computer/software questions and interface help without choosing a mode. Text-answerable questions receive a direct reply; questions that need the interface continue through selected-window collection. The compact resting input expands upward for a conversation, with larger text and a slim scrollbar for long content. Up to four recent exchanges support follow-up questions.
 - **Lightweight management**: the tray and whale right-click share one menu. Accept the agreement during installation. Settings provides the disclosure and a way to withdraw consent.
 - **Unobtrusive presence**: dismiss transient notices with their header close button or an outside click. The idle whale hides while another foreground application is fullscreen and returns afterward. Ordinary maximization and active guidance remain available; fullscreen detection uses local window geometry without analyzing content.
 - **Drag to select**: the whale and input bar center on the target window, with the bar width adapting to the window. On-demand explanations and control highlights keep interaction close to the target. Ending a session restores the whale.
