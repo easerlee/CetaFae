@@ -56,6 +56,35 @@ public sealed class PluginCatalog
         return JsonSerializer.Deserialize<GuidePlugin>(json, Json) ?? throw new InvalidDataException("plugin_definition");
     }
 
+    public static string SerializePlugin(GuidePlugin plugin) => JsonSerializer.Serialize(plugin, Json);
+
+    /// <summary>Rejects ambiguous activation before an enabled snapshot can reach a target.</summary>
+    public void ValidateActivation()
+    {
+        var applications = Plugins.Where(p => p.Kind == "application").ToArray();
+        for (var i = 0; i < applications.Length; i++)
+        for (var j = i + 1; j < applications.Length; j++)
+            if (applications[i].Targets.Any(a => applications[j].Targets.Any(b =>
+                a.ProcessNames.Intersect(b.ProcessNames, StringComparer.OrdinalIgnoreCase).Any() &&
+                (a.WindowTitles.Count == 0 || b.WindowTitles.Count == 0 ||
+                 a.WindowTitles.Intersect(b.WindowTitles, StringComparer.Ordinal).Any()))))
+                throw new InvalidDataException("plugin_conflict");
+    }
+
+    /// <summary>Reads a single data definition without following user-supplied links or retaining its path.</summary>
+    public static GuidePlugin Import(string path)
+    {
+        if (!string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("plugin_file_type");
+        var fullPath = Path.GetFullPath(path);
+        if (fullPath.StartsWith(@"\\", StringComparison.Ordinal) ||
+            fullPath.AsSpan(Path.GetPathRoot(fullPath)!.Length).Contains(':'))
+            throw new InvalidDataException("plugin_path");
+        for (var current = fullPath; current is not null; current = Path.GetDirectoryName(current))
+            CheckRegularPath(current);
+        return ParsePlugin(ReadFile(fullPath));
+    }
+
     public static PluginCatalog Load(string directory)
     {
         CheckRegularPath(directory);

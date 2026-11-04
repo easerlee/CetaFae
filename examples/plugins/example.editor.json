@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "id": "example.editor",
+  "version": "0.1.0",
+  "displayName": "Example editor guidance",
+  "targets": [{ "processNames": ["generated-editor"], "windowTitles": ["Generated editor fixture"] }],
+  "uiaView": "control",
+  "taskIds": ["example.destination"],
+  "blockedPoints": [{ "intentContainsAny": ["keep", "保留"], "candidateNameContainsAny": ["delete", "删除"] }],
+  "observationScopes": [{
+    "intentContainsAny": ["destination", "保存位置"],
+    "anchorNameContainsAny": ["Destination", "保存位置"],
+    "anchorControlTypes": ["ControlType.Edit"],
+    "padding": 12
+  }]
+}

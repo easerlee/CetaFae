@@ -5,8 +5,11 @@ using CetaFae.Plugins;
 namespace CetaFae.Probe;
 
 /// <summary>Non-secret user choices; this record can never grant collection permission.</summary>
-internal sealed record GuidePreferences(string BaseUrl, string Model, bool IncludeImage, IReadOnlyList<string> DisabledPlugins)
+internal sealed record GuidePreferences(string BaseUrl, string Model, bool IncludeImage, IReadOnlyList<string> DisabledPlugins,
+    IReadOnlyList<GuidePlugin>? InstalledPlugins = null)
 {
+    internal const int MaxBytes = 1024 * 1024;
+    internal IReadOnlyList<GuidePlugin> CustomPlugins => InstalledPlugins ?? [];
     internal static GuidePreferences Default => new("http://127.0.0.1:8787/v1", "deepseek-v4.1-flash", true, []);
     internal GuideOptions Options => GuideOptions.Create(BaseUrl, Model, IncludeImage);
 
@@ -19,37 +22,88 @@ internal sealed record GuidePreferences(string BaseUrl, string Model, bool Inclu
             throw new ArgumentException("invalid_preferences");
         var options = Options;
         GuidePrivacy.EnsureTextSafe(options.Model);
+        if (CustomPlugins.Count > 32 || CustomPlugins.Any(p => p is null) ||
+            CustomPlugins.Select(p => p.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != CustomPlugins.Count)
+            throw new InvalidDataException("plugin_catalog");
+        var manifests = CustomPlugins.Select(p => PluginCatalog.ParsePlugin(PluginCatalog.SerializePlugin(p))).ToArray();
         return this with { BaseUrl = options.BaseUrl.AbsoluteUri, Model = options.Model.Trim(),
-            DisabledPlugins = Array.AsReadOnly(DisabledPlugins.Order(StringComparer.Ordinal).ToArray()) };
+            DisabledPlugins = Array.AsReadOnly(DisabledPlugins.Order(StringComparer.Ordinal).ToArray()),
+            InstalledPlugins = Array.AsReadOnly(manifests) };
     }
 
-    internal PluginCatalog Filter(PluginCatalog shipped) => new(shipped.Plugins.Where(p =>
-        !DisabledPlugins.Contains(p.Id, StringComparer.OrdinalIgnoreCase)));
+    internal IReadOnlyList<GuidePlugin> AvailablePlugins(PluginCatalog shipped)
+    {
+        var all = shipped.Plugins.Concat(CustomPlugins).ToArray();
+        if (all.Length > 32 || all.Select(p => p.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != all.Length)
+            throw new InvalidDataException("plugin_catalog");
+        return Array.AsReadOnly(all);
+    }
+
+    internal PluginCatalog Filter(PluginCatalog shipped)
+    {
+        var catalog = new PluginCatalog(AvailablePlugins(shipped).Where(p =>
+            !DisabledPlugins.Contains(p.Id, StringComparer.OrdinalIgnoreCase)));
+        catalog.ValidateActivation();
+        return catalog;
+    }
+
+    internal GuidePreferences ImportPlugin(GuidePlugin plugin, PluginCatalog shipped)
+    {
+        if (shipped.Plugins.Any(p => string.Equals(p.Id, plugin.Id, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException("plugin_shipped_identity");
+        var previous = CustomPlugins.SingleOrDefault(p => string.Equals(p.Id, plugin.Id, StringComparison.OrdinalIgnoreCase));
+        if (previous is not null && Version.Parse(plugin.Version) <= Version.Parse(previous.Version))
+            throw new InvalidDataException("plugin_update_version");
+        var next = (this with
+        {
+            InstalledPlugins = CustomPlugins.Where(p => p != previous).Append(plugin).ToArray(),
+            DisabledPlugins = DisabledPlugins.Where(id => !string.Equals(id, plugin.Id, StringComparison.OrdinalIgnoreCase))
+                .Append(plugin.Id).ToArray()
+        }).Validate();
+        _ = next.AvailablePlugins(shipped);
+        return next;
+    }
+
+    internal GuidePreferences RemovePlugin(string id) => this with
+    {
+        InstalledPlugins = CustomPlugins.Where(p => p.Id != id).ToArray(),
+        DisabledPlugins = DisabledPlugins.Where(disabled => !string.Equals(disabled, id, StringComparison.OrdinalIgnoreCase)).ToArray()
+    };
 
     internal static GuidePreferences Parse(byte[] bytes)
     {
-        if (bytes.Length > 16 * 1024) throw new InvalidDataException("preferences_size");
-        using var json = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 4 });
+        if (bytes.Length > MaxBytes) throw new InvalidDataException("preferences_size");
+        using var json = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 14 });
         var root = json.RootElement;
-        var expected = new[] { "version", "baseUrl", "model", "includeImage", "disabledPlugins" };
+        if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException("preferences_shape");
+        if (!root.TryGetProperty("version", out var versionField) || versionField.ValueKind != JsonValueKind.Number ||
+            !versionField.TryGetInt32(out var version)) throw new InvalidDataException("preferences_shape");
+        var expected = version == 1 ? new[] { "version", "baseUrl", "model", "includeImage", "disabledPlugins" } :
+            new[] { "version", "baseUrl", "model", "includeImage", "disabledPlugins", "installedPlugins" };
         if (root.ValueKind != JsonValueKind.Object || root.EnumerateObject().Count() != expected.Length ||
             !root.EnumerateObject().Select(p => p.Name).Order().SequenceEqual(expected.Order()) ||
-            root.GetProperty("version").GetInt32() != 1)
+            version is not (1 or 2))
             throw new InvalidDataException("preferences_shape");
         return new GuidePreferences(root.GetProperty("baseUrl").GetString() ?? "",
             root.GetProperty("model").GetString() ?? "", root.GetProperty("includeImage").GetBoolean(),
-            root.GetProperty("disabledPlugins").EnumerateArray().Select(e => e.GetString() ?? "").ToArray()).Validate();
+            root.GetProperty("disabledPlugins").EnumerateArray().Select(e => e.GetString() ?? "").ToArray(),
+            version == 1 ? [] : root.GetProperty("installedPlugins").EnumerateArray().Select(e =>
+                PluginCatalog.ParsePlugin(e.GetRawText())).ToArray()).Validate();
     }
 
     internal byte[] Serialize()
     {
         var valid = Validate();
-        return JsonSerializer.SerializeToUtf8Bytes(new { version = 1, baseUrl = valid.BaseUrl,
-            model = valid.Model, includeImage = valid.IncludeImage, disabledPlugins = valid.DisabledPlugins });
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { version = 2, baseUrl = valid.BaseUrl,
+            model = valid.Model, includeImage = valid.IncludeImage, disabledPlugins = valid.DisabledPlugins,
+            installedPlugins = valid.CustomPlugins.Select(p => JsonSerializer.Deserialize<JsonElement>(PluginCatalog.SerializePlugin(p))) });
+        if (bytes.Length > MaxBytes) throw new InvalidDataException("preferences_size");
+        return bytes;
     }
 
     internal bool SameAs(GuidePreferences other) => BaseUrl == other.BaseUrl && Model == other.Model &&
-        IncludeImage == other.IncludeImage && DisabledPlugins.SequenceEqual(other.DisabledPlugins, StringComparer.Ordinal);
+        IncludeImage == other.IncludeImage && DisabledPlugins.SequenceEqual(other.DisabledPlugins, StringComparer.Ordinal) &&
+        CustomPlugins.Select(PluginCatalog.SerializePlugin).SequenceEqual(other.CustomPlugins.Select(PluginCatalog.SerializePlugin), StringComparer.Ordinal);
     internal bool RequiresNewConsent(GuidePreferences previous) =>
         GuidePanel.Disclosure(Options) != GuidePanel.Disclosure(previous.Options);
 }
@@ -76,7 +130,7 @@ internal sealed class GuidePreferencesStore(string? file = null)
         {
             CheckPath();
             using var stream = new FileStream(_file, FileMode.Open, FileAccess.Read, FileShare.Read);
-            if (stream.Length is <= 0 or > 16 * 1024) return (GuidePreferences.Default, PreferencesStatus.Invalid);
+            if (stream.Length is <= 0 or > GuidePreferences.MaxBytes) return (GuidePreferences.Default, PreferencesStatus.Invalid);
             var bytes = new byte[(int)stream.Length]; stream.ReadExactly(bytes);
             return (GuidePreferences.Parse(bytes), PreferencesStatus.Loaded);
         }

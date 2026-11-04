@@ -137,6 +137,7 @@ public static class Program
         await PrivacyChecks.RunAsync(Check);
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);
+        ThirdPartyPluginChecks.Run(Check);
         CheckChatLayout();
         FreeChatChecksAsync().GetAwaiter().GetResult();
         await ChatHistoryChecks.RunAsync(Check);

@@ -19,6 +19,9 @@ internal sealed class GuideSettingsView : Border
     readonly TextBox _model = Input("模型名称");
     readonly CheckBox _image = new() { Content = "允许发送授权范围内的图片", Margin = new Thickness(0, 10, 0, 10) };
     readonly Dictionary<string, CheckBox> _plugins = new(StringComparer.Ordinal);
+    readonly StackPanel _pluginList = new();
+    readonly PluginCatalog _shipped;
+    IReadOnlyList<GuidePlugin> _custom;
     readonly ScrollViewer _scroll;
     readonly Button _cloudAction;
     internal Button SaveButton { get; }
@@ -37,9 +40,11 @@ internal sealed class GuideSettingsView : Border
     internal event Action? CloudRequested;
     internal event Action? ExportRequested;
     internal event Action? CloseRequested;
+    internal event Action? ImportRequested;
 
     internal GuideSettingsView(GuidePreferences preferences, PluginCatalog shipped, bool cloudEnabled, bool invalid = false)
     {
+        _shipped = shipped; _custom = preferences.CustomPlugins;
         Background = GuideTheme.Surface;
         Padding = new Thickness(20);
         TextElement.SetFontFamily(this, new FontFamily("Microsoft YaHei UI"));
@@ -90,19 +95,11 @@ internal sealed class GuideSettingsView : Border
         _pages[1].Children.Add(Text("以下为当前已保存配置的完整说明。高级设置尚未保存的编辑不会改变授权。"));
         _pages[1].Children.Add(_disclosure);
 
-        _pages[2].Children.Add(Title("已随包提供的功能"));
-        _pages[2].Children.Add(Text("关闭适配只移除它的增强。通用理解仍可独立工作；关闭全部相关能力后不再识别。这里不下载或运行第三方代码。"));
-        foreach (var plugin in shipped.Plugins)
-        {
-            var enabled = new CheckBox { Content = plugin.DisplayName, IsChecked = !preferences.DisabledPlugins.Contains(plugin.Id, StringComparer.OrdinalIgnoreCase),
-                FontSize = 14, Margin = new Thickness(0, 4, 0, 4) };
-            _plugins.Add(plugin.Id, enabled);
-            var item = new StackPanel(); item.Children.Add(enabled);
-            var kind = plugin.Kind switch { "general" => "通用界面理解", "identity" => "本机软件身份", "chat" => "自由问答", _ => "软件适配" };
-            item.Children.Add(Text($"{kind} · 版本 {plugin.Version} · {plugin.TaskIds.Count} 项声明任务"));
-            _pages[2].Children.Add(new Border { Child = item, Padding = new Thickness(12), Margin = new Thickness(0, 5, 0, 5),
-                BorderBrush = GuideTheme.Outline, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8) });
-        }
+        _pages[2].Children.Add(Title("功能与插件"));
+        _pages[2].Children.Add(Text("关闭适配只移除它的增强，通用理解仍可独立工作。可导入作者提供的 JSON 数据插件；导入或更新后默认停用，查看范围后勾选并保存才生效。名称由作者填写，不代表经过官方认证。这里只读取规则，不运行代码，也不下载内容。"));
+        _pages[2].Children.Add(Action("导入插件文件", () => ImportRequested?.Invoke()));
+        _pages[2].Children.Add(_pluginList);
+        RenderPlugins(preferences.DisabledPlugins);
 
         _pages[3].Children.Add(Title("从拖动开始"));
         _pages[3].Children.Add(Text("1. 安装时同意使用协议，并准备可用的模型服务。\n2. 此后直接将小鲸鱼拖到要了解的窗口。\n3. 需要时回答问题或框选区域，再阅读说明并自行操作。\n4. 点击对话条内的 × 结束；设置隐私页可撤回同意。"));
@@ -116,12 +113,56 @@ internal sealed class GuideSettingsView : Border
         if (invalid) SetNotice("本机设置损坏或无法读取，云端保持关闭。请核对连接配置并保存，再重新运行安装程序确认协议。");
         _endpoint.TextChanged += (_, _) => Edited(); _model.TextChanged += (_, _) => Edited();
         _image.Checked += (_, _) => Edited(); _image.Unchecked += (_, _) => Edited();
-        foreach (var toggle in _plugins.Values) { toggle.Checked += (_, _) => Edited(); toggle.Unchecked += (_, _) => Edited(); }
         SelectPage(0);
     }
 
-    internal GuidePreferences Read() => new GuidePreferences(_endpoint.Text.Trim(), _model.Text.Trim(), _image.IsChecked == true,
-        _plugins.Where(p => p.Value.IsChecked != true).Select(p => p.Key).ToArray()).Validate();
+    GuidePreferences Draft() => new(_endpoint.Text.Trim(), _model.Text.Trim(), _image.IsChecked == true,
+        _plugins.Where(p => p.Value.IsChecked != true).Select(p => p.Key).ToArray(), _custom);
+    internal GuidePreferences Read()
+    {
+        var next = Draft().Validate();
+        _ = next.Filter(_shipped);
+        return next;
+    }
+    internal void ImportPlugin(GuidePlugin plugin)
+    {
+        var next = Draft().ImportPlugin(plugin, _shipped);
+        _custom = next.CustomPlugins;
+        RenderPlugins(next.DisabledPlugins);
+        Edited();
+        SetNotice("插件已加入待保存列表，当前停用。请查看范围，决定是否勾选；点击保存后才生效。关闭设置将放弃未保存的改动。");
+    }
+    internal void RemovePlugin(string id)
+    {
+        if (!_custom.Any(p => p.Id == id)) return;
+        var next = Draft().RemovePlugin(id);
+        _custom = next.CustomPlugins; RenderPlugins(next.DisabledPlugins); Edited();
+        SetNotice("已从待保存列表移除。点击保存后才会移除已安装插件；关闭设置可放弃这次改动。");
+    }
+    void RenderPlugins(IReadOnlyList<string> disabled)
+    {
+        _plugins.Clear(); _pluginList.Children.Clear();
+        foreach (var plugin in _shipped.Plugins.Concat(_custom))
+        {
+            var enabled = new CheckBox { Content = Text(plugin.DisplayName),
+                IsChecked = !disabled.Contains(plugin.Id, StringComparer.OrdinalIgnoreCase),
+                FontSize = 14, HorizontalContentAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 4, 0, 4) };
+            _plugins.Add(plugin.Id, enabled);
+            enabled.Checked += (_, _) => Edited(); enabled.Unchecked += (_, _) => Edited();
+            var custom = _custom.Any(p => p.Id == plugin.Id);
+            var kind = plugin.Kind switch { "general" => "通用界面理解", "identity" => "本机软件身份", "chat" => "自由问答", _ => "软件适配" };
+            var item = new StackPanel(); item.Children.Add(enabled);
+            item.Children.Add(Text($"{(custom ? "本地导入" : "随软件提供")} · {kind} · 版本 {plugin.Version}"));
+            item.Children.Add(Text("标识：" + plugin.Id));
+            item.Children.Add(Text(plugin.Kind == "application"
+                ? "适配范围：" + string.Join("；", plugin.Targets.Select(t => string.Join("、", t.ProcessNames) +
+                    (t.WindowTitles.Count == 0 ? "（所有页面）" : "（" + string.Join("、", t.WindowTitles) + "）")))
+                : "适配范围：" + kind + "，不增加读取或操作权限"));
+            if (custom) item.Children.Add(Action("移除插件", () => RemovePlugin(plugin.Id)));
+            _pluginList.Children.Add(new Border { Child = item, Padding = new Thickness(12), Margin = new Thickness(0, 5, 0, 5),
+                BorderBrush = GuideTheme.Outline, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8) });
+        }
+    }
     internal void SetNotice(string message) => _notice.Text = message;
     internal void SetConnection(ConnectionStatus status)
     {
@@ -149,7 +190,8 @@ internal sealed class GuideSettingsView : Border
     void Submit()
     {
         try { SaveRequested?.Invoke(Read()); }
-        catch (Exception ex) when (ex is ArgumentException or System.IO.InvalidDataException)
+        catch (System.IO.InvalidDataException) { SetNotice("插件设置冲突或不兼容。相同能力或相交适配范围不能同时启用，请停用其中一个再保存；原配置尚未改变。"); }
+        catch (ArgumentException)
         { SetNotice("请核对服务地址和模型名称：远程服务须用 HTTPS，地址不能包含账号、密码、查询参数或片段。"); }
     }
     static TextBlock Text(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, LineHeight = 21,

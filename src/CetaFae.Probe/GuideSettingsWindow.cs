@@ -9,6 +9,9 @@ namespace CetaFae.Probe;
 internal static class GuideDiagnostics
 {
     internal static byte[] Create(PluginCatalog shipped, PluginCatalog enabled, bool cloud, ConnectionStatus connection) =>
+        Create(shipped.Plugins, enabled, cloud, connection);
+
+    internal static byte[] Create(IReadOnlyList<GuidePlugin> available, PluginCatalog enabled, bool cloud, ConnectionStatus connection) =>
         JsonSerializer.SerializeToUtf8Bytes(new
         {
             schemaVersion = 1,
@@ -16,7 +19,7 @@ internal static class GuideDiagnostics
             runtimeVersion = Environment.Version.ToString(),
             cloudEnabled = cloud,
             connection = connection.ToString(),
-            plugins = shipped.Plugins.Select(p => new { id = p.Id, version = p.Version,
+            plugins = available.Select(p => new { id = p.Id, version = p.Version,
                 enabled = enabled.Plugins.Any(active => active.Id == p.Id) })
         }, new JsonSerializerOptions { WriteIndented = true });
 }
@@ -52,6 +55,7 @@ internal sealed class GuideSettingsWindow : Window
         _view.CloudRequested += () => { Close(); cloudAction(); };
         _view.ExportRequested += Export;
         _view.SaveRequested += Apply;
+        _view.ImportRequested += Import;
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { Close(); e.Handled = true; } };
         Closed += (_, _) => { _closed = true; CancelDiagnostic(); };
     }
@@ -87,6 +91,25 @@ internal sealed class GuideSettingsWindow : Window
         _saved = preferences;
         _view.SetCloud(_cloudEnabled(), _saved.Options);
         _view.SetNotice("设置已保存。配置变更已结束旧求助；使用范围改变后须重新运行安装程序确认协议，再重新拖入。");
+    }
+
+    void Import()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "导入鲸汐数据插件", Filter = "JSON 数据插件 (*.json)|*.json",
+            Multiselect = false, CheckFileExists = true };
+        if (dialog.ShowDialog(this) != true) return;
+        try { _view.ImportPlugin(PluginCatalog.Import(dialog.FileName)); }
+        catch (InvalidDataException ex)
+        {
+            _view.SetNotice(ex.Message switch
+            {
+                "plugin_shipped_identity" => "不能用导入文件覆盖随软件提供的插件。可在功能列表停用它。",
+                "plugin_update_version" => "已存在同标识插件。更新文件的版本必须高于当前版本；原插件保持不变。",
+                _ => "无法导入：文件无效、不兼容、过大或路径不可读取。请选择作者提供的 JSON 数据插件；原列表保持不变。"
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        { _view.SetNotice("无法读取这个数据插件。请核对文件和读取权限；原列表保持不变。"); }
     }
 
     void Export()

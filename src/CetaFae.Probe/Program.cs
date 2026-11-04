@@ -68,7 +68,15 @@ public static class Program
         var preview = args.Contains("--guide-preview");
         var invalidPreferences = stored.Status == PreferencesStatus.Invalid;
         if (invalidPreferences && !preview) new CloudConsentStore(preferences.Options).Forget();
-        var plugins = preferences.Filter(shipped);
+        PluginCatalog plugins;
+        try { _ = preferences.AvailablePlugins(shipped); }
+        catch (System.IO.InvalidDataException)
+        {
+            preferences = preferences with { InstalledPlugins = [] };
+            invalidPreferences = true;
+        }
+        try { plugins = preferences.Filter(shipped); }
+        catch (System.IO.InvalidDataException) { plugins = new PluginCatalog([]); invalidPreferences = true; }
         GuideSettingsWindow? settings = null;
         GuideSession session = null!;
         void OpenSettings()
@@ -76,7 +84,7 @@ public static class Program
             session.EndForSettings();
             if (settings is not null) { settings.Activate(); return; }
             settings = new GuideSettingsWindow(preferences, shipped, () => session.CloudEnabled, Apply,
-                () => session.ManageConsent(), status => GuideDiagnostics.Create(shipped, plugins, session.CloudEnabled, status), invalidPreferences);
+                () => session.ManageConsent(), status => GuideDiagnostics.Create(preferences.AvailablePlugins(shipped), plugins, session.CloudEnabled, status), invalidPreferences);
             settings.Closed += (_, _) => settings = null;
             settings.Show();
         }

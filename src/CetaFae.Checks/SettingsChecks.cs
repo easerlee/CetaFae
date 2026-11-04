@@ -55,6 +55,53 @@ internal static class SettingsChecks
         edit.Endpoint.Text = "https://example.invalid/v1";
         edit.SaveButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         check(submits == 1, "valid user save dispatches once without reading any target");
+        var example = ThirdPartyPluginChecks.Example();
+        foreach (var size in new[] { new Size(640, 600), new Size(500, 420) })
+        {
+            var extensions = new GuideSettingsView(GuidePreferences.Default, catalog, false);
+            extensions.ImportPlugin(example);
+            var staged = extensions.Read();
+            check(staged.CustomPlugins.Single().Id == example.Id && staged.DisabledPlugins.Contains(example.Id),
+                "settings import previews a package disabled without implicitly saving or enabling it");
+            extensions.SelectPage(2); Arrange(extensions, size);
+            extensions.BodyScroll.ScrollToEnd(); Arrange(extensions, size);
+            check(extensions.BodyScroll.ExtentWidth <= extensions.BodyScroll.ViewportWidth + 1 &&
+                  new Rect(size).Contains(extensions.SaveButton.TransformToAncestor(extensions).TransformBounds(new Rect(extensions.SaveButton.RenderSize))),
+                "custom plugin scope, remove action and fixed save fit the narrow and regular settings layouts");
+            var importedToggle = Descendants<CheckBox>(extensions).Single(b => b.Content is TextBlock t && t.Text == example.DisplayName);
+            importedToggle.IsChecked = true;
+            check(extensions.Read().Filter(catalog).Get(example.Id).Version == example.Version,
+                "only an explicit custom toggle admits the extension into the settings draft");
+            extensions.RemovePlugin(example.Id);
+            check(extensions.Read().CustomPlugins.Count == 0, "settings removal changes the draft without deleting a bundled package");
+            extensions.RemovePlugin(catalog.Plugins[0].Id);
+            check(extensions.Read().Filter(catalog).Get(catalog.Plugins[0].Id) is not null, "bundled remove requests cannot remove host-shipped definitions");
+            var longName = new string('测', 100) + new string('A', 100);
+            extensions.ImportPlugin(PluginCatalog.ParsePlugin(PluginCatalog.SerializePlugin(example).Replace(example.DisplayName, longName)));
+            Arrange(extensions, size);
+            var caption = Descendants<TextBlock>(extensions).Single(t => t.Text == longName);
+            check(caption.ActualWidth <= extensions.BodyScroll.ViewportWidth - 24 && caption.ActualHeight > 42,
+                "maximum-length external names wrap within the plugin card instead of hiding package identity");
+        }
+        var conflict = new GuideSettingsView(GuidePreferences.Default, catalog, false);
+        var alternative = PluginCatalog.ParsePlugin(PluginCatalog.SerializePlugin(catalog.GeneralProvider!).Replace(catalog.GeneralProvider!.Id, "example.general"));
+        conflict.ImportPlugin(alternative);
+        conflict.SelectPage(2); Arrange(conflict, new Size(640, 600));
+        var alternativeToggle = Descendants<CheckBox>(conflict).Last(b => b.Content is TextBlock t && t.Text == alternative.DisplayName);
+        alternativeToggle.IsChecked = true;
+        var conflictingSaves = 0; conflict.SaveRequested += _ => conflictingSaves++;
+        conflict.SaveButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        check(conflictingSaves == 0, "conflicting plugin activation shows recovery without dispatching a save");
+    }
+
+    static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match) yield return match;
+            foreach (var nested in Descendants<T>(child)) yield return nested;
+        }
     }
 
     internal static async Task RunAsync(Action<bool, string> check)
@@ -68,9 +115,9 @@ internal static class SettingsChecks
             check(rejected, "settings reject unsafe receiver forms before persistence");
         }
         foreach (var json in new[] {
-            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":1", "\"version\":1,\"version\":1"),
-            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":1", "\"version\":1,\"key\":\"generated\""),
-            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":1", "\"version\":2") })
+            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":2", "\"version\":2,\"version\":2"),
+            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":2", "\"version\":2,\"key\":\"generated\""),
+            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":2", "\"version\":999") })
         {
             var rejected = false;
             try { GuidePreferences.Parse(Encoding.UTF8.GetBytes(json)); } catch (InvalidDataException) { rejected = true; }
@@ -91,7 +138,7 @@ internal static class SettingsChecks
             check(Directory.GetFiles(directory).Length == 1, "failed save removes its owned temporary file");
             File.WriteAllText(path, "{broken}");
             check(store.Read().Status == PreferencesStatus.Invalid, "corrupt settings require a cloud-disabled recovery path");
-            File.WriteAllBytes(path, new byte[17 * 1024]);
+            File.WriteAllBytes(path, new byte[GuidePreferences.MaxBytes + 1]);
             check(store.Read().Status == PreferencesStatus.Invalid, "oversized settings are refused before parsing");
         }
         finally { Directory.Delete(directory, recursive: true); }
@@ -179,7 +226,30 @@ internal static class SettingsChecks
         var catalog = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
         RenderBoard(catalog, new Size(640, 600), "settings");
         RenderBoard(catalog, new Size(500, 420), "settings-narrow");
+        RenderPluginBoard(catalog);
         Console.WriteLine("Rendered four production settings pages offscreen; no native window, screen capture or network.");
+    }
+    static void RenderPluginBoard(PluginCatalog catalog)
+    {
+        var board = new DrawingVisual();
+        using (var draw = board.RenderOpen())
+        {
+            draw.DrawRectangle(GuideTheme.Surface, null, new Rect(0, 0, 1280, 1200));
+            for (var index = 0; index < 4; index++)
+            {
+                var size = index < 2 ? new Size(640, 600) : new Size(500, 420);
+                var view = new GuideSettingsView(GuidePreferences.Default, catalog, false);
+                var example = ThirdPartyPluginChecks.Example();
+                view.ImportPlugin(PluginCatalog.ParsePlugin(PluginCatalog.SerializePlugin(example)
+                    .Replace(example.DisplayName, "Generated external editor guidance with a long wrapping display name")));
+                view.SelectPage(2); Arrange(view, size);
+                if (index % 2 == 1) { view.BodyScroll.ScrollToEnd(); Arrange(view, size); }
+                var image = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32); image.Render(view);
+                draw.DrawImage(image, new Rect(new Point(index % 2 * 640, index / 2 * 600), size));
+            }
+        }
+        var clean = new RenderTargetBitmap(1280, 1200, 96, 96, PixelFormats.Pbgra32); clean.Render(board);
+        Save(clean, "settings-plugins-clean.png");
     }
     static void RenderBoard(PluginCatalog catalog, Size size, string name)
     {

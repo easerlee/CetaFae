@@ -4,7 +4,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.23**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.24**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
 
 ## Features
 
@@ -21,7 +21,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 - **Chinese/English explanation and translation**: describe your translation goal and select a region when needed. Show the recognized original and translation; ask follow-up questions or request a simpler explanation. Subsequent image requests stay within that selection; an invalidated region requires reselection rather than a whole-window fallback. Check recognizable error-code, date, numeric and unit literals, including repeated occurrences. Unreadable content is reported honestly; the application's interface is not replaced.
 - **User-led error solutions**: briefly summarize the problem and prioritize one low-risk solution when the available facts support it, including save-first precautions when needed. Ask one necessary question when context is missing. Report the outcome to continue with fresh window evidence and adjusted advice, rather than repeating a failed step. No guaranteed fix, raw error dump, hidden log/process inspection or automatic action; consequential changes require explaining the risks and clarifying intent.
 - **Multi-step guidance in one window**: retain the user goal and four recent text steps. Ask directly after a result, or act yourself before submitting the next question. Current-state questions recheck the selected window; completion requires current evidence rather than a user's claimed action. Page changes and temporary foreground switches clear stale markers while preserving the goal; ending the session clears it. Bounded to eight steps, with native multi-step acceptance pending.
-- **Plugin-based capabilities**: generic vision, software identity, and application adapters share a declarative contract. First-party features are plugins too.
+- **Plugin-based capabilities**: generic vision, software identity, and application adapters share a declarative contract. First-party features are plugins too. Import, update, enable/disable and remove local third-party data packages in Settings. Imports start disabled for review and save; conflicts never resolve by load order. No plugin code execution.
 - **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
 
 Representative human-tested flows include locating an Edge download toggle, explaining paused Windows Update status, finding the WinRAR extraction destination, and interpreting generated Notepad text within a selected region. These examples do not establish complete application support or full regression coverage of the latest source.
@@ -98,10 +98,16 @@ Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runt
 - Improve generic understanding, translation and visible-error accuracy and failure recovery.
 - Complete real-application acceptance for bounded tasks and user-led follow-up; actions remain manual.
 - Complete consolidated privacy, platform, performance, and real-task acceptance. The 3000ms processing target and 90MB idle-memory gate have not passed full formal acceptance.
-- Stabilize the contract and validate independent contributions before publishing third-party interfaces and installation support.
+- Validate independent author contributions and real application integration, then stabilize the declarative contract. Executable plugins and a marketplace are not provided.
 - Develop constrained document editing only after explicit task intent, confirmation, snapshot, and rollback gates are met; it is not currently provided.
 
 Most native validation targets Simplified Chinese Windows 11, one display, and 100% scaling. Protected windows, restricted interfaces, faulty accessibility providers, and dynamic custom rendering may be unsupported. Multiple displays, high DPI, and broad compatibility need further acceptance testing.
+
+## Third-party plugin API
+
+The development JSON contract supports application matching, local scopes and marker guards without host changes. Open the whale's context menu → 鲸汐设置 → 功能 → 导入插件文件, review the scope, enable and save. Custom packages can be updated or removed; updates return to disabled for review. Program upgrades preserve saved user packages. No downloads, scripts, DLLs or arbitrary network capabilities.
+
+See [Plugin-API](Plugin-API.md) for author fields, limits, installation and conflicts, and the importable [example package](examples/plugins/example.editor.json) for a generated test application. It is not an adapter claim for a real product. First-party and community packages share validation and authority; disable an existing overlapping adapter or capability before enabling its replacement.
 
 ## Maintenance and contributions
 
