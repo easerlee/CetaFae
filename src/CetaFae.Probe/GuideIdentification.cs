@@ -40,6 +40,8 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
         "For attention, state is a short plain Chinese predicate such as 找不到要打开的文件. Do not include a subject, quote the message, use jargon, or show error codes. " +
         "Determine application and page independently: unknown software need not prevent describing a document or error. " +
         "A logo/title is only a visual clue, not proof of authentic software. Do not identify a brand from generic styling. " +
+        "Distinguish a browser from the website or document it displays; a page logo does not identify the owning application. " +
+        "If only a useful status is readable, retain it in state with uncertain kind instead of inventing a page. " +
         "Prioritize the user's likely difficulty: actual error meaning; finding an operation for their goal; consequences of a visible choice; " +
         "current state; unfamiliar language/content; then software identity. A drop does not specify which operation the user wants. " +
         "Explain only consequences supported by visible choices; do not promise safety, reversibility or completion without evidence. " +
@@ -114,10 +116,10 @@ public sealed record GuideIdentification(string? Application, string? Page, stri
             return new(NextCheck is null ? "ask" : "explain",
                 GuideError.PlainSummary((name ?? "这个软件") + problem, next), null);
         }
-        var content = Page ?? (name is not null
+        var content = Page ?? (State is not null ? (name is null ? State : name + "：" + State) : null) ?? (name is not null
             ? $"这是{name}的窗口，具体用途还不确定"
             : "暂时没看清这里的内容，可以框出想了解的部分再看看");
-        var state = State is not null && State != Page ? State : null;
+        var state = Page is not null && State is not null && State != content ? State : null;
         var explanation = state is not null ? Clause(content) + "；" + state : content;
         if (!explanation.EndsWith('。') && !explanation.EndsWith('！') && !explanation.EndsWith('？') &&
             !explanation.EndsWith('.') && !explanation.EndsWith('!') && !explanation.EndsWith('?')) explanation += "。";

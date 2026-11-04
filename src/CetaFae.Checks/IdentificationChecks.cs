@@ -50,6 +50,10 @@ static class IdentificationChecks
         check(partial.Explanation.Contains("任务清单") && !partial.Explanation.Contains("secret-process"),
             "unknown software does not prevent explaining readable content or expose a process fallback");
         var localOnly = GuideIdentification.Unavailable("secret-process", "暂时连接不上识别服务。", SoftwareIdentityChecks.Generated);
+        var stateOnly = new GuideIdentification(null, null, "这是在进行什么操作？", "uncertain", "备份已完成40%，其余内容没有看清").ToAnswer("secret-process");
+        check(stateOnly.Explanation == "备份已完成40%，其余内容没有看清。\n这是在进行什么操作？" &&
+              !stateOnly.Explanation.Contains("可以框出"),
+            "partial recognition leads with the readable state without contradictory unreadable boilerplate");
         check(localOnly.Contains("这个软件显示的名称是") && localOnly.Contains("Generated Editor") &&
               !localOnly.Contains("secret-process") && !localOnly.Contains("版本") && !localOnly.Contains("签名") && !localOnly.Contains("包身份"),
             "service failure preserves only a plainly labelled local product name without a health claim");
@@ -69,9 +73,9 @@ static class IdentificationChecks
         var unknownPage = GuideIdentification.Parse(Known.Replace("\"显示生成文档\"", "null").Replace("regular", "uncertain")).ToAnswer("generated-editor");
         check(!unknownApp.Explanation.Contains("生成工具") && unknownApp.Explanation.Contains("显示生成文档"),
             "unknown software preserves an independently understood page");
-        check(unknownPage.Explanation.Contains("生成工具") && unknownPage.Explanation.Contains("用途还不确定") &&
+        check(unknownPage.Explanation.Contains("生成工具") && !unknownPage.Explanation.Contains("用途还不确定") &&
               unknownPage.Explanation.Contains("2026/10/29"),
-            "unknown purpose preserves the software interpretation");
+            "unknown purpose preserves known software and readable status without generic uncertainty boilerplate");
         foreach (var invalid in new[] { "[]", Known.Replace("regular", "healthy"), Known.Replace("\"显示生成文档\"", "null"),
                      Known.Replace("\"kind\":\"regular\"", "\"kind\":\"regular\",\"kind\":\"attention\""), Known.Replace("\"application\":\"生成工具\",", ""),
                      Known.Replace("\"page\":", "\"application\":null,\"page\":"),

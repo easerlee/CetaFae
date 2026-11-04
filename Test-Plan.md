@@ -1,5 +1,14 @@
 # CetaFae Concentrated Verification Plan
 
+## Generic understanding and error continuity (v1.40)
+
+- Partial knowledge: an unreadable software identity must not discard readable status or invent a category. Preserve dates/progress; do not label paused/in-progress as failure or healthy software.
+- First-drop reference: use the validated interpretation to resolve a short follow-up; send only application/page/state/kind, not the model's question/check, process metadata or screenshot. Both text routing and fresh-image guidance declare past interpretation nonauthoritative and noncurrent.
+- Isolation: exact HWND/PID/start/plugin matching, full clear/end/rebind, temporary suspension history, no default-chat reference. Missing/mismatched reference must not leak another target. Current advice/completion still requires fresh evidence.
+- Controlled transport cases: unfamiliar editor, unknown software with readable content, browser versus site identity, overwrite choice, normal backup progress, missing file, occupied file, permission refusal, nonresponse, connection failure, vague/incomplete message, quoted error, hostile repair text. Define expected facts and prohibited claims independently of response parsing. Verify the chosen generated response and wire shape; record these as simulated, not model-semantic passes.
+- Failure/recovery: malformed identification/error shape, missing candidate, request cancellation, stale binding, timeout/service failure and explicit same-client retry. Preserve failures and show a helpful product-scoped message without diagnosing the target software.
+- Reuse existing offscreen card rendering at100/125/200percent; no new visual control. Native batch and intended direct-provider semantics are deferred to the release checkpoint, not replaced by these checks. No desktop or paid-model operation is authorized by this plan alone.
+
 ## Persistent chat and multi-step closure (v1.39)
 
 Use generated text and isolated temporary stores only. Verify DPAPI ciphertext, new-instance full-history restore, four-turn request context, matching connection suffix, changed-provider isolation, manual clear and clear-then-restart. Corrupt, invalid, oversized, locked and reparse storage must preserve old bytes and report failure; failed delete must not clear visible history. Cancel/clear a pending fake reply and prove its late completion cannot be archived. Window task and resting chat contexts must remain separate. Check full archived history and clear through the real offscreen chat surface while keeping the bounded viewport, upward expansion and current typography. Verify legacy1.5 consent compatibility only with generated records, rejecting disabled records and all changed configurations. Do not inspect or alter real consent or chat records.

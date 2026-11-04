@@ -52,7 +52,7 @@ static class CardChecks
         var collapsed = New(); collapsed.SetStatus("原说明保留，重新展开不发请求。"); collapsed.Collapse();
         yield return ("17 Attached reopen tab", collapsed);
         var error = New(); error.SetCloud(true);
-        error.SetStatus(GuideAnswer.Parse("""{"mode":"error","observedText":"无法连接到服务器，错误代码0x80072EE7。","hypotheses":["可能存在地址解析或连接问题，尚未确认。"],"nextCheck":"请确认提示是在执行什么操作时出现，不必提供私人地址。","missingEvidence":"仅凭一条提示不能判断具体根因。","candidateId":null}""", [],
+        error.SetStatus(GuideAnswer.Parse("""{"mode":"error","observedText":"这个软件暂时连不上需要的服务。","hypotheses":[],"nextCheck":"先看看平时能用的网页现在能不能打开。","missingEvidence":"仅凭这条提示还不能确定原因。","candidateId":null}""", [],
             new CetaFae.Plugins.InterpretationPolicy(["zh-CN"], false, true)).Explanation);
         yield return ("18 Bounded visible-error explanation", error);
         var followup = New(); followup.SetCloud(true); followup.SetStatus("生成结果已就绪。可继续提问当前窗口，所有操作由你手动完成。");
@@ -67,7 +67,7 @@ static class CardChecks
         yield return ("22 Long dismissible notice", failed);
         var normal = New(); normal.SetCloud(true); normal.SetStatus(new GuideIdentification("浏览器设置", "这里可以选择下载文件的保存位置。", "你想调整哪一项？", "regular", "下载前询问保存位置的选项已开启。").ToAnswer("generated-browser").Explanation); normal.ShowQuestion();
         yield return ("23 Ordinary interface", normal);
-        var attention = New(); attention.SetCloud(true); attention.SetStatus(new GuideIdentification(null, "打开文件时出现的提示。", "是在打开哪个文件时看到的？", "attention", "文件不存在，错误代码0x80070002。").ToAnswer("generated-file-tool").Explanation); attention.ShowQuestion();
+        var attention = New(); attention.SetCloud(true); attention.SetStatus(new GuideIdentification(null, "打开文件时出现的提示。", "是在打开哪个文件时看到的？", "attention", "找不到要打开的文件").ToAnswer("generated-file-tool").Explanation); attention.ShowQuestion();
         yield return ("24 Error or warning", attention);
         var partial = New(); partial.SetCloud(true); partial.SetStatus(new GuideIdentification(null, null, null, "uncertain", "已完成，耗时12秒。").ToAnswer("generated-unknown").Explanation); partial.SetRegionAvailable(true);
         yield return ("25 Uncertain content", partial);

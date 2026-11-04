@@ -131,6 +131,7 @@ public static class Program
         await SettingsChecks.RunAsync(Check);
         await TranslationChecks.RunAsync(Check);
         await ErrorChecks.RunAsync(Check);
+        await UnderstandingChecks.RunAsync(Check);
         FollowupChecks.Run(Check);
         await FollowupChecks.RunControlledAsync(Check);
         await PrivacyChecks.RunAsync(Check);

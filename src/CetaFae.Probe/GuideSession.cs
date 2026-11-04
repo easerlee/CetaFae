@@ -15,6 +15,7 @@ public sealed class GuideSession : IDisposable
     readonly OverlayWindow _marker = new(control: true);
     readonly GuideRunGate _gate = new();
     readonly GuideFollowup _followup = new();
+    readonly GuideUnderstanding _understanding = new();
     GuideFollowupRequest? _activeFollowup;
     int _followupVersion;
     readonly GuideOptions _options;
@@ -55,7 +56,7 @@ public sealed class GuideSession : IDisposable
         _chat = new FreeChatSession(async (history, question, token) => await _model.ChatAsync(history, question, token));
         _chatHistory = new ChatHistoryStore(options);
         _questions = new FreeChatSession((history, question, token) =>
-            _model.RouteQuestionAsync(history, question, token, _followup.ActiveGoal));
+            _model.RouteQuestionAsync(history, question, token, _followup.ActiveGoal, _understanding.ForWindow(_ball.BoundTarget)));
         _panel = new GuidePanel(options);
         _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget, () => _ball.TopAttached,
             () => _ball.Workspace);
@@ -249,7 +250,7 @@ public sealed class GuideSession : IDisposable
     void ResetRecognition(bool preserveConversation = false)
     {
         DismissChat();
-        if (!preserveConversation) { _questions.Reset(); _followup.Clear(); }
+        if (!preserveConversation) { _questions.Reset(); _followup.Clear(); _understanding.Clear(); }
         else { _questions.CancelPending(); _followup.Restore(); }
         _boundQuestionReady = false;
         _activationVersion = null;
@@ -727,7 +728,7 @@ public sealed class GuideSession : IDisposable
                 }
                 else
                     modelAnswer = await deadline.RunAsync(t => _model.AskAsync(task, payload.Candidates, payload.Png, t, payload.VisibleContext,
-                        policy));
+                        policy, _understanding.ForTarget(flowTarget)));
             }
             finally { payload = payload with { Png = null }; }
             var answer = identification?.NextCheck is not null ? modelAnswer :
@@ -765,6 +766,7 @@ public sealed class GuideSession : IDisposable
                 observation.Candidates.Single(c => c.Id == selected).ControlType == GuideTextRegions.ControlType;
             _panel.SetStatus(textRegion ? "这里标出的是文字所在区域，不是按钮的点击范围。\n" + answer.Explanation : answer.Explanation);
             _panel.SetPoint(bounds is not null && _marker.IsVisible);
+            if (identification is not null) _understanding.Remember(flowTarget, identification);
             if (intent is not null && _plugins.ChatProvider is not null)
                 _questions.Remember(followup?.Clarification ?? intent, answer.Explanation[..Math.Min(answer.Explanation.Length, 1200)]);
             _ball.SetResult();
@@ -1002,6 +1004,7 @@ public sealed class GuideSession : IDisposable
         _panel.FollowupRequested -= OnFollowupRequested;
         _activeFollowup = null;
         _followup.Clear();
+        _understanding.Clear();
         _picker?.Abort();
         _picker = null;
         _panel.EndSession();
