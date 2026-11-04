@@ -30,7 +30,8 @@ internal sealed class CloudConsentStore(GuideOptions options, string? file = nul
             try
             {
                 var record = JsonSerializer.Deserialize<Record>(plain);
-                return record is { Version: 1 } && record.Disclosure == _scope ? new(true, record.Enabled) : default;
+                // Only the exact previous disclosure is compatible; no grant file is migrated or rewritten.
+                return record is { Version: 1 } && (record.Disclosure == _scope || record.Disclosure == InstallationAgreement.Scope(options, legacyRetention: true)) ? new(true, record.Enabled) : default;
             }
             finally { CryptographicOperations.ZeroMemory(plain); }
         }

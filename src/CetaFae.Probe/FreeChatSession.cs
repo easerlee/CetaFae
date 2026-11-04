@@ -53,6 +53,12 @@ internal sealed class FreeChatSession(Func<IReadOnlyList<ChatTurn>, string, Canc
         _history.Clear();
     }
 
+    internal void RestoreHistory(IEnumerable<ChatTurn> turns)
+    {
+        Reset();
+        foreach (var turn in turns.TakeLast(MaxTurns)) Remember(turn.Question, turn.Reply);
+    }
+
     internal static string ValidateReply(string? value)
     {
         if (string.IsNullOrWhiteSpace(value) || value.Length > 1200 ||

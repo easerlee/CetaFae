@@ -20,6 +20,7 @@ public sealed class GuideSession : IDisposable
     readonly GuideOptions _options;
     readonly GuideModel _model;
     readonly FreeChatSession _chat;
+    readonly ChatHistoryStore _chatHistory;
     readonly FreeChatSession _questions;
     FreeChatWindow? _chatWindow;
     int _chatVersion;
@@ -52,6 +53,7 @@ public sealed class GuideSession : IDisposable
         _model = new GuideModel(options, windowGuidanceAvailable:
             plugins.Plugins.Any(plugin => plugin.Kind is "general" or "application"));
         _chat = new FreeChatSession(async (history, question, token) => await _model.ChatAsync(history, question, token));
+        _chatHistory = new ChatHistoryStore(options);
         _questions = new FreeChatSession((history, question, token) =>
             _model.RouteQuestionAsync(history, question, token, _followup.ActiveGoal));
         _panel = new GuidePanel(options);
@@ -109,9 +111,9 @@ public sealed class GuideSession : IDisposable
     void ToggleChat()
     {
         if (_plugins.ChatProvider is null) return;
-        if (_preview || !_gate.CloudEnabled)
+        if (_preview)
         {
-            _panel.SetStatus(_preview ? "这是静态预览。安装后可以使用自由问答。" : "请先通过安装程序确认使用协议，再使用自由问答。");
+            _panel.SetStatus("这是静态预览。安装后可以使用自由问答。");
             return;
         }
         if (_ball.HasTarget) return;
@@ -126,7 +128,25 @@ public sealed class GuideSession : IDisposable
         }
         var capsule = new FreeChatWindow { Owner = _ball };
         _chatWindow = capsule;
+        if (_chatHistory.Load())
+        {
+            _chat.RestoreHistory(_chatHistory.Context);
+            foreach (var turn in _chatHistory.Turns) capsule.ShowTurn(turn);
+        }
+        else capsule.SetStatus("本机对话暂时无法读取，原记录没有被覆盖。可稍后重启再试，或点击清扫删除记录。");
+        capsule.SetSendingAllowed(_gate.CloudEnabled);
+        if (!_gate.CloudEnabled)
+            capsule.SetStatus("已停止联网。仍可查看和清扫本机对话，重新使用联网功能须通过安装程序确认协议。");
         capsule.Submitted += text => SubmitChat(capsule, text);
+        capsule.ClearRequested += () =>
+        {
+            if (_chatWindow != capsule) return;
+            _chatVersion++;
+            _chat.CancelPending();
+            if (_chatHistory.Clear()) capsule.ClearConversation();
+            else capsule.SetStatus("本机对话暂时无法清除，原记录仍保留，请稍后再试。");
+            capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
+        };
         capsule.Dismissed += () =>
         {
             if (_chatWindow != capsule) return;
@@ -160,7 +180,12 @@ public sealed class GuideSession : IDisposable
         try
         {
             var turn = await _chat.SubmitAsync(text);
-            if (_chatWindow == capsule && _chatVersion == version && turn is not null) capsule.ShowTurn(turn);
+            if (_chatWindow == capsule && _chatVersion == version && turn is not null)
+            {
+                capsule.ShowTurn(turn);
+                if (!_chatHistory.Append(turn))
+                    capsule.SetStatus("这次问答暂时无法保存到本机，之前的记录没有被覆盖。");
+            }
         }
         catch (Exception ex) when (ex is InvalidDataException or JsonException or HttpRequestException or IOException or OperationCanceledException)
         {

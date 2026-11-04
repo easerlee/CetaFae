@@ -138,6 +138,7 @@ public static class Program
         PluginChecks.Run(Check);
         CheckChatLayout();
         FreeChatChecksAsync().GetAwaiter().GetResult();
+        await ChatHistoryChecks.RunAsync(Check);
         GeneralGuideChecks.Run(Check);
         SoftwareIdentityChecks.Run(Check);
         SnapshotChecks.Run(Check);
@@ -777,10 +778,10 @@ public static class Program
         CheckBubbles(history);
         var historyRows = (System.Windows.Controls.StackPanel)history.Transcript.Content;
         var oldest = (System.Windows.Controls.Grid)historyRows.Children[0];
-        Check(historyRows.Children.Count == FreeChatSession.MaxTurns &&
-              ((System.Windows.Controls.TextBlock)((System.Windows.Controls.Border)oldest.Children[0]).Child).Text == "question 1" &&
+        Check(historyRows.Children.Count == FreeChatSession.MaxTurns + 1 &&
+              ((System.Windows.Controls.TextBlock)((System.Windows.Controls.Border)oldest.Children[0]).Child).Text == "question 0" &&
               history.Transcript.ExtentWidth <= history.Transcript.ViewportWidth + .01,
-            "the fifth exchange removes only the oldest pair and unbroken text cannot cause horizontal overflow");
+            "displayed history retains earlier pairs independently of model context without horizontal overflow");
         home.SetStatus("正在回答…", busy: true);
         home.Place(homeAnchor, area);
         ArrangeChat(home);
@@ -899,6 +900,8 @@ public static class Program
                      (introduction, "chat-product-sample", 1d), (conversation, "chat-conversation", 1d),
                      (conversation, "chat-conversation-125", 1.25), (conversation, "chat-conversation-200", 2d),
                      (emptyChat, "chat-cleared", 1d), (greetingPreview, "chat-greeting", 1d),
+                     (history, "chat-persistent-history", 1d), (history, "chat-persistent-history-125", 1.25),
+                     (history, "chat-persistent-history-200", 2d),
                      (waitingPreview, "chat-inline-waiting", 1d), (waitingPreview, "chat-inline-waiting-125", 1.25),
                      (waitingPreview, "chat-inline-waiting-200", 2d),
                      (greetingPreview, "chat-greeting-125", 1.25), (greetingPreview, "chat-greeting-200", 2d) })
@@ -1096,9 +1099,10 @@ public static class Program
             "a cancelled binding cannot start a text routing request");
         Check(InstallationAgreement.Text(options).Contains("自由问答仅在你发送时", StringComparison.Ordinal) &&
             InstallationAgreement.Text(options).Contains("最近四组问答", StringComparison.Ordinal) &&
-            InstallationAgreement.Text(options).Contains("本次运行的内存", StringComparison.Ordinal) &&
-            InstallationAgreement.Text(options).Contains("不写磁盘", StringComparison.Ordinal),
-            "the installation agreement discloses text scope, in-memory cache and its clearing boundaries");
+            InstallationAgreement.Text(options).Contains("当前 Windows 用户加密保存", StringComparison.Ordinal) &&
+            InstallationAgreement.Text(options).Contains("点击清扫才删除", StringComparison.Ordinal) &&
+            InstallationAgreement.Text(options).Contains("窗口指导任务", StringComparison.Ordinal),
+            "the agreement distinguishes encrypted persistent resting chat from ephemeral window guidance");
     }
 
     static HttpResponseMessage Completion(string answer) => new(HttpStatusCode.OK)

@@ -43,11 +43,11 @@ internal static class InstallationAgreement
         { return 2; }
     }
 
-    internal static string Text(GuideOptions options) =>
+    internal static string Text(GuideOptions options, bool legacyRetention = false) =>
         "鲸汐（CetaFae）软件许可协议与隐私说明\n" +
-        "条款版本 1.5（2026年11月4日）\n\n" +
+        (legacyRetention ? "条款版本 1.5（2026年11月4日）\n\n" : "条款版本 1.6（2026年11月4日）\n\n") +
         "请在安装前阅读本协议，尤其是下方的窗口识别、自由问答和留存说明。点击“同意协议并安装”即确认本协议及所列连接配置。不同意可取消安装。\n\n" +
-        GuidePanel.Disclosure(options) + "\n\n" +
+        GuidePanel.Disclosure(options, legacyRetention) + "\n\n" +
         "软件许可条款\n\n" +
         "一、安装与使用\n" +
         "本协议允许你在有权使用的 Windows 设备上安装和运行本安装包中的鲸汐客户端。请在你有权查看和发送的窗口中使用识别功能，并遵守适用法律及所选服务的条款。\n\n" +
@@ -59,8 +59,8 @@ internal static class InstallationAgreement
         "你可以退出鲸汐，也可以通过 Windows 的已安装应用列表卸载。隐私说明和撤回入口位于“鲸汐设置 → 隐私”。使用、许可或隐私问题可通过 CetaFae 项目反馈渠道联系维护者。公开反馈时请勿附上私人窗口内容或密钥。\n" +
         "https://github.com/easerlee/CetaFae/issues";
 
-    internal static string Scope(GuideOptions options) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Text(options))));
+    internal static string Scope(GuideOptions options, bool legacyRetention = false) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Text(options, legacyRetention))));
 
     static GuideOptions? ReadOptions(GuidePreferencesStore? preferences)
     {

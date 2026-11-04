@@ -1,5 +1,12 @@
 # Selected-Window Guidance: Implementation Specification
 
+## Persistent resting chat and task-loop boundary (v1.39)
+
+Save completed resting exchanges only in current-user DPAPI-protected `%LOCALAPPDATA%/CetaFae/chat-history.dat`. Serialize stores with an exclusive sidecar lease and reject stale ciphertext revisions. Atomically replace via a unique sibling temporary file; reject reparse paths, malformed records and files beyond16MiB. Preserve unreadable originals and report save/delete failures. No expiry or silent pruning: user brush deletion is the sole deliberate removal. Draft and scroll position remain process-local. Local reading/clear remains available after network withdrawal, with sending disabled. Keep the full displayed archive separate from the existing four-turn model context. Store a non-secret connection fingerprint per exchange; restore only the most recent contiguous matching-connection suffix into the model. Never store screenshots, window-guidance exchanges, positions or task state here. Append only after the existing generation/window guard; clear cancels pending work before deleting and resets UI/context only after successful deletion.
+
+Update terms to1.6. Accept only the exact previous1.5 fingerprint for the same configuration as a narrow compatibility exception for this explicitly requested local retention change. Never rewrite the actual grant, resurrect a disabled grant or accept changed recipient/model/image scope. New installations record current terms normally. Existing task-loop state remains process-local and bound to window/process lifetime/plugin identity; a completed task retains the input for a new goal. Validate fresh observations, retries, clarification and completion with mocked transport before concentrated native/direct-provider acceptance.
+
+
 ## Current increment: inline waiting and user-led task continuity (requirements v1.38)
 
 First replace the resting-chat busy status strip with a44DIP footer inside the existing transcript surface. Animate three native dot opacities, stop their clocks on every terminal/dismiss/clear/close path, and reserve their height before allocating the scroll viewport. Error messages remain readable. Verify first-request, retained-history, overflow and cancellation layouts before task changes.

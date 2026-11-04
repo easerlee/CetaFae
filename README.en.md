@@ -4,11 +4,11 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.19**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.20**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
 
 ## Features
 
-- **Ask directly**: click the resting whale to open an input. Use the same input for computer/software questions and interface help without choosing a mode. Text-answerable questions receive a direct reply; questions that need the interface continue through selected-window collection. Conversations expand upward with a slim scrollbar for long content. Click outside to dismiss, then click the whale to restore the last four exchanges and your draft. The brush icon clears the conversation. This cache stays in memory only and is removed on exit.
+- **Ask directly**: click the resting whale to open an input. Use the same input for computer/software questions and interface help without choosing a mode. Text-answerable questions receive a direct reply; questions that need the interface continue through selected-window collection. Conversations expand upward with a slim scrollbar for long content. Click outside to dismiss, then click the whale to restore the conversation. Completed text exchanges are encrypted locally for the current Windows user and survive restart until cleared with the brush. Drafts stay in memory for the current run. Only the last four exchanges for the same connection enter model context, separately from window guidance.
 - **Lightweight management**: the tray and whale right-click share one menu. Accept the agreement during installation. Settings provides the disclosure and a way to withdraw consent.
 - **Unobtrusive presence**: dismiss transient notices with their header close button or an outside click. The idle whale hides while another foreground application is fullscreen and returns afterward. Ordinary maximization and active guidance remain available; fullscreen detection uses local window geometry without analyzing content.
 - **Drag to select**: the whale and input bar center on the target window, with the bar width adapting to the window. On-demand explanations and control highlights keep interaction close to the target. Ending a session restores the whale.
@@ -31,7 +31,7 @@ Representative human-tested flows include locating an Edge download toggle, expl
 - **Selected window only**: no full-desktop capture followed by cropping, and no automatic reading of other windows or background tabs.
 - **Limited outbound scope**: initial understanding and questions without a matching local rule may send the selected whole-window image. Matching local rules and user selections remain bounded; an unresolved declared local scope waits for selection without widening. Both system window capture and PrintWindow are bound to the selected window; scoped requests are cropped locally before sending.
 - **Best-effort sensitive-content checks**: detected password fields or recognizable credentials stop processing. Incomplete accessibility data does not block selected-window image interpretation. Checks can miss sensitive content: hide anything you do not want sent. There is no universal secret-detection or automatic-redaction guarantee.
-- **No persisted session content**: no persisted images, raw control text, or conversations. Fixed metadata logs are retained for seven days; cleanup failures can delay deletion. Proxy and upstream retention policies remain unverified.
+- **Separate local retention**: completed resting-chat text is encrypted for the current Windows user and retained until cleared. Withdrawing network consent still allows local reading and deletion, but prevents sending. Window images, raw control text and guidance tasks are not persisted. Old-service chat is not automatically sent to a new connection. Fixed metadata logs are retained for seven days; cleanup failures can delay deletion. Proxy and upstream retention policies remain unverified.
 - **User-controlled actions**: no automatic clicks, typing into target applications, settings changes, extraction, or document editing. Switching away, closing the target, revoking consent, or ending the session clears invalid results.
 
 ## Getting started

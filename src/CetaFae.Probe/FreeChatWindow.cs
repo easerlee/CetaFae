@@ -35,10 +35,12 @@ internal sealed class FreeChatWindow : Window
     readonly Button _send;
     readonly Button _clear;
     bool _busy;
+    bool _sendingAllowed = true;
     bool _started;
     internal event Action<string>? Submitted;
     internal event Action? Dismissed;
     internal event Action? Cleared;
+    internal event Action? ClearRequested;
     internal IntPtr Handle => new WindowInteropHelper(this).Handle;
     internal TextBox Input => _input;
     internal Button Send => _send;
@@ -76,7 +78,11 @@ internal sealed class FreeChatWindow : Window
         _clear.Content = new Border { Width = 18, Height = 18, Background = Brushes.White,
             OpacityMask = new ImageBrush(clearIcon) { Stretch = Stretch.Uniform } };
         _clear.VerticalAlignment = VerticalAlignment.Center;
-        _clear.Click += (_, _) => ClearConversation();
+        _clear.Click += (_, _) =>
+        {
+            if (ClearRequested is { } clear) clear();
+            else ClearConversation();
+        };
         DockPanel.SetDock(_clear, Dock.Right);
         row.Children.Add(_clear);
         var inputRow = new DockPanel();
@@ -193,7 +199,7 @@ internal sealed class FreeChatWindow : Window
 
     void Submit()
     {
-        if (_busy || string.IsNullOrWhiteSpace(_input.Text)) return;
+        if (_busy || !_sendingAllowed || string.IsNullOrWhiteSpace(_input.Text)) return;
         Submitted?.Invoke(_input.Text);
     }
 
@@ -201,7 +207,7 @@ internal sealed class FreeChatWindow : Window
     {
         _busy = busy;
         _started |= busy;
-        _input.IsReadOnly = busy;
+        _input.IsReadOnly = busy || !_sendingAllowed;
         _status.Text = busy ? null : message;
         _statusSurface.Visibility = busy || message is null ? Visibility.Collapsed : Visibility.Visible;
         SetWaiting(busy);
@@ -228,13 +234,19 @@ internal sealed class FreeChatWindow : Window
     void UpdateSend()
     {
         _hint.Visibility = _input.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        _send.IsEnabled = !_busy && !string.IsNullOrWhiteSpace(_input.Text);
+        _send.IsEnabled = _sendingAllowed && !_busy && !string.IsNullOrWhiteSpace(_input.Text);
+    }
+
+    internal void SetSendingAllowed(bool allowed)
+    {
+        _sendingAllowed = allowed;
+        _input.IsReadOnly = _busy || !allowed;
+        UpdateSend();
     }
 
     internal void ShowTurn(ChatTurn turn)
     {
         _started = true;
-        if (_turns.Children.Count == FreeChatSession.MaxTurns) _turns.Children.RemoveAt(0);
         var exchange = new Grid { Margin = new Thickness(0, 0, 0, 12) };
         exchange.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
         exchange.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });

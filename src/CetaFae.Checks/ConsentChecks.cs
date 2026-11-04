@@ -1,4 +1,6 @@
 using System.IO;
+using System.Security.Cryptography;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using CetaFae.Probe;
@@ -10,6 +12,9 @@ static class ConsentChecks
     internal static void Run(Action<bool, string> check)
     {
         var options = GuideOptions.Create("http://127.0.0.1:8787/v1", "generated");
+        check(InstallationAgreement.Scope(options, legacyRetention: true) ==
+              "D69A9EDE3930B3185BCC93E116E0E0A00020D37AC14663AE92BEFC0FD3ADF3E5",
+            "compatibility reproduces the exact generated-options agreement hash from preview19");
         var directory = Path.GetFullPath(Path.Combine(".artifacts", "checks", "consent-" + Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, "consent.dat");
@@ -21,6 +26,21 @@ static class ConsentChecks
             var restored = new CloudConsentStore(options, path).Read();
             check(restored.Granted && restored.Enabled, "same-scope startup restores an explicitly saved enabled grant");
             check(!File.ReadAllText(path).Contains("generated"), "persisted consent contains no plaintext model or session data");
+            foreach (var enabled in new[] { true, false })
+            {
+                var legacy = ProtectedData.Protect(JsonSerializer.SerializeToUtf8Bytes(new { Version = 1,
+                    Disclosure = InstallationAgreement.Scope(options, legacyRetention: true), Enabled = enabled }),
+                    null, DataProtectionScope.CurrentUser);
+                File.WriteAllBytes(path, legacy);
+                check(store.Read() is { Granted: true } legacyState && legacyState.Enabled == enabled &&
+                      File.ReadAllBytes(path).SequenceEqual(legacy),
+                    "exact previous retention disclosure preserves enabled or withdrawn state without rewriting a generated grant");
+                foreach (var changed in new[] { options with { Model = "other" }, options with { IncludeImage = false },
+                             options with { BaseUrl = new Uri("https://example.invalid/v1/") } })
+                    check(!new CloudConsentStore(changed, path).Read().Granted,
+                        "retention compatibility never extends permission to another connection or image scope");
+            }
+            check(store.Save(true), "generated grant returns to current terms after compatibility checks");
             foreach (var changed in new[] { options with { Model = "other" }, options with { IncludeImage = false },
                          options with { BaseUrl = new Uri("https://example.invalid/v1/") } })
                 check(!new CloudConsentStore(changed, path).Read().Granted, "changed recipient/model/scope cannot reuse consent");

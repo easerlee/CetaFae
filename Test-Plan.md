@@ -1,5 +1,12 @@
 # CetaFae Concentrated Verification Plan
 
+## Persistent chat and multi-step closure (v1.39)
+
+Use generated text and isolated temporary stores only. Verify DPAPI ciphertext, new-instance full-history restore, four-turn request context, matching connection suffix, changed-provider isolation, manual clear and clear-then-restart. Corrupt, invalid, oversized, locked and reparse storage must preserve old bytes and report failure; failed delete must not clear visible history. Cancel/clear a pending fake reply and prove its late completion cannot be archived. Window task and resting chat contexts must remain separate. Check full archived history and clear through the real offscreen chat surface while keeping the bounded viewport, upward expansion and current typography. Verify legacy1.5 consent compatibility only with generated records, rejecting disabled records and all changed configurations. Do not inspect or alter real consent or chat records.
+
+Exercise a three-step generated workflow through actual request/response contracts, one clarification, stale identity rejection, failed-step retry, task completion and a new goal after completion. No screenshots of other apps, paid requests or visible fixtures in this batch. Native task-loop semantics, direct-provider accuracy and original performance gates remain open; passing mocked transport is engineering evidence only.
+
+
 ## Inline waiting and same-window task loop (v1.38)
 
 Offscreen: replace the independent busy strip with three staggered native opacity animations inside a44DIP transcript footer. Check first request, existing short/multiline history, overflow,100/125/200percent rendering, the fixed input bottom and whole-window height cap. Verify repeating phases and removal of animation clocks on reply, failure, dismissal, clear and close. Preserve readable errors and all cached completed messages. Inspect clean and matching-coordinate grid proofs; these are not desktop captures.

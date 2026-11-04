@@ -123,6 +123,7 @@ internal static class FollowupChecks
         retained.Complete(target, "另一任务"); retained.Begin();
         check(retained.Take("继续").History!.Count == 0, "ending or rebinding clears every earlier task step");
         check(Decision(new GuideAnswer("explain", "范围、预览和最终结果均已核对完成，本次核对任务已结束。", null), null) &&
+              Decision(done, null) && !Decision(done with { CompletionEvidence = null }, null) &&
               !Decision(new GuideAnswer("explain", "仍无法确认是否已完成。", null), null),
             "completion oracle accepts equivalent explicit completion wording but refuses uncertainty");
     }
@@ -193,6 +194,40 @@ internal static class FollowupChecks
             }));
         check(await route.RouteQuestionAsync([], "做完了，下一步？", default, goal) is null,
             "controlled progress reports hand off instead of treating prior text as completion evidence");
+
+        // A completed task must not contaminate the next goal on the same bound window.
+        flow.Clear();
+        flow.Prepare(target, "检查另一份结果");
+        var recoveryCalls = 0;
+        using var recovery = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated", false),
+            new Handler(async request =>
+            {
+                recoveryCalls++;
+                if (recoveryCalls == 1) throw new HttpRequestException("generated_failure");
+                using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+                using var input = JsonDocument.Parse(body.RootElement.GetProperty("messages")[1]
+                    .GetProperty("content")[0].GetProperty("text").GetString()!);
+                check(input.RootElement.GetProperty("visibleContext").GetString() == "当前：另一份结果仍待确认" &&
+                      !input.RootElement.GetProperty("task").GetString()!.Contains("范围和预览"),
+                    "retry for a new goal sends fresh evidence without the completed earlier task");
+                return Completion("{\"mode\":\"explain\",\"explanation\":\"另一份结果尚未确认，请先核对它。\",\"candidateId\":null}");
+            }));
+        flow.Restore(); flow.Begin(); var failed = flow.Take("检查当前结果");
+        try
+        {
+            await recovery.AskAsync(failed.ModelTask, [], null, default, "旧画面", policy);
+            throw new InvalidOperationException("generated transport did not fail");
+        }
+        catch (HttpRequestException) { flow.Restore(); }
+        check(flow.Step == 0 && flow.CanOffer && !flow.Completed,
+            "a failed first request retains the new goal without marking a step complete");
+        flow.Begin(); var retried = flow.Take("重新检查当前结果");
+        var retryAnswer = await recovery.AskAsync(retried.ModelTask, [], null, default, "当前：另一份结果仍待确认", policy);
+        flow.Complete(target, retried.Request, answer: retryAnswer);
+        check(flow.Step == 1 && flow.ActiveGoal == "检查另一份结果" && !flow.Completed && flow.CanOffer && recoveryCalls == 2,
+            "explicit retry advances once on the actual result and leaves an unfinished new goal available");
+        flow.Clear();
+        check(flow.Goal is null && !flow.CanOffer, "ending the controlled new task removes its goal and continuation authority");
     }
 
     static HttpResponseMessage Completion(string answer) => new(HttpStatusCode.OK)
@@ -243,13 +278,15 @@ internal static class FollowupChecks
             Console.WriteLine(JsonSerializer.Serialize(new { generatedFollowup = i + 1, answer.Mode, answer.CandidateId, answer.Explanation, elapsedMs = clock.ElapsedMilliseconds }));
             check(Decision(answer, item.Id),
                 $"LIVE follow-up step{i + 1}: decision agrees with current generated state; elapsedMs={clock.ElapsedMilliseconds}; no native acceptance");
-            flow.Complete(target, goal);
+            flow.Complete(target, goal, answer: answer);
         }
     }
 
-    static bool Decision(GuideAnswer answer, int? id) => answer.Mode == (id is null ? "explain" : "point") && answer.CandidateId == id &&
-        (id is not null || new[] { "已完成", "已核对完成", "任务已结束" }.Any(answer.Explanation.Contains) &&
-         !new[] { "无法确认", "尚未完成", "没有完成", "不能确认" }.Any(answer.Explanation.Contains));
+    static bool Decision(GuideAnswer answer, int? id) => answer.CandidateId == id &&
+        (id is not null ? answer.Mode == "point" :
+            answer.Mode == "complete" ? !string.IsNullOrWhiteSpace(answer.CompletionEvidence) :
+            answer.Mode == "explain" && new[] { "已完成", "已核对完成", "任务已结束" }.Any(answer.Explanation.Contains) &&
+            !new[] { "无法确认", "尚未完成", "没有完成", "不能确认" }.Any(answer.Explanation.Contains));
 
     internal static void ReplayThirdStep(Action<bool, string> check)
     {
