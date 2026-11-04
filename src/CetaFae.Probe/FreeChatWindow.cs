@@ -43,7 +43,7 @@ internal sealed class FreeChatWindow : Window
         ShowInTaskbar = false;
         Topmost = true;
         ResizeMode = ResizeMode.NoResize;
-        SizeToContent = SizeToContent.Height;
+        WindowStartupLocation = WindowStartupLocation.Manual;
         FontSize = ConversationFontSize;
         Resources.MergedDictionaries.Add(new ResourceDictionary
         {
@@ -96,34 +96,35 @@ internal sealed class FreeChatWindow : Window
         SetStatus(null);
     }
 
-    internal static Point Position(Rect anchor, Rect work, Size size)
-    {
-        const double gap = 6;
-        var above = anchor.Top - size.Height - gap;
-        var below = anchor.Bottom + gap;
-        var y = above >= work.Top ? above : below;
-        var x = anchor.Right - size.Width;
-        return BallWindow.ConstrainPosition(new Point(x, y), work, size);
-    }
-
     internal void Place(Rect anchor, Rect work)
     {
+        const double gap = 6;
+        const double inputFrameHeight = InputHeight + FramePadding * 2;
         Width = Math.Max(1, Math.Min(_started ? ConversationWidth : RestingWidth, work.Width));
-        // Preserve the bottom input while the transcript grows into the space beside the whale.
-        var above = Math.Max(0, anchor.Top - work.Top - 6);
-        var below = Math.Max(0, work.Bottom - anchor.Bottom - 6);
-        var available = Math.Min(ConversationMaxHeight, Math.Max(above, below));
-        var fixedHeight = InputHeight + FramePadding * 2;
+        // Choose the input's resting edge once per anchor, independently of reply length.
+        var inputTop = anchor.Top - gap - inputFrameHeight;
+        if (inputTop < work.Top + inputFrameHeight * 2) inputTop = anchor.Bottom + gap;
+        var position = BallWindow.ConstrainPosition(new Point(anchor.Right - Width, inputTop), work,
+            new Size(Width, inputFrameHeight));
+        var bottom = Math.Min(work.Bottom, position.Y + inputFrameHeight);
+        var available = Math.Min(ConversationMaxHeight, bottom - work.Top);
+        var fixedHeight = inputFrameHeight;
         if (_statusSurface.Visibility == Visibility.Visible)
         {
             _statusSurface.Measure(new Size(Math.Max(1, Width - FramePadding * 2), double.PositiveInfinity));
             fixedHeight += _statusSurface.DesiredSize.Height;
         }
         _transcript.MaxHeight = Math.Max(0, available - fixedHeight - _transcript.Margin.Bottom);
-        ((UIElement)Content).Measure(new Size(Width, double.PositiveInfinity));
-        var point = Position(anchor, work, new Size(Width, ((UIElement)Content).DesiredSize.Height));
-        Left = point.X;
-        Top = point.Y;
+        var surface = (Border)Content;
+        // A reply can replace the status at the same width before WPF's next layout pass.
+        surface.Child.InvalidateMeasure();
+        surface.InvalidateMeasure();
+        surface.Measure(new Size(Width, double.PositiveInfinity));
+        // WPF must use the same height for the HWND and for placement.
+        var height = Math.Min(available, surface.DesiredSize.Height);
+        Left = position.X;
+        Top = bottom - height;
+        Height = height;
     }
 
     void Submit()

@@ -530,12 +530,18 @@ public static class Program
         anchored.ShowTurn(new ChatTurn("怎样把这段话写得更简短？", "先保留主要意思，再删掉重复的句子。"));
         var area = new Rect(-400, 0, 400, 340);
         home.Place(new Rect(-80, 260, 72, 72), area);
-        anchored.Place(new Rect(-300, 4, 72, 72), area);
+        var nearTop = new Rect(-300, 4, 72, 72);
+        var nearTopInput = new FreeChatWindow();
+        nearTopInput.Place(nearTop, area);
+        anchored.Place(nearTop, area);
         Check(home.Width == 240 && anchored.Width == 380,
             "the resting input stays compact and a conversation expands for reading");
-        Check(home.Top < 260 && anchored.Top == 82 && home.Left >= area.Left &&
+        Check(home.Top < 260 && nearTopInput.Top == 82 && home.Left >= area.Left &&
             anchored.Left >= area.Left && home.Handle == IntPtr.Zero && anchored.Handle == IntPtr.Zero,
-            "the chat input fits a negative-origin work area and moves below an anchor near the top");
+            "the compact chat input fits a negative-origin work area even near the top");
+        double Bottom(FreeChatWindow window) => window.Top + ((FrameworkElement)window.Content).DesiredSize.Height;
+        Check(anchored.Top < nearTopInput.Top && Math.Abs(Bottom(anchored) - Bottom(nearTopInput)) < .01,
+            "starting a chat near the top expands upward from the original input instead of flipping down");
         var surface = (System.Windows.Controls.Border)home.Content;
         Check(surface.CornerRadius == new CornerRadius(8) &&
             FreeChatWindow.InputRadius / FreeChatWindow.OuterRadius ==
@@ -543,20 +549,28 @@ public static class Program
             surface.DesiredSize.Height == FreeChatWindow.InputHeight + FreeChatWindow.FramePadding * 2,
             "the initial home input is one row with 8-DIP outer corners and proportional inner corners");
         var submissions = new List<string>();
+        var homeAnchor = new Rect(-80, 260, 72, 72);
+        var inputBottom = Bottom(home);
         home.Submitted += text => { submissions.Add(text); home.SetStatus("等待回答", busy: true); };
         home.Input.Text = "测试问题";
         home.Send.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
         home.Send.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
         Check(submissions.SequenceEqual(new[] { "测试问题" }) && home.Input.IsReadOnly,
             "the real capsule send button submits once and prevents repeated sends while waiting");
+        home.Place(homeAnchor, area);
+        Check(home.Top < inputBottom - 40 && Math.Abs(home.Top + home.Height - inputBottom) < .01,
+            "pending chat assigns the real window height and holds the bottom edge of the input");
         home.ShowTurn(new ChatTurn("测试问题", "测试回答"));
-        home.Place(new Rect(-80, 260, 72, 72), area);
+        home.Place(homeAnchor, area);
+        Check(Math.Abs(home.Top + home.Height - inputBottom) < .01 &&
+              home.Height == ((FrameworkElement)home.Content).DesiredSize.Height,
+            "reply placement and actual window sizing use the same height and fixed bottom edge");
         Check(!home.Input.IsReadOnly && home.Input.Text.Length == 0 && !home.Send.IsEnabled,
             "a completed capsule reply clears input and enables the next question");
         void ArrangeChat(FreeChatWindow window)
         {
             var content = (FrameworkElement)window.Content;
-            content.Arrange(new Rect(new Size(window.Width, content.DesiredSize.Height)));
+            content.Arrange(new Rect(new Size(window.Width, window.Height)));
             content.UpdateLayout();
         }
         var longChat = new FreeChatWindow();
@@ -599,9 +613,15 @@ public static class Program
         ArrangeChat(longChat);
         Check(Math.Abs(longChat.Transcript.VerticalOffset - longChat.Transcript.ScrollableHeight) < 1,
             "the newest answer remains reachable at the end of a long transcript");
+        ArrangeChat(home);
+        Check(home.Transcript.ComputedVerticalScrollBarVisibility == Visibility.Collapsed &&
+              home.Input.TransformToAncestor(surface).TransformBounds(new Rect(home.Input.RenderSize)).Bottom <= home.Height,
+            "a short reply replacing the waiting state keeps the entire input visible without a scrollbar");
         ArrangeChat(anchored);
-        Check(anchored.Transcript.ComputedVerticalScrollBarVisibility == Visibility.Collapsed,
-            "a short conversation has no unnecessary scrollbar");
+        Check(anchored.Top >= area.Top && anchored.Transcript.ScrollableHeight > 0 &&
+              anchored.Input.TransformToAncestor((FrameworkElement)anchored.Content)
+                  .TransformBounds(new Rect(anchored.Input.RenderSize)).Bottom <= anchored.Height,
+            "a top-constrained conversation scrolls while keeping the input visible");
         var narrow = new FreeChatWindow();
         narrow.ShowTurn(new ChatTurn("怎么找到设置？", "请先告诉我你正在使用哪个软件。"));
         var smallWork = new Rect(-190, -20, 190, 240);
@@ -626,7 +646,7 @@ public static class Program
                      (introduction, "chat-product-sample", 1d) })
         {
             var content = (FrameworkElement)window.Content;
-            var size = new Size(window.Width, content.DesiredSize.Height);
+            var size = new Size(window.Width, window.Height);
             content.Arrange(new Rect(size));
             content.UpdateLayout();
             var bitmap = new RenderTargetBitmap((int)Math.Ceiling(size.Width * scale),
