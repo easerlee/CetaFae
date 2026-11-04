@@ -132,6 +132,7 @@ public static class Program
         await TranslationChecks.RunAsync(Check);
         await ErrorChecks.RunAsync(Check);
         FollowupChecks.Run(Check);
+        await FollowupChecks.RunControlledAsync(Check);
         await PrivacyChecks.RunAsync(Check);
         LogRetentionChecks.Run(Check);
         PluginChecks.Run(Check);
@@ -558,6 +559,22 @@ public static class Program
         Check(submissions.SequenceEqual(new[] { "测试问题" }) && home.Input.IsReadOnly,
             "the real capsule send button submits once and prevents repeated sends while waiting");
         home.Place(homeAnchor, area);
+        Check(home.Waiting.Visibility == Visibility.Visible && home.Waiting.Height == 44 &&
+              home.Waiting.Children.OfType<System.Windows.Shapes.Ellipse>().Count(dot => dot.HasAnimatedProperties) == 3 &&
+              ((System.Windows.Controls.Border)((System.Windows.Controls.StackPanel)surface.Child).Children[1]).Visibility == Visibility.Collapsed &&
+              ReferenceEquals(home.Waiting.Parent, home.Transcript.Parent),
+            "pending chat uses three animated dots inside the transcript instead of a separate answering strip");
+        var dotPulse = FreeChatWindow.WaitingAnimation(0);
+        var dotClock = dotPulse.CreateClock(); dotClock.Controller!.Begin();
+        dotClock.Controller.SeekAlignedToLastTick(TimeSpan.FromSeconds(.18), System.Windows.Media.Animation.TimeSeekOrigin.BeginTime);
+        var firstCycle = (double)dotPulse.GetCurrentValue(.25, .25, dotClock);
+        dotClock.Controller.SeekAlignedToLastTick(TimeSpan.FromSeconds(.9), System.Windows.Media.Animation.TimeSeekOrigin.BeginTime);
+        Check(firstCycle > .25 && Math.Abs((double)dotPulse.GetCurrentValue(.25, .25, dotClock) - firstCycle) < .001 &&
+              dotPulse.RepeatBehavior == System.Windows.Media.Animation.RepeatBehavior.Forever && dotPulse.AutoReverse &&
+              FreeChatWindow.WaitingAnimation(1).BeginTime == TimeSpan.FromMilliseconds(140) &&
+              FreeChatWindow.WaitingAnimation(2).BeginTime == TimeSpan.FromMilliseconds(280),
+            "the native dot clocks repeat their light-dark cycle with staggered phases");
+        dotClock.Controller.Remove();
         Check(home.Top < inputBottom - FreeChatWindow.InputHeight - FreeChatWindow.FramePadding * 2 &&
               Math.Abs(home.Top + home.Height - inputBottom) < .01,
             "pending chat assigns the real window height and holds the bottom edge of the input");
@@ -568,6 +585,8 @@ public static class Program
             "reply placement and actual window sizing use the same height and fixed bottom edge");
         Check(!home.Input.IsReadOnly && home.Input.Text.Length == 0 && !home.Send.IsEnabled,
             "a completed capsule reply clears input and enables the next question");
+        Check(home.Waiting.Visibility == Visibility.Collapsed && home.Waiting.Children.OfType<System.Windows.Shapes.Ellipse>().All(dot => !dot.HasAnimatedProperties),
+            "a reply removes all waiting animation clocks");
         void ArrangeChat(FreeChatWindow window)
         {
             var content = (FrameworkElement)window.Content;
@@ -767,6 +786,25 @@ public static class Program
         ArrangeChat(home);
         Check(Math.Abs(home.Top + home.Height - inputBottom) < .01 && home.Input.IsReadOnly,
             "a follow-up pending state preserves the input anchor and prior conversation");
+        var waitingPreview = new FreeChatWindow();
+        waitingPreview.ShowTurn(new ChatTurn("你能帮我做什么？", "把鲸鱼拖到需要帮助的窗口，或直接问电脑使用问题。"));
+        waitingPreview.SetStatus("鲸汐正在回答…", busy: true);
+        waitingPreview.Place(bottom, roomy);
+        ArrangeChat(waitingPreview);
+        var waitingBounds = waitingPreview.Waiting.TransformToAncestor((Visual)waitingPreview.Content)
+            .TransformBounds(new Rect(waitingPreview.Waiting.RenderSize));
+        var waitingInput = waitingPreview.Input.TransformToAncestor((Visual)waitingPreview.Content)
+            .TransformBounds(new Rect(waitingPreview.Input.RenderSize));
+        Check(waitingBounds.Height == 44 && waitingBounds.Bottom < waitingInput.Top &&
+              waitingPreview.Height <= FreeChatWindow.ConversationMaxHeight &&
+              ((System.Windows.Controls.StackPanel)waitingPreview.Transcript.Content).Children.Count == 1,
+            "inline waiting reserves a taller blank footer without covering history or the bottom input");
+        longChat.SetStatus("鲸汐正在回答…", busy: true);
+        longChat.Place(bottom, roomy); ArrangeChat(longChat);
+        Check(longChat.Height <= FreeChatWindow.ConversationMaxHeight && longChat.Transcript.ScrollableHeight > 0 &&
+              longChat.Waiting.ActualHeight == 44,
+            "overflowing history keeps the visible waiting footer within the conversation cap");
+        longChat.SetStatus(null); longChat.Place(bottom, roomy); ArrangeChat(longChat);
         home.ShowTurn(new ChatTurn("再说具体一点", "你可以把鲸鱼拖到需要帮助的窗口，再告诉我想完成什么。"));
         home.Place(homeAnchor, area);
         ArrangeChat(home);
@@ -800,6 +838,8 @@ public static class Program
         Check(dismissed == 1 && turns.Children.Count == 2 && home.Input.Text == "尚未发送的草稿" &&
               !home.Input.IsReadOnly && home.Handle == IntPtr.Zero,
             "dismiss preserves completed messages and the draft without leaving an invisible busy state");
+        Check(home.Waiting.Children.OfType<System.Windows.Shapes.Ellipse>().All(dot => !dot.HasAnimatedProperties),
+            "dismiss stops waiting clocks while preserving the cached conversation");
         longChat.Transcript.ScrollToTop();
         longChat.Transcript.PageDown();
         ArrangeChat(longChat);
@@ -819,6 +859,21 @@ public static class Program
               !home.Input.IsReadOnly && !home.Send.IsEnabled && home.Width == FreeChatWindow.RestingWidth &&
               home.Height == FreeChatWindow.InputHeight + FreeChatWindow.FramePadding * 2,
             "the real brush button clears messages, draft and busy state and restores a compact usable input");
+        Check(home.Waiting.Visibility == Visibility.Collapsed && home.Waiting.Children.OfType<System.Windows.Shapes.Ellipse>().All(dot => !dot.HasAnimatedProperties),
+            "clear removes the waiting footer and clocks");
+        var failedChat = new FreeChatWindow();
+        failedChat.SetStatus("等待", busy: true);
+        failedChat.SetStatus("这次没有收到回答，请稍后再试。");
+        failedChat.Place(bottom, roomy); ArrangeChat(failedChat);
+        Check(failedChat.Waiting.Visibility == Visibility.Collapsed &&
+              failedChat.Waiting.Children.OfType<System.Windows.Shapes.Ellipse>().All(dot => !dot.HasAnimatedProperties) &&
+              ((System.Windows.Controls.Border)((System.Windows.Controls.StackPanel)((System.Windows.Controls.Border)failedChat.Content).Child).Children[1]).Visibility == Visibility.Visible,
+            "a request failure stops the dots and retains a readable error message");
+        var closedChat = new FreeChatWindow();
+        closedChat.SetStatus("等待", busy: true); closedChat.Close();
+        Check(closedChat.Waiting.Children.OfType<System.Windows.Shapes.Ellipse>().All(dot => !dot.HasAnimatedProperties) &&
+              closedChat.Handle == IntPtr.Zero,
+            "closing an unshown chat removes waiting clocks without creating a desktop window");
         home.ShowTurn(new ChatTurn("新的问题", "可以继续提问。"));
         home.Place(homeAnchor, area);
         ArrangeChat(home);
@@ -844,6 +899,8 @@ public static class Program
                      (introduction, "chat-product-sample", 1d), (conversation, "chat-conversation", 1d),
                      (conversation, "chat-conversation-125", 1.25), (conversation, "chat-conversation-200", 2d),
                      (emptyChat, "chat-cleared", 1d), (greetingPreview, "chat-greeting", 1d),
+                     (waitingPreview, "chat-inline-waiting", 1d), (waitingPreview, "chat-inline-waiting-125", 1.25),
+                     (waitingPreview, "chat-inline-waiting-200", 2d),
                      (greetingPreview, "chat-greeting-125", 1.25), (greetingPreview, "chat-greeting-200", 2d) })
         {
             var content = (FrameworkElement)window.Content;

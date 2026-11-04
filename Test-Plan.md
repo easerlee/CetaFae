@@ -1,5 +1,15 @@
 # CetaFae Concentrated Verification Plan
 
+## Inline waiting and same-window task loop (v1.38)
+
+Offscreen: replace the independent busy strip with three staggered native opacity animations inside a44DIP transcript footer. Check first request, existing short/multiline history, overflow,100/125/200percent rendering, the fixed input bottom and whole-window height cap. Verify repeating phases and removal of animation clocks on reply, failure, dismissal, clear and close. Preserve readable errors and all cached completed messages. Inspect clean and matching-coordinate grid proofs; these are not desktop captures.
+
+Controlled transport: run a three-step generated task with a single clarification, passing a different observation each time. Assert original goal, recent four completed text steps, latest-request precedence, identity pinning, bounded payloads and no prior image/coordinates. A failed pending step must not consume the eight-completed-step cap. Page/geometry/foreground invalidation must remove stale evidence while preserving task text; termination/rebinding/withdrawal must clear both. Route progress/completion questions through fresh window guidance, while independent text-only questions remain available.
+
+Validate `complete` only under the enabled general follow-up policy, with an explicit evidence string and null candidate ID. Refuse missing/empty evidence, extra fields, disabled capability and any marker. Ordinary explanation wording cannot end a task; initial recognition without a goal cannot declare completion. Completed tasks leave the bound input available for a new goal. Treat structural validation as distinct from proving the model's evidence claim.
+
+Concentrated native batch, pending: one pending/reply/clear chat sequence; one same-window three-step operation including a page change and a temporary switch away, then explicit completion; one retry after a controlled failure and one end/rebind isolation check. Use generated or deliberately selected non-private content. Do not repeat unaffected historical cases. Real-model routing/completion accuracy waits for the release-candidate direct-provider gate; no paid request is needed now. Original3000ms/500ms/90MB and broader release gates remain open.
+
 ## Resting-chat cache and clear (v1.37)
 
 Repeat five short hi waiting/reply transitions with finite intermediate layout passes. Verify each newest pair fits inside the viewport, the input stays within the window, and content reserves its natural height independently of the old viewport. Inspect short replies at100/125/200percent alongside long, narrow and cached states. Check both resting and attached placeholders have6DIP clearance from the empty editor origin across prompt widths and dock orientations. Native caret/IME and the exact reported clipping remain separate desktop checks; offscreen success alone does not reproduce the original screenshot failure.

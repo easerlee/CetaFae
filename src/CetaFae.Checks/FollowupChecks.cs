@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Text.Json;
 using System.Diagnostics;
+using System.Net;
+using System.Net.Http;
 using System.Globalization;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -38,7 +40,7 @@ internal static class FollowupChecks
         var flow = new GuideFollowup();
         var target = new GuideFlowTarget(new IntPtr(123), 456, 789, "generated.plugin");
         Reject(() => flow.Begin(), "no result means no follow-up can be armed");
-        flow.Complete(target, "生成目标：说明三步流程");
+        flow.Complete(target, "生成目标：说明三步流程", answer: new GuideAnswer("point", "先核对范围，再查看预览。", 11));
         check(flow.Step == 1 && flow.CanOffer && !flow.WaitingForUser, "a completed goal seeds a bounded user-only flow");
         check(flow.Begin() == target && flow.WaitingForUser && !flow.CanOffer, "arming retains only target binding and user goal");
         foreach (var invalid in new[] { "", "one\ntwo", new string('x', 301) })
@@ -47,8 +49,9 @@ internal static class FollowupChecks
         using var requestData = JsonDocument.Parse(second.ModelTask[second.ModelTask.IndexOf('{')..]);
         check(second.Step == 2 && second.Goal == "生成目标：说明三步流程" && !flow.WaitingForUser &&
               requestData.RootElement.GetProperty("currentUserRequest").GetString() == second.Request &&
-              requestData.RootElement.EnumerateObject().Count() == 4 && second.ModelTask.Contains("当前画面"),
-            "fresh request includes original user goal and current request, never a prior model answer or completion assertion");
+              requestData.RootElement.EnumerateObject().Count() == 5 && second.ModelTask.Contains("当前画面") &&
+              requestData.RootElement.GetProperty("recentSteps")[0].GetProperty("Explanation").GetString() == "先核对范围，再查看预览。",
+            "fresh request retains bounded task text while explicitly requiring current visual evidence");
         Reject(() => flow.Take("duplicate"), "duplicate submission cannot create an extra step");
         foreach (var changed in new[] { target with { Window = new IntPtr(124) }, target with { ProcessId = 457 },
                      target with { StartedAt = 790 }, target with { PluginId = "other.plugin" } })
@@ -79,9 +82,127 @@ internal static class FollowupChecks
         var policy = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).GeneralProvider!.InterpretationPolicy!;
         check(policy.UserLedFollowup && !new InterpretationPolicy(["zh-CN"], true).UserLedFollowup,
             "follow-up is an enabled general plugin capability, off for older policies");
+        const string doneJson = "{\"mode\":\"complete\",\"explanation\":\"已完成这次核对。\",\"candidateId\":null,\"evidence\":\"当前结果显示范围和预览已核对。\"}";
+        var done = GuideAnswer.Parse(doneJson, [], policy);
+        check(done is { Mode: "complete", CandidateId: null, CompletionEvidence: not null },
+            "structured completion requires enabled task capability and a separate current-evidence statement");
+        Reject(() => GuideAnswer.Parse(doneJson, []), "older policies cannot emit a new completion outcome");
+        foreach (var invalid in new[] { doneJson.Replace("\"evidence\":\"当前结果显示范围和预览已核对。\"", "\"evidence\":\"\""),
+                     doneJson.Replace("\"candidateId\":null", "\"candidateId\":11"),
+                     doneJson.Replace(",\"evidence\":\"当前结果显示范围和预览已核对。\"", "") })
+            Reject(() => GuideAnswer.Parse(invalid, [], policy), "completion without valid evidence or with a marker is refused");
+        check(done.ForIntent(null).Mode == "ask", "recognition without a user goal cannot declare task completion");
+        var retained = new GuideFollowup();
+        retained.Prepare(target, "核对生成流程");
+        retained.Restore();
+        check(retained.CanOffer && retained.Goal == "核对生成流程" && retained.Step == 0,
+            "a first-step failure retains the goal for an explicit retry");
+        retained.Begin(); var retry = retained.Take("重试当前一步"); retained.Restore();
+        retained.Begin(); var retried = retained.Take("重新核对");
+        check(retried.Step == retry.Step && retained.Goal == retry.Goal,
+            "a failed pending step does not exhaust the completed-step limit");
+        retained.Complete(target, retried.Request, answer: new GuideAnswer("explain", "我已完成只是用户的说法，现在仍缺少结果。", null));
+        check(!retained.Completed && retained.CanOffer, "completion words inside ordinary explanations do not end the task");
+        retained.Complete(target, "核对结果", answer: done);
+        check(retained.Completed && retained.ActiveGoal is null && !retained.CanOffer,
+            "validated completion ends the active goal without forcing another operation");
+        Reject(() => retained.Begin(), "an already completed task cannot continue through an old callback");
+        retained.Clear();
+        retained.Complete(target, "新目标", answer: new GuideAnswer("explain", "新说明", null));
+        for (var index = 0; index < GuideFollowup.MaxHistory + 1; index++)
+        {
+            retained.Begin(); var next = retained.Take("第" + index + "次提问");
+            retained.Complete(target, next.Request, answer: new GuideAnswer("explain", "第" + index + "次说明", null));
+        }
+        retained.Restore(); retained.Begin();
+        var bounded = retained.Take("继续");
+        check(bounded.History is { Count: GuideFollowup.MaxHistory } && bounded.History[0].Request == "第1次提问" &&
+              bounded.History.All(turn => !turn.Explanation.Contains("新说明")),
+            "only the recent four completed text steps survive; no frame or marker enters the context");
+        retained.Clear();
+        retained.Complete(target, "另一任务"); retained.Begin();
+        check(retained.Take("继续").History!.Count == 0, "ending or rebinding clears every earlier task step");
         check(Decision(new GuideAnswer("explain", "范围、预览和最终结果均已核对完成，本次核对任务已结束。", null), null) &&
               !Decision(new GuideAnswer("explain", "仍无法确认是否已完成。", null), null),
             "completion oracle accepts equivalent explicit completion wording but refuses uncertainty");
+    }
+
+    internal static async Task RunControlledAsync(Action<bool, string> check)
+    {
+        var policy = PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins")).GeneralProvider!.InterpretationPolicy!;
+        var flow = new GuideFollowup();
+        var target = new GuideFlowTarget(new IntPtr(123), 456, 789, "generated.wizard");
+        var calls = 0;
+        var frames = new[] { "当前：范围尚未核对", "当前：范围已核对，预览待确认", "当前：范围已核对，预览待确认", "当前：范围和预览均已核对完成" };
+        var replies = new[]
+        {
+            "{\"mode\":\"point\",\"explanation\":\"先核对范围。\",\"candidateId\":11}",
+            "{\"mode\":\"ask\",\"explanation\":\"你要核对哪份预览？\",\"candidateId\":null}",
+            "{\"mode\":\"point\",\"explanation\":\"接着核对这份预览。\",\"candidateId\":22}",
+            "{\"mode\":\"complete\",\"explanation\":\"范围和预览都已核对，本次任务完成。\",\"candidateId\":null,\"evidence\":\"当前结果明确显示范围和预览均已核对完成。\"}"
+        };
+        using var model = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated", false),
+            new Handler(async request =>
+            {
+                using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+                var messages = body.RootElement.GetProperty("messages");
+                var contract = messages[0].GetProperty("content").GetString()!;
+                using var input = JsonDocument.Parse(messages[1].GetProperty("content")[0].GetProperty("text").GetString()!);
+                check(input.RootElement.GetProperty("visibleContext").GetString() == frames[calls] &&
+                      contract.Contains("Only the current supplied observation") && contract.Contains("evidence"),
+                    "controlled guidance sends the new observation and an explicit evidence-based completion contract");
+                var task = input.RootElement.GetProperty("task").GetString()!;
+                if (calls > 0)
+                {
+                    using var step = JsonDocument.Parse(task[task.IndexOf('{')..]);
+                    check(step.RootElement.GetProperty("originalUserGoal").GetString() == "核对范围和预览" &&
+                          step.RootElement.GetProperty("recentSteps").GetArrayLength() == (calls == 3 ? 2 : 1),
+                        "controlled continuation preserves its goal and completed steps across page changes and clarification");
+                }
+                return Completion(replies[calls++]);
+            }));
+        GuideCandidate[] candidates = [new(11, "核对范围", "", "ControlType.Button", new Rect(10, 10, 80, 30), [11]),
+            new(22, "核对预览", "", "ControlType.Button", new Rect(10, 60, 80, 30), [22])];
+        const string goal = "核对范围和预览";
+        flow.Prepare(target, goal);
+        var first = await model.AskAsync(goal, candidates, null, default, frames[0], policy);
+        flow.Complete(target, goal, answer: first);
+        flow.Restore(); flow.Begin();
+        var next = flow.Take("我操作完了，下一步呢？");
+        var clarification = (await model.AskAsync(next.ModelTask, candidates, null, default, frames[1], policy)).ForIntent(next.Request, allowQuestion: true);
+        check(clarification.Mode == "ask" && flow.Step == 1, "an ambiguous new step can ask once without recording an uncompleted step");
+        next = next with { Clarification = "当前这一份" };
+        var second = (await model.AskAsync(next.ModelTask, candidates, null, default, frames[2], policy)).ForIntent(next.Request);
+        flow.Complete(target, next.Request + "；" + next.Clarification, answer: second);
+        flow.Restore(); flow.Begin(); next = flow.Take("现在完成了吗？");
+        var done = await model.AskAsync(next.ModelTask, candidates, null, default, frames[3], policy);
+        flow.Complete(target, next.Request, answer: done);
+        check(calls == 4 && first.CandidateId == 11 && second.CandidateId == 22 && done.CandidateId is null &&
+              flow.Completed && !flow.CanOffer && flow.Step == 3,
+            "controlled three-step loop handles a clarification then stops on current completion without a marker or automatic action");
+
+        using var route = new GuideModel(GuideOptions.Create("http://127.0.0.1:8787/v1", "generated", false),
+            new Handler(async request =>
+            {
+                using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+                var messages = body.RootElement.GetProperty("messages");
+                check(messages[0].GetProperty("content").GetString()!.Contains("completion check for that goal requires a fresh window observation") &&
+                      messages[1].GetProperty("content").GetString()!.Contains("activeUserGoal"),
+                    "text routing receives the active goal and must hand current-state checks to fresh window guidance");
+                return Completion("{\"reply\":null}");
+            }));
+        check(await route.RouteQuestionAsync([], "做完了，下一步？", default, goal) is null,
+            "controlled progress reports hand off instead of treating prior text as completion evidence");
+    }
+
+    static HttpResponseMessage Completion(string answer) => new(HttpStatusCode.OK)
+    {
+        Content = new StringContent(JsonSerializer.Serialize(new { choices = new[] { new { finish_reason = "stop", message = new { content = answer } } } }))
+    };
+
+    sealed class Handler(Func<HttpRequestMessage, Task<HttpResponseMessage>> respond) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => respond(request);
     }
 
     internal static async Task RunLiveAsync(Action<bool, string> check, int? onlyStep = null)

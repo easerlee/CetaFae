@@ -4,7 +4,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.18**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.19**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
 
 ## Features
 
@@ -19,7 +19,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 - **Text-region hints (development validation)**: the general plugin can obtain local text and position candidates from the selected image. The model chooses existing IDs rather than inventing coordinates. Hints distinguish text bounds from button hit areas. Duplicate text, unavailable OCR support or insufficient evidence produces no guessed marker. Native application coverage remains unaccepted.
 - **Chinese/English explanation and translation**: describe your translation goal and select a text region when needed. Show the recognized original and translation, checking recognizable error-code, date, numeric and unit literals. Unreadable content is reported honestly; the application's interface is not replaced.
 - **Visible-error guidance**: briefly explain which application has what practical problem, followed by one safe check or one essential question. Default replies avoid raw error dumps, codes and unverified causes. Continue on the same window when needed. The app does not inspect logs, scan other processes or perform repairs automatically.
-- **Follow-up in the same window**. Ask directly after a result, or choose Continue asking if you want to do something yourself before submitting the next question. Each submission rechecks the same window, for up to eight steps. Desktop validation of multi-step guidance is pending.
+- **Multi-step guidance in one window**: retain the user goal and four recent text steps. Ask directly after a result, or act yourself before submitting the next question. Current-state questions recheck the selected window; completion requires current evidence rather than a user's claimed action. Page changes and temporary foreground switches clear stale markers while preserving the goal; ending the session clears it. Bounded to eight steps, with native multi-step acceptance pending.
 - **Plugin-based capabilities**: generic vision, software identity, and application adapters share a declarative contract. First-party features are plugins too.
 - **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
 

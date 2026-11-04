@@ -52,7 +52,8 @@ public sealed class GuideSession : IDisposable
         _model = new GuideModel(options, windowGuidanceAvailable:
             plugins.Plugins.Any(plugin => plugin.Kind is "general" or "application"));
         _chat = new FreeChatSession(async (history, question, token) => await _model.ChatAsync(history, question, token));
-        _questions = new FreeChatSession(_model.RouteQuestionAsync);
+        _questions = new FreeChatSession((history, question, token) =>
+            _model.RouteQuestionAsync(history, question, token, _followup.ActiveGoal));
         _panel = new GuidePanel(options);
         _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget, () => _ball.TopAttached,
             () => _ball.Workspace);
@@ -223,7 +224,8 @@ public sealed class GuideSession : IDisposable
     void ResetRecognition(bool preserveConversation = false)
     {
         DismissChat();
-        if (!preserveConversation) _questions.Reset();
+        if (!preserveConversation) { _questions.Reset(); _followup.Clear(); }
+        else { _questions.CancelPending(); _followup.Restore(); }
         _boundQuestionReady = false;
         _activationVersion = null;
         _initialCollectionVersion = _modelVersion = null;
@@ -235,7 +237,6 @@ public sealed class GuideSession : IDisposable
         picker?.Abort();
         _pendingIntent = null;
         _activeFollowup = null;
-        _followup.Clear();
         _panel.SetRegionAvailable(false);
         _context = null;
         _contextCheckPending = false;
@@ -257,7 +258,7 @@ public sealed class GuideSession : IDisposable
             return;
         }
         var retry = _initialCollectionVersion is { } collecting && _gate.Accepts(collecting);
-        ResetRecognition();
+        ResetRecognition(preserveConversation: true);
         _retryInitialOnResume = retry;
     }
 
@@ -300,7 +301,7 @@ public sealed class GuideSession : IDisposable
     }
     void OnGuidanceCleared() => ReadyBoundQuestion("本次识别已停止。你想了解什么？");
 
-    void ReadyBoundQuestion(string message, bool preserveConversation = false)
+    void ReadyBoundQuestion(string message, bool preserveConversation = true)
     {
         ResetRecognition(preserveConversation);
         if (!_gate.CloudEnabled || !_ball.HasTarget || _ball.BindingSuspended) return;
@@ -318,12 +319,16 @@ public sealed class GuideSession : IDisposable
         if (_ball.IsBoundForeground(window, processId))
         {
             _ball.ConfirmBinding();
-            ResetRecognition();
+            ResetRecognition(preserveConversation: true);
             _ball.SetFailure();
+            _contextVersion = _gate.Begin();
+            _gate.AwaitClarification(_contextVersion);
+            _boundQuestionReady = true;
+            _ball.ShowQuestion();
         }
         else if (_ball.BoundTarget == window && _ball.BindingConfirmed)
         {
-            ResetRecognition();
+            ResetRecognition(preserveConversation: true);
             return;
         }
         else
@@ -491,7 +496,10 @@ public sealed class GuideSession : IDisposable
             try { request = _gate.TakeClarification(_contextVersion, text); }
             catch (InvalidDataException) { _panel.SetStatus("请用一行文字说明你想了解什么（最多300字）。"); return; }
             _boundQuestionReady = false;
-            await RecognizeAsync(_ball.BoundTarget, request, null, budget: budget);
+            GuideFollowupRequest? resumed = null;
+            if (_followup.CanOffer) { _followup.Begin(); resumed = _followup.Take(request); }
+            else if (_followup.Completed) _followup.Clear();
+            await RecognizeAsync(_ball.BoundTarget, request, null, followup: resumed, budget: budget);
             return;
         }
         // Direct result input uses the same guarded transition as the existing continue action.
@@ -544,7 +552,11 @@ public sealed class GuideSession : IDisposable
         ProbeLog.Log("guide_followup_armed", ("step", _followup.Step + 1));
     }
 
-    async void OnSelected(IntPtr window) => await RecognizeAsync(window, null, null);
+    async void OnSelected(IntPtr window)
+    {
+        ResetRecognition();
+        await RecognizeAsync(window, null, null);
+    }
 
     void OnRegionRequested()
     {
@@ -617,6 +629,8 @@ public sealed class GuideSession : IDisposable
                 throw new InvalidDataException("target_changed");
             var flowTarget = new GuideFlowTarget(window, (uint)targetProcess.Id, selectedStart, plugin.Id);
             followup?.ValidateTarget(flowTarget);
+            if (intent is not null && _plugins.GeneralProvider?.InterpretationPolicy?.UserLedFollowup == true)
+                _followup.Prepare(flowTarget, followup?.Goal ?? intent);
             if (!Native.IsNonElevated(window)) throw new InvalidDataException("elevated_target");
             var activated = await ActivateSelectedAsync(window, version, token);
             if (!_gate.Accepts(version)) return;
@@ -631,21 +645,12 @@ public sealed class GuideSession : IDisposable
             _ball.SetProcessing(true);
             _panel.Reposition();
             stage = ProcessingStage.SourceValidation;
-            if (previous is null && intent is not null && followup is null)
+            if (previous is null && intent is not null)
             {
                 // A resumed question needs only a fresh identity/geometry anchor before scoped capture.
                 // Do not make unknown applications pass a full accessibility traversal first.
                 previous = new GuideObservation(window, flowTarget.ProcessId, GuideObservation.WindowRect(window),
                     [], null, plugin.UsesRawView, plugin.Id, Snapshot: true);
-            }
-            else if (previous is null && followup is not null)
-            {
-                // An armed step may follow manual changes; obtain a fresh local baseline, never the prior result's data.
-                _contextCheckPending = false;
-                previous = await deadline.RunAsync(t => ObservationWorker.ReadAsync(window, false, plugin, t));
-                if (!_gate.Accepts(version)) return;
-                if (previous.ProcessId != flowTarget.ProcessId || !Native.ProcessAlive(targetOwner))
-                    throw new InvalidDataException("target_changed");
             }
             else if (previous is not null)
                 previous.ValidateContext(await ReadContextAsync(previous, token), null);
@@ -746,9 +751,17 @@ public sealed class GuideSession : IDisposable
             }
             else if (policy?.UserLedFollowup == true)
             {
-                _followup.Complete(flowTarget, intent, allowWithoutGoal: identification?.CanStartErrorFollowup(policy) == true);
+                var requestText = followup is null ? intent : followup.Request +
+                    (followup.Clarification is null ? "" : "\n补充：" + followup.Clarification);
+                _followup.Complete(flowTarget, requestText, allowWithoutGoal: identification?.CanStartErrorFollowup(policy) == true, answer: answer);
                 _panel.SetFollowupAvailable(_followup.CanOffer);
                 _ball.SetResult(_followup.CanOffer);
+                if (_followup.Completed)
+                {
+                    _boundQuestionReady = true;
+                    _gate.AwaitClarification(version);
+                    _ball.ShowQuestion();
+                }
                 _activeFollowup = null;
             }
             resultToken.ThrowIfCancellationRequested();

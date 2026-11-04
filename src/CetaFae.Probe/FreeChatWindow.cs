@@ -5,6 +5,8 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Animation;
+using System.Windows.Shapes;
 
 namespace CetaFae.Probe;
 
@@ -25,6 +27,8 @@ internal sealed class FreeChatWindow : Window
     readonly TextBlock _hint = new() { Text = "输入你的问题", Foreground = GuideTheme.Muted,
         VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0), IsHitTestVisible = false };
     readonly Border _statusSurface;
+    readonly StackPanel _waiting = new() { Orientation = Orientation.Horizontal, Height = 44,
+        Margin = new Thickness(12, 0, 12, 0), Visibility = Visibility.Collapsed };
     readonly TextBox _input = new() { MaxLength = FreeChatSession.MaxQuestionLength, MinHeight = 30,
         BorderThickness = new Thickness(0), Padding = new Thickness(0), Background = Brushes.Transparent, VerticalContentAlignment = VerticalAlignment.Center,
         Foreground = GuideTheme.Ink };
@@ -40,6 +44,7 @@ internal sealed class FreeChatWindow : Window
     internal Button Send => _send;
     internal Button ClearButton => _clear;
     internal ScrollViewer Transcript => _transcript;
+    internal StackPanel Waiting => _waiting;
 
     internal FreeChatWindow()
     {
@@ -77,7 +82,14 @@ internal sealed class FreeChatWindow : Window
         var inputRow = new DockPanel();
         _transcript = new ScrollViewer { Content = _turns, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        _transcriptSurface = new Border { Child = _transcript, Background = GuideTheme.Surface,
+        for (var index = 0; index < 3; index++)
+            _waiting.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = GuideTheme.Muted,
+                Margin = new Thickness(0, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = .25 });
+        AutomationProperties.SetName(_waiting, "正在回答");
+        var transcriptBody = new StackPanel();
+        transcriptBody.Children.Add(_transcript);
+        transcriptBody.Children.Add(_waiting);
+        _transcriptSurface = new Border { Child = transcriptBody, Background = GuideTheme.Surface,
             CornerRadius = new CornerRadius(InputRadius), Visibility = Visibility.Collapsed,
             Margin = new Thickness(0, 0, 0, 8) };
         _send = WhalePrompt.Action("▶", "发送 · Enter", 26, GuideTheme.WhaleBlue, Brushes.Transparent, 15);
@@ -114,6 +126,7 @@ internal sealed class FreeChatWindow : Window
         };
         Deactivated += (_, _) => { if (IsVisible) Dismiss(); };
         Loaded += (_, _) => _input.Focus();
+        Closed += (_, _) => SetWaiting(false);
         SetStatus(null);
     }
 
@@ -156,7 +169,7 @@ internal sealed class FreeChatWindow : Window
             fixedHeight += _statusSurface.DesiredSize.Height;
         }
         var transcriptWidth = Math.Max(1, Width - FramePadding * 2);
-        var transcriptLimit = Math.Max(0, available - fixedHeight - _transcriptSurface.Margin.Bottom);
+        var transcriptLimit = Math.Max(0, available - fixedHeight - _transcriptSurface.Margin.Bottom - (_busy ? _waiting.Height : 0));
         // Measure messages independently of the previous ScrollViewer viewport and its queued scroll commands.
         _turns.Measure(new Size(transcriptWidth, double.PositiveInfinity));
         if (_turns.DesiredSize.Height > transcriptLimit)
@@ -166,6 +179,7 @@ internal sealed class FreeChatWindow : Window
         var surface = (Border)Content;
         // A reply can replace the status at the same width before WPF's next layout pass.
         _transcript.InvalidateMeasure();
+        _transcriptSurface.Child.InvalidateMeasure();
         _transcriptSurface.InvalidateMeasure();
         surface.Child.InvalidateMeasure();
         surface.InvalidateMeasure();
@@ -188,10 +202,28 @@ internal sealed class FreeChatWindow : Window
         _busy = busy;
         _started |= busy;
         _input.IsReadOnly = busy;
-        _status.Text = message;
-        _statusSurface.Visibility = message is null ? Visibility.Collapsed : Visibility.Visible;
+        _status.Text = busy ? null : message;
+        _statusSurface.Visibility = busy || message is null ? Visibility.Collapsed : Visibility.Visible;
+        SetWaiting(busy);
+        _transcriptSurface.Visibility = busy || _turns.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateSend();
     }
+
+    void SetWaiting(bool waiting)
+    {
+        _waiting.Visibility = waiting ? Visibility.Visible : Visibility.Collapsed;
+        for (var index = 0; index < _waiting.Children.Count; index++)
+        {
+            var dot = (Ellipse)_waiting.Children[index];
+            dot.BeginAnimation(OpacityProperty, waiting ? WaitingAnimation(index) : null);
+        }
+    }
+
+    internal static DoubleAnimation WaitingAnimation(int index) => new(.25, 1, TimeSpan.FromMilliseconds(360))
+    {
+        AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever,
+        BeginTime = TimeSpan.FromMilliseconds(index * 140)
+    };
 
     void UpdateSend()
     {
