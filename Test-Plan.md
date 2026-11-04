@@ -10,6 +10,8 @@ Use a fake transport to verify dismiss cancellation preserves completed context,
 
 ## Resting-chat bubbles (v1.36)
 
+Render actual hi glyph ink inside the bubble at100/125/200percent and compare its upper and lower insets (at most2DIP difference). Verify centered natural-height text with equal geometric padding for both single and wrapped messages. A nonempty ink check prevents a blank render from falsely passing. Keep input/action centering and unchanged reply spacing in the existing layout checks.
+
 Render fixed-data short and wrapped questions, long replies, four-turn history, overflow and a narrow work area. Assert user bubbles align with the right content edge, occupy at most 60 percent of actual text width, shrink for short questions and wrap without horizontal overflow. Assert plain replies start at the left content edge, transcript padding is at least 12 DIP, shell padding is 8 DIP and a fifth turn evicts only the oldest pair. Retain bottom-anchor, 480-DIP cap, pending/reply and custom-scroll checks. Inspect clean and matched-coordinate grid renders at 100/125/200 percent. Do not launch a visible window or call a model for this presentation change; native interaction remains a separate acceptance gate.
 
 ## Product dialogue and resting-chat readability (v1.35)

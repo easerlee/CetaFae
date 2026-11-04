@@ -618,6 +618,33 @@ public static class Program
         greetingPreview.ShowTurn(new ChatTurn("hi", "你好，有什么电脑或软件使用问题？"));
         greetingPreview.Place(greetingAnchor, greetingWork);
         ArrangeFiniteChat(greetingPreview);
+        var greetingBubble = (System.Windows.Controls.Border)((System.Windows.Controls.Grid)
+            ((System.Windows.Controls.StackPanel)greetingPreview.Transcript.Content).Children[0]).Children[0];
+        foreach (var scale in new[] { 1d, 1.25, 2d })
+        {
+            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(greetingBubble.ActualWidth * scale),
+                (int)Math.Ceiling(greetingBubble.ActualHeight * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            var bubbleVisual = new DrawingVisual();
+            using (var draw = bubbleVisual.RenderOpen())
+                draw.DrawRectangle(new VisualBrush(greetingBubble), null, new Rect(greetingBubble.RenderSize));
+            bitmap.Render(bubbleVisual);
+            var stride = bitmap.PixelWidth * 4;
+            var pixels = new byte[stride * bitmap.PixelHeight];
+            bitmap.CopyPixels(pixels, stride, 0);
+            var inkTop = bitmap.PixelHeight;
+            var inkBottom = -1;
+            for (var y = 0; y < bitmap.PixelHeight; y++)
+            for (var x = 0; x < bitmap.PixelWidth; x++)
+            {
+                var offset = y * stride + x * 4;
+                if (pixels[offset + 3] < 200 || pixels[offset + 2] >= 120 || pixels[offset + 1] >= 160) continue;
+                inkTop = Math.Min(inkTop, y);
+                inkBottom = Math.Max(inkBottom, y);
+            }
+            var imbalance = Math.Abs(inkTop - (bitmap.PixelHeight - 1 - inkBottom)) / scale;
+            Check(inkBottom >= inkTop && imbalance <= 2,
+                $"user message ink is vertically centered inside its bubble at {scale * 100}% (gap difference {imbalance:F1} DIP)");
+        }
         var longChat = new FreeChatWindow();
         var roomy = new Rect(-800, -120, 900, 850);
         var bottom = new Rect(-20, 650, 72, 72);
@@ -689,6 +716,10 @@ public static class Program
                 var answer = (System.Windows.Controls.TextBlock)exchange.Children[1];
                 var bubbleBounds = bubble.TransformToAncestor(exchange).TransformBounds(new Rect(bubble.RenderSize));
                 var answerBounds = answer.TransformToAncestor(exchange).TransformBounds(new Rect(answer.RenderSize));
+                var textBounds = question.TransformToAncestor(bubble).TransformBounds(new Rect(question.RenderSize));
+                Check(double.IsNaN(question.LineHeight) && question.VerticalAlignment == VerticalAlignment.Center &&
+                      Math.Abs(textBounds.Top - (bubble.ActualHeight - textBounds.Bottom)) < .01,
+                    "single and wrapped user messages have balanced vertical space inside their bubble");
                 Check(bubble.ActualWidth <= exchange.ActualWidth * .6 + .01 &&
                       Math.Abs(bubbleBounds.Right - exchange.ActualWidth) < .01 &&
                       bubble.CornerRadius == new CornerRadius(8) && bubble.Background == GuideTheme.ChatBubble,

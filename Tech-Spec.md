@@ -10,6 +10,8 @@ Retain one hidden FreeChatWindow and its four-pair FreeChatSession during the pr
 
 ## Resting-chat message layout (requirements v1.36)
 
+Use natural font line metrics and centered vertical alignment inside user bubbles, retaining symmetric8DIP vertical padding. Explicit26DIP TextBlock line height adds bottom leading and makes short message ink appear too high. Keep26DIP line spacing for plain assistant replies. Check glyph bounds separately from element padding, including100/125/200percent renders.
+
 Keep the existing four-turn session and transport. Each completed turn is a two-row Grid: two star columns weighted 2:3 constrain a right-aligned, natural-width user bubble to 60 percent of the text area; the plain reply spans both columns below. Use an 8-DIP corner and pale blue fill for questions. A single light transcript surface contains all turns with 12-DIP inner spacing; the blue shell uses 8-DIP padding. Preserve the bottom input anchor, proportional inner corners, 480-DIP cap and custom overflow scrollbar. Use finite layout widths, so the ratio also applies to narrow work areas and when the scrollbar appears. Verify fixed-data layouts before any real model or desktop integration.
 
 ## Product-grounded dialogue and readable resting chat (requirements v1.35)

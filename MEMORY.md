@@ -4,6 +4,8 @@
 
 Updated: 2026-11-04
 
+- Preview.18 corrects user-message vertical centering in the transcript bubble, not the bottom input. Explicit26DIP TextBlock line height placed short hi ink7DIP off balance at100percent; natural font metrics plus centered alignment reduce measured top/bottom gap difference to2/1.6/0.5DIP at100/125/200percent. Preserve symmetric bubble padding,60percent width cap and assistant reply line height. Geometry and rendered ink are different checks.
+
 - Preview.17 sizes the resting transcript from the message stack's natural height rather than ScrollViewer's prior desired viewport. Reserve the existing scrollbar width on overflow; keep the bottom input anchor, cap, history and scroll behavior. Both empty-input hints have6DIP clearance from the editor origin, with explicit zero TextBox padding. Debug/Release each pass1817 local/generated checks; the exact screenshot failure was not reproduced by the earlier finite offscreen checks, so do not present those as native reproduction.
 
 - The user wants ordinary local revisions applied by overwriting the installed program and plugin payload and restarting, retaining settings and the installation grant. Build installers only for installation/runtime/terms changes or requested distribution. On2026-11-04 the user explicitly authorized direct CetaFae restarts throughout this conversation. This does not authorize capturing other applications or automating pointer/keyboard input. Restart discards the existing memory-only conversation cache.

@@ -213,7 +213,7 @@ internal sealed class FreeChatWindow : Window
             Background = GuideTheme.ChatBubble, CornerRadius = new CornerRadius(8),
             HorizontalAlignment = HorizontalAlignment.Right, Padding = new Thickness(12, 8, 12, 8),
             Child = new TextBlock { Text = turn.Question,
-                FontSize = ConversationFontSize, LineHeight = 26,
+                FontSize = ConversationFontSize, VerticalAlignment = VerticalAlignment.Center,
                 Foreground = GuideTheme.Ink, TextWrapping = TextWrapping.Wrap }
         };
         Grid.SetColumn(question, 1);
