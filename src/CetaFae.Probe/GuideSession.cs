@@ -42,6 +42,7 @@ public sealed class GuideSession : IDisposable
     bool _checkingContext;
     bool _contextCheckPending;
     bool _boundQuestionReady;
+    string? _lastBoundAnswer;
     RegionPicker? _picker;
     string? _pendingIntent;
     readonly bool _preview;
@@ -251,7 +252,11 @@ public sealed class GuideSession : IDisposable
     void ResetRecognition(bool preserveConversation = false)
     {
         DismissChat();
-        if (!preserveConversation) { _questions.Reset(); _followup.Clear(); _understanding.Clear(); _region.Clear(); }
+        if (!preserveConversation)
+        {
+            _questions.Reset(); _followup.Clear(); _understanding.Clear(); _region.Clear();
+            _lastBoundAnswer = null;
+        }
         else { _questions.CancelPending(); _followup.Restore(); }
         _boundQuestionReady = false;
         _activationVersion = null;
@@ -304,7 +309,8 @@ public sealed class GuideSession : IDisposable
             _retryInitialOnResume = false;
             await RecognizeAsync(_ball.BoundTarget, null, null);
         }
-        else ReadyBoundQuestion("已回到这个窗口。你想了解什么？");
+        else ReadyBoundQuestion(_lastBoundAnswer is { } answer
+            ? "上次回答\n" + answer : "已回到这个窗口。你想了解什么？");
     }
 
     Task<bool?> WaitForPresentationAsync(int version, CancellationToken requestToken) =>
@@ -331,7 +337,11 @@ public sealed class GuideSession : IDisposable
 
     void ReadyBoundQuestion(string message, bool preserveConversation = true, bool invalidateRegion = false)
     {
-        if (invalidateRegion) _region.Invalidate();
+        if (invalidateRegion)
+        {
+            _region.Invalidate();
+            _lastBoundAnswer = null;
+        }
         ResetRecognition(preserveConversation);
         if (!_gate.CloudEnabled || !_ball.HasTarget || _ball.BindingSuspended) return;
         _contextVersion = _gate.Begin();
@@ -347,6 +357,7 @@ public sealed class GuideSession : IDisposable
     {
         if (_ball.IsBoundForeground(window, processId))
         {
+            _lastBoundAnswer = null;
             _ball.ConfirmBinding();
             ResetRecognition(preserveConversation: true);
             _ball.SetFailure();
@@ -501,7 +512,11 @@ public sealed class GuideSession : IDisposable
                 if (remaining <= TimeSpan.Zero) throw new OperationCanceledException();
                 await SubmitWindowQuestionAsync(text, remaining);
             }
-            else ReadyBoundQuestion(answer.Reply, preserveConversation: true);
+            else
+            {
+                _lastBoundAnswer = answer.Reply;
+                ReadyBoundQuestion(answer.Reply);
+            }
         }
         catch (Exception ex) when (ex is InvalidDataException or JsonException or HttpRequestException or IOException or OperationCanceledException)
         {
@@ -797,6 +812,7 @@ public sealed class GuideSession : IDisposable
                 _activeFollowup = null;
             }
             resultToken.ThrowIfCancellationRequested();
+            if (intent is not null && answer.Mode != "ask") _lastBoundAnswer = answer.Explanation;
             ProbeLog.Log("guide_result", ("mode", answer.Mode), ("candidates", observation.Candidates.Count),
                 ("observeMs", observeMs), ("modelMs", modelMs), ("totalMs", total.ElapsedMilliseconds),
                 ("withinThreeSeconds", total.ElapsedMilliseconds <= 3000), ("image", _options.IncludeImage));
@@ -992,6 +1008,7 @@ public sealed class GuideSession : IDisposable
     {
         CloseChat();
         _questions.Reset();
+        _lastBoundAnswer = null;
         _ball.HomeClicked -= ToggleChat;
         _ball.FullscreenHidden -= OnFullscreenHidden;
         _ball.LocationChanged -= OnEntryChanged;
