@@ -4,7 +4,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.26**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.27**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
 
 ## Features
 
@@ -79,6 +79,8 @@ Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runt
 
 ## Technical implementation
 
+- **Generic system capability foundation (development API)**: scoped host grants, isolated execution, preconditions, postconditions and encrypted recovery support system/volume facts, bounded directory metadata, files/registry, processes, services/events, connectivity and window/control operations. TS features propose requests without native authority. Generated file/registry/process/loopback paths have automated coverage; native input, service changes and elevation still need dedicated acceptance. Conversation does not automatically dispatch these operations.
+
 - **Windows / C# / WPF / .NET 8**: native window management, preferring PrintWindow and trying system window capture when its image is unusable. Both are bound to the selected window. The fallback may show the Windows capture border.
 - **Host/plugin separation**: the C# host owns UI, consent, generic collection, model transport, trusted validation, persistence and lifecycle. TS plugins own request construction, interpretation/translation/error/follow-up policy and presentation. Matching and scope rules remain declarative. First-party packages have no private execution path.
 - **Image-first understanding, optional controls**: the initial explanation describes the captured view without requiring a complete control tree. Controls assist precise pointing; their absence does not prevent image interpretation. Local software identity remains separate from visual interpretation.
@@ -96,6 +98,8 @@ Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runt
 | `src/CetaFae.Checks` | Executable checks and generated fixtures |
 
 ## Roadmap
+
+- Validate desktop operations, elevation and concurrent-change behavior, then add concrete operation previews, authorization and result confirmation. Give plugins evidence and verifiable actions for completing tasks rather than generic advice. Foundation mechanisms are not a shipped automatic-repair feature.
 
 - Complete consolidated native text-region, binding-switch, settings-recovery and input acceptance; cover single-display125%/150%/200% scaling before mixed-DPI multiple displays.
 - Improve generic understanding, translation and visible-error accuracy and failure recovery.

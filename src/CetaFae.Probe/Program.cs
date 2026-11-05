@@ -10,6 +10,14 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        if (args.SequenceEqual(new[] { "--platform-worker" }))
+        {
+            Task.Run(PlatformWorker.Run).GetAwaiter().GetResult(); return;
+        }
+        if (args.Length == 3 && args[0] == "--platform-elevated-worker")
+        {
+            Task.Run(() => PlatformWorker.RunElevated(args[1], args[2])).GetAwaiter().GetResult(); return;
+        }
         if (args.SequenceEqual(new[] { "--plugin-worker" }))
         {
             PluginWorker.Run();

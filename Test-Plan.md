@@ -1,5 +1,13 @@
 # CetaFae Concentrated Verification Plan
 
+## BASE-01–08 implementation checks (v1.45)
+
+Freeze checks before implementation: strict schema/duplicate/unknown fields; no grant/shell injection; unknown/disabled/expired scopes refuse; sibling/traversal/reparse/credential paths refuse; read/write/copy/move/delete/restore on generated content, missing/existing/conflicting states and damaged recovery material; process identity and request-ID deduplication; cancellation/worker failure never reports successful effects; generated registry roundtrip only under a dedicated test key. Actual file/config effects and postconditions must be exercised, not only mocked.
+
+Verify system facts and owned hidden processes through production host providers. Use production IPC for bounded output/timeout and ordinary self-contained execution, without reading actual user windows. TS independent proposal executes through the same worker/parser, cannot provide scope or invoke an OS API, and remains unavailable to regular chat execution. Preserve existing full Debug/Release checks. Record real failures and keep UI input, elevated helper/UAC, actual service mutations, native provider compatibility and formal performance gates pending until separately authorized and observed.
+
+Preview.27 results are in验证记录.md:77 generated platform checks,2259 full checks in each configuration and4 packaged-worker checks. Remaining acceptance is concentrated: generated-window activation/UIA/value/scroll/raw input/visual point with focus and geometry changes; ordinary-versus-elevated VM file/registry/service cases and UAC cancellation; scope expiry/revocation during effects; other-process path/content/focus races; restore/recovery after crashes; positive scoped event-provider reads; application-specific API adapters; and original resource/latency/release criteria. Use disposable fixture/VM resources, not real documents/settings. Product execution preview/permission/verification UI is a subsequent implementation gate, not an accepted feature of the current broker.
+
 ## System capability discovery (2026-11-05)
 
 Objective: establish a mechanism/privilege envelope before selecting another application/task feature. Follow the assessment in Tech-Spec. This plan is not native acceptance or authority to modify user data; existing screen explanations do not prove execution capability.

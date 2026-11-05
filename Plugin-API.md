@@ -1,6 +1,47 @@
 # TypeScript feature and adapter API
 
-This is the development contract for CetaFae 0.3.1-preview.25. First-party and imported features share the same manifest parser, JSON invocation, restricted ECMAScript interpreter and host validation. It does not imply support for every application or arbitrary Node/npm packages. The C# host owns consent, target selection, capture/accessibility/OCR, credentials, transport, persistence, evidence validation and lifecycle. TypeScript features own request construction, software-help policy and presentation; application adapters also declare matching and local scope rules.
+## Platform capability proposals (development, v1.45)
+
+The host capability broker accepts versioned `{apiVersion:1,id,operation,parameters}` requests. `parameters` is a strict operation-specific JSON object. A TS feature may return `{requests:[...]}` for the explicit `capability-plan` invocation. This is a proposal, never an authorization or automatic tool call. A trusted C# `PlatformScope` separately defines operation IDs, exact roots/objects/targets/endpoints, expiry and elevation permission. No grant, receiver, shell command or executable code is accepted from a proposal. The regular chat/window result validators continue rejecting action-shaped output.
+
+Platform services remain generic host mechanisms; software recipes belong in plugins. Host code resolves permitted targets/candidates, validates scope/preconditions, executes and returns bounded evidence. First/third-party packages use the same parser and invocation. The current conversation UI does not dispatch proposed actions; do not advertise automatic repair from broker availability. SDK types and a separately compiled proposal example document the boundary. See Tech-Spec/Test-Plan BASE-01–08 for implementation and independent native/release gates.
+
+This is the development contract for CetaFae 0.3.1-preview.27. First-party and imported features share the same manifest parser, JSON invocation, restricted ECMAScript interpreter and host validation. It does not imply support for every application or arbitrary Node/npm packages. The C# host owns consent, target selection, capture/accessibility/OCR, credentials, transport, persistence, evidence validation and lifecycle. TypeScript features own request construction, software-help policy and presentation; application adapters also declare matching and local scope rules.
+
+The independent executable example is [example.capabilities](examples/plugins/example.capabilities/plugin.ts):
+
+```powershell
+node tools/build-plugins.mjs --plugin examples/plugins/example.capabilities/plugin.json --out .artifacts/example.capabilities.json
+dotnet run --project src/CetaFae.Checks -c Debug -- --platform-only
+```
+
+Invoke explicitly with `capability-plan` and `{capabilityIntent:"inspect-file",selectedFile:"<host-selected absolute path>"}`. It proposes one `file.info` call. Passing a path/importing/enabling this example grants no file access; ordinary chat rejects this result shape. The C# host separately constructs `PlatformSession(scope,journal)` and calls `ExecuteAsync(request,token,elevated:false)`. Never derive a scope from a proposal. Reuse an ID only to retrieve that session's original receipt, not to retry an uncertain action.
+
+| Operation | Required parameters |
+|---|---|
+| `system.info`, `storage.list` | Empty object |
+| `file.info/list/readText`, `directory.scan` | `path`; scan is metadata-only,2000 entries/depth6 with incomplete/skipped reporting |
+| `file.write` | `path`, `text`, `expectedHash` |
+| `file.delete` | `path`, `expectedHash` |
+| `file.copy/move` | `source`, `destination`, `sourceHash`, `expectedHash` |
+| `recovery.restore` | `recoveryId` from a receipt |
+| `registry.read` | `key` (`HKCU\\...`/`HKLM\\...`), `name` |
+| `registry.write` | `key`, `name`, `text`, `expectedHash` |
+| `registry.delete` | `key`, `name`, `expectedHash` |
+| `process.inspect/stop` | `processId` resolved against host PID/start-time lease |
+| `process.start` | `executable`, `arguments` string array; exact host grant required |
+| `service.inspect/start/stop` | `service` |
+| `events.query` | `log`, `minutes` (1–1440), `limit` (1–20) |
+| `network.resolve/connect` | `host`, `port` |
+| `window.inspect/activate` | `windowId` resolved by host |
+| `ui.invoke/click` | `windowId`, `controlId` resolved by host |
+| `ui.point` | `windowId`, `pointId`; host-supplied visual point and pinned window frame, no coordinates in the proposal |
+| `ui.setValue` | `windowId`, `controlId`, `text` |
+| `ui.scroll` | `windowId`, `controlId`, `direction` (`up`/`down`) |
+| `ui.text` | `windowId`, `text`; explicit raw-input grant, selected window must be foreground; does not require UIA |
+| `ui.key` | `windowId`, `key` (`Enter/Escape/Tab/Left/Up/Right/Down`) |
+
+Unknown/duplicate fields are rejected. Hashes are uppercase SHA-256 of returned state; `missing` is an explicit absent-value/file precondition. Receipt: `id,status,code,evidence?,recoveryId?,replayed`. Status: `observed`, `verified`, `dispatched`, `denied`, `failed`, `outcome_unknown`. Dispatched input never proves task success. Unknown effects require inspection, not a new-ID blind retry. Native/elevated execution is not authorized by model text or plugin enablement. Provider limits and remaining race/compatibility gates are in Tech-Spec.
 
 ## Install, update and remove
 

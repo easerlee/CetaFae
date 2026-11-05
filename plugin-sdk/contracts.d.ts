@@ -13,6 +13,8 @@ interface Identification {
   kind: string; state: string | null; nextCheck: string | null;
 }
 interface PluginInput {
+  capabilityIntent?: string;
+  selectedFile?: string;
   identifyWindow?: boolean;
   interpretationPolicy?: InterpretationPolicy | null;
   context?: JsonValue;
@@ -33,5 +35,7 @@ interface PluginInput {
 }
 interface PluginRequest { apiVersion: 1; operation: string; input: PluginInput }
 type PluginResult = { messages: Message[] } | { mode: string; explanation: string; candidateId: null }
-  | { text: string } | { query: string | null };
+  | { text: string } | { query: string | null } | { requests: PlatformRequest[] };
+/** Proposal only. The host supplies a separate expiring resource grant and verifies the operation. */
+interface PlatformRequest { apiVersion: 1; id: string; operation: string; parameters: { [key: string]: JsonValue } }
 declare function handle(request: PluginRequest): PluginResult;

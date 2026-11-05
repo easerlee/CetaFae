@@ -9,6 +9,8 @@ internal sealed record FeatureMessage(string Role, string Content);
 /// <summary>Host trust boundary: packages propose business data, never transport or native authority.</summary>
 internal static class GuideFeature
 {
+    internal static async Task<IReadOnlyList<PlatformRequest>> CapabilitiesAsync(GuidePlugin plugin, object input, CancellationToken token = default) =>
+        PlatformRequest.ParseProposal(await InvokeAsync(plugin, "capability-plan", input, token));
     internal static PluginCatalog DefaultCatalog() => PluginCatalog.Load(Path.Combine(AppContext.BaseDirectory, "plugins"));
     internal static GuidePlugin Select(PluginCatalog catalog, GuidePlugin? adapter = null) =>
         adapter?.Program is not null ? adapter : catalog.GeneralProvider is { Program: not null } provider ? provider :

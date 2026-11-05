@@ -40,5 +40,6 @@ if (args.length === 4 && args[0] === "--plugin" && args[2] === "--out") {
   const catalog = JSON.parse(fs.readFileSync(path.join(root, "plugins/catalog.json"), "utf8"));
   for (const id of catalog.enabled) build(path.join(root, "plugins", id, "plugin.json"), path.join(out, id, "plugin.json"), true);
   build(path.join(root, "examples/plugins/example.chat/plugin.json"), path.join(out, "example.chat.json"));
+  build(path.join(root, "examples/plugins/example.capabilities/plugin.json"), path.join(out, "example.capabilities.json"));
   fs.copyFileSync(path.join(root, "plugins/catalog.json"), path.join(out, "catalog.json"));
 } else throw new Error("Usage: node tools/build-plugins.mjs [--plugin manifest.json --out package.json]");

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 7,
+  "kind": "chat",
+  "id": "example.capabilities",
+  "version": "0.1.0",
+  "displayName": "Example scoped file inspection proposal",
+  "targets": [],
+  "uiaView": "control",
+  "taskIds": [],
+  "blockedPoints": []
+}

@@ -12,5 +12,6 @@
     <ProjectReference Include="../CetaFae.Probe/CetaFae.Probe.csproj" />
     <Content Include="../../examples/plugins/example.editor.json" Link="examples/example.editor.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../.artifacts/plugin-build/example.chat.json" Link="examples/example.chat.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../.artifacts/plugin-build/example.capabilities.json" Link="examples/example.capabilities.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

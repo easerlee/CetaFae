@@ -123,6 +123,11 @@ public static class Program
 
     static async Task RunAsync(string[] args)
     {
+        await PlatformChecks.RunAsync(Check);
+        if (args.Contains("--platform-only"))
+        {
+            Console.WriteLine($"RESULT: {_passed} platform checks passed. Desktop, real model and elevation: NOT RUN."); return;
+        }
         if (args.Contains("--plugin-programs"))
         {
             TypeScriptPluginChecks.Run(Check);
