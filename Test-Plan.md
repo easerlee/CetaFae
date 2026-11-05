@@ -1,5 +1,28 @@
 # CetaFae Concentrated Verification Plan
 
+## System capability discovery (2026-11-05)
+
+Objective: establish a mechanism/privilege envelope before selecting another application/task feature. Follow the assessment in Tech-Spec. This plan is not native acceptance or authority to modify user data; existing screen explanations do not prove execution capability.
+
+### Evidence rules
+
+- Label every cell separately: documented platform path, source implementation, generated fixture pass/fail, native integration pass/fail, or not tested. Never convert a simulator response/documented API into a native pass.
+- Record OS build, executable/build identity, actual token elevation/integrity, desktop/session, target identity, operation/scope, expected/actual postcondition, error category, cleanup and evidence location. Do not record secrets/private content.
+- A terminal/helper proof establishes only its own token. Repeat in the packaged host harness before claiming product support. Ordinary and elevated runs are separate cells.
+- Complete each phase with evidence-backed results, including genuine denied/unsupported outcomes. A blanket refusal cannot pass a positive case; an unavailable environment stays pending.
+
+### Stages
+
+1. **Source/platform inventory — assessed, runtime pending.** Cover observation, input, files/configuration, system facts/logs, processes/services, application APIs, multi-target work, elevation and verification. Separate voluntary restrictions and freeze expected positive/negative outcomes before executing.
+2. **Headless generated baseline — partial terminal evidence, packaged host pending.** On 2026-11-05, 13 generated checks passed with the terminal's administrator role not enabled: file create/read/copy/move/append/backup restore/exclusive-lock refusal/enumeration/delete, workspace-volume metadata, own-process metadata, owned hidden child IPC/query/stop and cleanup. Evidence: `.artifacts/checks/system-capability-20261105-201041/baseline.json`. The report records grouped checks, not 13 independent Windows permission categories. No desktop/network/registry/user-data access or installed-product test. Read-only/missing/changed files, links escaping scope, interruption, scoped registry/event fixtures and actual host-token/integrity comparison remain pending. Use only generated files within a resolved fixture root and a dedicated temporary HKCU key for later authorized registry tests. Unexpected effects/failed cleanup fail the run.
+3. **Interactive mechanism lab — pending; desktop consent required.** Owned Win32/WPF/custom-drawn windows: selected-window/region capture without overlapping-window leakage; provider-supported UIA read/invoke/value; mouse/keyboard/scroll; activation accepted/denied, focus stolen mid-action, cancellation, navigation, stale/reused target. Independently verify fixture events/object values, not API returns or model claims. Include 100/125/150/200% DPI and mixed-DPI/negative-coordinate monitors where available. Record the residual system-wide SendInput race rather than promise atomic target-specific input.
+4. **Privilege boundary lab — pending; VM/elevation consent required.** Ordinary-to-ordinary, ordinary-to-elevated, elevated-to-elevated, allowed/denied file/key ACLs, service query versus changes, UAC accepted/cancelled/missing credentials, protected capture and target exit. Use reversible generated services/configuration only inside a disposable snapshotted VM. Do not alter real system services, credential stores or another user's data. Secure desktop/protected processes remain explicit unsupported/unverified cases absent a separately justified supported path. UIAccess is optional deployment research, not a default requirement.
+5. **Application interfaces and task continuity — pending.** Generated object/API provider and multiple owned windows; preserve task state while selecting correct targets/resources. Test missing API/UIA, stale objects, unsaved state, unavailable provider and remote authorization refusal. Only afterward sample real UI frameworks/apps to estimate compatibility; no app-name host branch.
+6. **Action verification/recovery — pending.** Explicit pre/postconditions; duplicate requests, retry after unknown outcome, cancellation before/during/after effects, target/path replacement, permission changes, worker death and partial application. Separate reversible transactions from irreversible UI/network effects. Preserve recovery material on failure. Snapshot hashes do not prove editor consistency or TC-3; power interruption belongs in a VM.
+7. **Measured capability conclusion — pending.** State which normal/elevated operations actually work, which host mechanisms are missing, which providers are incompatible, and which OS/deployment boundaries remain. Then choose product exposure and revise requirements/API contracts for adopted actions. No permanent service, plugin OS bridge or blanket administrator startup is released by this assessment.
+
+Required outputs: capability inventory in Tech-Spec, this plan with evidence-linked status updates, actual failures/results in `验证记录.md`, and a measured conclusion. Fixtures/raw metadata belong in ignored `.artifacts`. Start with mechanisms, not a real cleanup task or another per-software adapter.
+
 ## Region explanation and translation continuity (v1.42)
 
 1. Freeze a failing literal-multiplicity case and same-target region continuation before implementation. Original and translated repeated codes/values must match counts, not just distinct sets; changed/missing/added literals, unsupported language, unsafe text, oversized output and unauthorized policy remain refused.

@@ -1,5 +1,69 @@
 # Selected-Window Guidance: Implementation Specification
 
+## System capability assessment (2026-11-05)
+
+Establish the platform ceiling before selecting another application/task feature. The incidental low-disk-space question is not a roadmap decision. This is a source/platform assessment and discovery design, not native verification of the possibilities below. Requirements v1.44 remains the shipping baseline; adoption of execution/diagnostic features needs subsequent requirements and contract changes.
+
+### Four independent boundaries
+
+1. **OS access:** can this process token access this object on this desktop/session under its ACLs and policy?
+2. **Implementation/compatibility:** does the host implement a supported mechanism, and does the target expose the interface or usable pixels?
+3. **Task evidence:** is there enough information to choose an operation and independently verify its outcome? Access and model confidence do not establish this.
+4. **Product exposure:** what operations and scope should be available to users/plugins? A voluntary refusal is not proof of an OS limit.
+
+A window handle identifies a window; it does not grant file, process-control, internal document-model or administrator access. Installer consent does not replace an elevated Windows token or an application's login. Conversely, ordinary desktop programs already have substantial current-user access without a separate OS permission dialog for every file/window.
+
+### Platform envelope versus current source
+
+Every platform path is conditional on the actual token, object rights, OS build and target. "Missing" below means no generic product service/contract was found; own-file/own-worker maintenance is not such a service.
+
+| Capability | Available mechanism and boundary | Current implementation |
+|---|---|---|
+| Window identity and lifecycle | HWND/process queries; some process metadata can be denied. Identity is not application state. | Selected-target metadata, bounds, identity and lifetime checks. |
+| Images and visible text | PrintWindow, HWND-based WGC, OCR; provider/rendering/protection and desktop/session affect capture. Minimized/hidden windows need separate freshness tests. | PrintWindow first, WGC fallback; selected-window only; rejects minimized/unavailable/protected targets and requires foreground for collection. |
+| Semantic controls | UIA/MSAA where providers expose them; lack of controls does not block all image understanding. | Best-effort privacy/observation and UIA/OCR candidates; no general control-action service. |
+| Activation and UI interaction | Foreground APIs, UIA Invoke/Value/Scroll patterns, SendInput. Focus, layout/DPI and integrity levels constrain success. | Activation request plus actual foreground confirmation. Generic click/type/scroll action contract missing. |
+| Files and folders | Enumerate/read/create/copy/move/delete where ACLs allow; locks, links, encryption and concurrent changes remain relevant. | Own preferences/history/log/package storage; user-file inspection/transaction service missing. |
+| System facts and diagnostics | Supported .NET/Win32/CIM interfaces, resource counters, scoped application/Windows logs. Provider and channel access vary. | Limited identity and own-process diagnostics; general product evidence collection missing. |
+| Configuration | User-owned files/HKCU often accessible; protected files/keys/settings require appropriate rights or a different API. | Own configuration only; general registry/configuration service missing. |
+| Processes and services | Query/start/stop depend on object access rights. Service query, control and reconfiguration are different permissions. | Own-worker/installer-instance handling; generic process/service operations missing. |
+| Network and remote services | Local status/DNS/connectivity queries and supported HTTP APIs; remote authentication and network policy are independent. | Configured model transport/bounded identity references, not general network diagnosis or remote account control. |
+| Application objects/documents | Official APIs/COM/extensions when available; UI otherwise. No universal HWND-to-document/database API; unsaved state can differ from disk. | General object bridge missing; conditional WPS writes remain behind TC-3. |
+| Cross-window tasks | Windows permits multiple targets; scope, target identity and task continuity are host engineering concerns. | Single-target binding/return continuity, no task-wide multi-target or background collection contract. |
+| Elevated operations | Separately elevated helper can access permitted system resources/high-integrity UI; UAC and object rights still apply. | asInvoker/uiAccess=false; elevated targets explicitly refused; elevation broker missing. |
+| Verification and recovery | Re-read actual state against explicit postconditions; use operation-specific recovery where possible. Some effects cannot be undone. | Observation/marker checks and own-file atomic saves, no generic action receipt/journal/recovery engine. |
+
+Source anchors: `src/CetaFae.Probe/app.manifest`; `installer/CetaFae.iss` (lowest privileges/current-user installation); `Native.IsNonElevated`; target selection/activation in `GuideSession`; `GuideObservation.Read`; `Capture.ReadTarget`/`WithWindowFallback`; `WindowCapture.ReadAsync`; `ObservationWorker`; `PluginWorker`; `InstallationAgreement`; `Plugin-API.md`. Current source, including capture order, takes precedence over historical notes. No product success is inferred from Codex terminal capabilities.
+
+### Privilege ceiling
+
+- **Ordinary current-user process:** a broad foundation is possible: observe compatible windows, query permitted system facts, interact with equal/lower-integrity UI, access permitted files and invoke supported application APIs. Running under an administrator account does not mean the process is elevated.
+- **On-demand elevated helper:** expands many system-file/configuration/service and high-integrity interaction paths. It is not unrestricted access to every object. Keep ordinary UI/plugins unelevated; prototype a bounded helper before choosing a persistent service.
+- **UIAccess:** a distinct accessibility route with signing, secure installation and eligibility requirements, not a universal automation flag or administrative filesystem permission. The current development installation does not establish this route. Do not choose it merely to defeat foreground restrictions.
+- **No blanket promise:** secure-desktop UAC/login UI, protected processes/capture, other-user data, encrypted data without keys, remote-account authority and unexposed application internals are not granted by ordinary desktop consent or by merely launching as admin. Specialized supported integrations require separate evidence; do not bypass protections to make a test pass.
+- **Not fixed by elevation:** custom-drawn controls, unavailable pixels, wrong coordinates, missing app APIs, insufficient diagnostic evidence, model timeout and incorrect reasoning remain distinct compatibility/knowledge failures.
+
+Windows access is per token/object/operation; there is no single portable "full permission" switch. No whole-computer success percentage follows from a few screen demos. Measure mechanisms across privilege and compatibility classes instead.
+
+### Base/plugin direction after discovery
+
+Prototype generic Windows mechanisms in a generated-data lab, independently of app recipes. Keep Windows access, scope enforcement and trusted verification in the C# host; keep software/task policy in TS plugins. Do not expose raw shell, CLR objects, handles or administrator tokens to the existing JSON interpreter.
+
+If execution is adopted, define a versioned host capability contract: named operation, typed parameters, exact resource scope, required privilege, precondition, cancellation/deadline and observable postcondition. Plugins propose requests through the same first/third-party interface; the host resolves authority and returns structured evidence/status. Prefer native/supported application APIs; fixed host tools with validated arguments may supplement them, rather than running arbitrary model-generated commands.
+
+Distinguish unsupported mechanism, access denied, elevation required/declined, stale target, busy provider, timeout/cancelled, completed-and-verified, attempted-but-unverified and partial-effects/recovery-needed. API success is not task completion; cancellation cannot undo effects already applied.
+
+Current no-automation/background/multi-target restrictions and C-2/FR-06/07/11/TC-3 snapshot/transaction gates are product/release decisions. They cannot be used to establish Windows limits. Universal rollback is not truthful for arbitrary clicks, remote actions or process termination. Record this conflict before adopting broader execution requirements; this assessment does not silently remove current gates.
+
+### Official references
+
+- [Access control](https://learn.microsoft.com/en-us/windows/win32/secauthz/access-control-model), [file rights](https://learn.microsoft.com/en-us/windows/win32/fileio/file-security-and-access-rights), [process rights](https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights), [service rights](https://learn.microsoft.com/en-us/windows/win32/services/service-security-and-access-rights).
+- [UAC and tokens](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/user-account-control/how-it-works), [UIA security/UIAccess](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-securityoverview).
+- [UIA patterns](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-controlpatternsoverview), [SendInput/UIPI](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput), [foreground restrictions](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow).
+- [Capture support](https://learn.microsoft.com/en-us/windows/apps/develop/media-authoring-processing/screen-capture), [capture exclusion](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity), [event queries](https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events).
+
+These establish documented paths/constraints, not successful runs on this computer. The discovery stages and pending native cells are in Test-Plan.
+
 ## Region explanation and translation continuity (v1.42)
 
 Reuse FR-18/AC-21 interpretation policy, the existing picker, crop-only payload, ordinary explanation and structured translation. A small session-owned region boundary stores only target identity, window frame and integer region; no pixels or raw text. Successful explicit selection constrains subsequent image requests, including follow-up and clarification paths. Revalidate before collection; stale geometry or invalidated page/content/suspension requires selection rather than null/whole-window fallback. Full end/rebind clears it. An invalidated boundary remains restrictive until explicit replacement; ordinary text routing can still answer from clearly historical conversation. Keep the existing picker available after regional results and on retry. Fresh crop and result validation remain mandatory; no automatic capture.
