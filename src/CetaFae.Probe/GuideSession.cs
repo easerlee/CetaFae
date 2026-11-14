@@ -77,6 +77,10 @@ public sealed partial class GuideSession : IDisposable
         _panel.Card.Dismissed += () => _taskStop?.Cancel();
         _panel.AnswerSubmitted += OnAnswerSubmitted;
         _ball.AnswerSubmitted += OnAnswerSubmitted;
+        _ball.Prompt.ImagesAllowed = !preview && options.IncludeImage && _plugins.ChatProvider is not null;
+        _ball.Prompt.Attachment.SetReceiver(options.BaseUrl);
+        _ball.Prompt.ImageSubmitted += OnBoundImageSubmitted;
+        _ball.Prompt.Attachment.Changed += OnAttachmentChanged;
         _ball.HomeClicked += ToggleChat;
         _panel.RegionRequested += OnRegionRequested;
         _panel.FollowupRequested += OnFollowupRequested;
@@ -130,7 +134,8 @@ public sealed partial class GuideSession : IDisposable
             existing.Input.Focus();
             return;
         }
-        var capsule = new FreeChatWindow { Owner = _ball };
+        var capsule = new FreeChatWindow { Owner = _ball, ImagesAllowed = _options.IncludeImage };
+        capsule.Attachment.SetReceiver(_options.BaseUrl);
         _chatWindow = capsule;
         if (_chatHistory.Load())
         {
@@ -142,6 +147,11 @@ public sealed partial class GuideSession : IDisposable
         if (!_gate.CloudEnabled)
             capsule.SetStatus("已停止联网。仍可查看和清扫本机对话，重新使用联网功能须通过安装程序确认协议。");
         capsule.Submitted += text => SubmitChat(capsule, text);
+        capsule.ImageSubmitted += (text, image) => SubmitChat(capsule, text, image);
+        capsule.AttachmentChanged += () =>
+        {
+            if (_chatWindow == capsule) capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
+        };
         capsule.ClearRequested += () =>
         {
             if (_chatWindow != capsule) return;
@@ -175,7 +185,7 @@ public sealed partial class GuideSession : IDisposable
         capsule.Show();
     }
 
-    async void SubmitChat(FreeChatWindow capsule, string text)
+    async void SubmitChat(FreeChatWindow capsule, string text, ChatImage? image = null)
     {
         if (_chatWindow != capsule || !_gate.CloudEnabled) return;
         var version = ++_chatVersion;
@@ -183,9 +193,10 @@ public sealed partial class GuideSession : IDisposable
         capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
         try
         {
-            var turn = await _chat.SubmitAsync(text);
+            var turn = await _chat.SubmitAsync(text, respond: ImageReply(image));
             if (_chatWindow == capsule && _chatVersion == version && turn is not null)
             {
+                capsule.Attachment.SetImage(null);
                 capsule.ShowTurn(turn);
                 if (!_chatHistory.Append(turn))
                     capsule.SetStatus("这次问答暂时无法保存到本机，之前的记录没有被覆盖。");
@@ -470,8 +481,14 @@ public sealed partial class GuideSession : IDisposable
         if (_chatWindow is { IsVisible: true } capsule) capsule.Place(_ball.FeedbackBounds, _ball.Workspace);
     }
 
+    void OnAttachmentChanged()
+    {
+        if (_panel.IsVisible && _ball.HasTarget) _panel.Reposition();
+    }
+
     bool IsInputForeground(IntPtr window) =>
-        (window == _panel.Handle && _panel.IsSessionInteraction || window == _ball.Handle && _ball.IsSessionInteraction) &&
+        (window == _panel.Handle && _panel.IsSessionInteraction || window == _ball.Handle && _ball.IsSessionInteraction ||
+        _ball.Prompt.Attachment.OwnsForeground(window, _ball.Handle)) &&
         ((_context is not null || _boundQuestionReady) && _gate.Accepts(_contextVersion) || _followup.WaitingForUser && _gate.Accepts(_followupVersion));
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
@@ -481,7 +498,18 @@ public sealed partial class GuideSession : IDisposable
         _activationVersion is { } version && _gate.Accepts(version) &&
         (window == IntPtr.Zero || window == _activationSource);
 
-    async void OnAnswerSubmitted(string text)
+    void OnAnswerSubmitted(string text) => SubmitBoundChat(text);
+
+    void OnBoundImageSubmitted(string text, ChatImage image) => SubmitBoundChat(text, image);
+
+    Func<IReadOnlyList<ChatTurn>, string, CancellationToken, Task<string?>>? ImageReply(ChatImage? image)
+    {
+        if (image is null) return null;
+        return async (history, question, token) =>
+            (await _model.ConverseAsync(history, question, false, token, image: image)).Reply;
+    }
+
+    async void SubmitBoundChat(string text, ChatImage? image = null)
     {
         if (_plugins.ChatProvider is null)
         {
@@ -509,7 +537,7 @@ public sealed partial class GuideSession : IDisposable
         var elapsed = Stopwatch.StartNew();
         try
         {
-            var answer = await _questions.SubmitAsync(text, request.Token);
+            var answer = await _questions.SubmitAsync(text, request.Token, ImageReply(image));
             var remaining = _options.Timeout - elapsed.Elapsed;
             if (answer is null || await WaitForPresentationAsync(version, request.Token) is null) return;
             _routingVersion = null;
@@ -529,8 +557,15 @@ public sealed partial class GuideSession : IDisposable
         catch (Exception ex) when (ex is InvalidDataException or JsonException or HttpRequestException or IOException or OperationCanceledException)
         {
             if (await WaitForPresentationAsync(version, request.Token) is not null)
+            {
                 ReadyBoundQuestion(ex is InvalidDataException { Message: "chat_question" }
                     ? "请用一行文字提问，最多300字。" : FailureMessage(ex), preserveConversation: true);
+                if (image is not null && _ball.Prompt.CanAnswer)
+                {
+                    _ball.Prompt.Answer.Text = text;
+                    _ball.Prompt.Attachment.SetImage(image);
+                }
+            }
         }
         finally
         {
@@ -1033,6 +1068,8 @@ public sealed partial class GuideSession : IDisposable
         _ball.AllowsForeground = null;
         _panel.AnswerSubmitted -= OnAnswerSubmitted;
         _ball.AnswerSubmitted -= OnAnswerSubmitted;
+        _ball.Prompt.ImageSubmitted -= OnBoundImageSubmitted;
+        _ball.Prompt.Attachment.Changed -= OnAttachmentChanged;
         _panel.RegionRequested -= OnRegionRequested;
         _panel.FollowupRequested -= OnFollowupRequested;
         _activeFollowup = null;

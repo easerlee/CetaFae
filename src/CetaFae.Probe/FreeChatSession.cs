@@ -11,7 +11,8 @@ internal sealed class FreeChatSession(Func<IReadOnlyList<ChatTurn>, string, Canc
     readonly List<ChatTurn> _history = [];
     CancellationTokenSource? _pending;
 
-    internal async Task<ChatTurn?> SubmitAsync(string input, CancellationToken lifetime = default)
+    internal async Task<ChatTurn?> SubmitAsync(string input, CancellationToken lifetime = default,
+        Func<IReadOnlyList<ChatTurn>, string, CancellationToken, Task<string?>>? respond = null)
     {
         if (_pending is not null) return null;
         var question = input.Trim();
@@ -24,7 +25,7 @@ internal sealed class FreeChatSession(Func<IReadOnlyList<ChatTurn>, string, Canc
         try
         {
             request.Token.ThrowIfCancellationRequested();
-            var answer = await reply(_history.ToArray(), question, request.Token).WaitAsync(request.Token);
+            var answer = await (respond ?? reply)(_history.ToArray(), question, request.Token).WaitAsync(request.Token);
             if (request.IsCancellationRequested) return null;
             return answer is null ? new ChatTurn(question, "", RequiresWindow: true) : Remember(question, answer);
         }

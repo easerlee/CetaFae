@@ -78,7 +78,8 @@ public sealed class BallWindow : Window
     public IntPtr Handle => _hwnd;
     public Rect InteractionBounds => new(Left, Top, Width, Height);
     internal Rect FeedbackBounds => _target != IntPtr.Zero && Width > WhaleVisual.CanvasSize
-        ? new Rect(Left, Top + WhalePrompt.BodyTop(Height, TopAttached), Width, WhalePrompt.BodyHeight)
+        ? new Rect(Left, Top + WhalePrompt.BodyTop(Height, TopAttached), Width,
+            TopAttached && _prompt.Attachment.Preview.Visibility == Visibility.Visible ? WhalePrompt.HeightDip : WhalePrompt.BodyHeight)
         : InteractionBounds;
     public bool IsAnswering => _inline && _prompt.CanAnswer && IsActive;
     public bool IsSessionInteraction => _target != IntPtr.Zero && IsActive;

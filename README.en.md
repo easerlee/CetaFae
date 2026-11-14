@@ -4,7 +4,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.28**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. The first bounded inspection/file tasks are available with host previews and verification. Native desktop actions remain manual. Release acceptance is pending; this repository is private.
+> Current development build: **0.3.1-preview.29**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. The first bounded inspection/file tasks are available with host previews and verification. Native desktop actions remain manual. Release acceptance is pending; this repository is private.
 
 ## Features
 
@@ -24,6 +24,7 @@ Drag a small whale onto a window to understand what it is, interpret its current
 - **User-led error solutions**: briefly summarize the problem and prioritize one low-risk solution when the available facts support it, including save-first precautions when needed. Ask one necessary question when context is missing. Report the outcome to continue with fresh window evidence and adjusted advice, rather than repeating a failed step. No guaranteed fix, raw error dump, hidden log/process inspection or automatic action; consequential changes require explaining the risks and clarifying intent.
 - **Multi-step guidance in one window**: retain the user goal and four recent text steps. Ask directly after a result, or act yourself before submitting the next question. Current-state questions recheck the selected window; completion requires current evidence rather than a user's claimed action. Page changes and temporary foreground switches clear stale markers while preserving the goal; ending the session clears it. Bounded to eight steps, with native multi-step acceptance pending.
 - **Plugin-based capabilities**: first-party chat, window understanding, error help, translation and follow-up policy run as TypeScript plugins through the same invocation boundary as third-party features. Import, update, enable/disable and remove local packages in Settings. Imports start disabled for review and save; conflicts never resolve by load order. Programs run in restricted disposable processes, without arbitrary Node/npm, file or network APIs.
+- **Ask with an image**. Use the plus button in either composer to choose or paste one image, or press Ctrl+V in the editor. Preview or remove it before sending. The selected image goes to the configured vision service with the current message. Subsequent turns use text history. JPG, PNG and BMP are supported when image recognition is enabled.
 - **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
 
 Representative human-tested flows include locating an Edge download toggle, explaining paused Windows Update status, finding the WinRAR extraction destination, and interpreting generated Notepad text within a selected region. These examples do not establish complete application support or full regression coverage of the latest source.

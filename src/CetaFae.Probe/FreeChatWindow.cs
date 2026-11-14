@@ -38,6 +38,8 @@ internal sealed class FreeChatWindow : Window
     bool _sendingAllowed = true;
     bool _started;
     internal event Action<string>? Submitted;
+    internal event Action<string, ChatImage>? ImageSubmitted;
+    internal event Action? AttachmentChanged;
     internal event Action? Dismissed;
     internal event Action? Cleared;
     internal event Action? ClearRequested;
@@ -48,6 +50,8 @@ internal sealed class FreeChatWindow : Window
     internal ScrollViewer Transcript => _transcript;
     internal StackPanel Waiting => _waiting;
     internal TaskActionSurface TaskActions { get; } = new();
+    internal ChatAttachment Attachment { get; }
+    internal bool ImagesAllowed { get; set; } = true;
     internal bool ChoosingTaskResource { get; set; }
 
     internal FreeChatWindow()
@@ -88,6 +92,11 @@ internal sealed class FreeChatWindow : Window
         DockPanel.SetDock(_clear, Dock.Right);
         row.Children.Add(_clear);
         var inputRow = new DockPanel();
+        Attachment = new ChatAttachment(_input);
+        DockPanel.SetDock(Attachment.Add, Dock.Left);
+        inputRow.Children.Add(Attachment.Add);
+        Attachment.Preview.Margin = new Thickness(0, 0, 0, 5);
+        Attachment.Changed += () => { UpdateSend(); AttachmentChanged?.Invoke(); };
         _transcript = new ScrollViewer { Content = _turns, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         for (var index = 0; index < 3; index++)
@@ -111,12 +120,13 @@ internal sealed class FreeChatWindow : Window
         editor.Children.Add(_hint);
         inputRow.Children.Add(editor);
         row.Children.Add(new Border { Child = inputRow, Height = InputHeight, Background = Brushes.White,
-            CornerRadius = new CornerRadius(InputRadius), Padding = new Thickness(12, 0, 4, 0) });
+            CornerRadius = new CornerRadius(InputRadius), Padding = new Thickness(5, 0, 4, 0) });
         body.Children.Add(_transcriptSurface);
         _statusSurface = new Border { Child = _status, Background = Brushes.White, CornerRadius = new CornerRadius(InputRadius),
             Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 0, 0, 6) };
         body.Children.Add(_statusSurface);
         body.Children.Add(TaskActions);
+        body.Children.Add(Attachment.Preview);
         body.Children.Add(row);
         Content = new Border { Child = body, Background = GuideTheme.WhaleBlue,
             CornerRadius = new CornerRadius(OuterRadius), Padding = new Thickness(FramePadding) };
@@ -133,9 +143,9 @@ internal sealed class FreeChatWindow : Window
             e.Handled = true;
             Dismiss();
         };
-        Deactivated += (_, _) => { if (IsVisible && !ChoosingTaskResource) Dismiss(); };
+        Deactivated += (_, _) => { if (IsVisible && !ChoosingTaskResource && !Attachment.Active) Dismiss(); };
         Loaded += (_, _) => _input.Focus();
-        Closed += (_, _) => SetWaiting(false);
+        Closed += (_, _) => { SetWaiting(false); Attachment.Cancel(); };
         SetStatus(null);
     }
 
@@ -152,6 +162,7 @@ internal sealed class FreeChatWindow : Window
         _transcriptSurface.Visibility = Visibility.Collapsed;
         _transcript.ScrollToTop();
         _input.Clear();
+        Attachment.Cancel();
         _hint.Text = "输入你的问题";
         _started = false;
         SetStatus(null);
@@ -172,6 +183,8 @@ internal sealed class FreeChatWindow : Window
         var bottom = Math.Min(work.Bottom, position.Y + inputFrameHeight);
         var available = Math.Min(ConversationMaxHeight, bottom - work.Top);
         var fixedHeight = inputFrameHeight;
+        if (Attachment.Preview.Visibility == Visibility.Visible)
+            fixedHeight += Attachment.Preview.Height + Attachment.Preview.Margin.Bottom;
         if (TaskActions.Visibility == Visibility.Visible)
         {
             TaskActions.Measure(new Size(Math.Max(1, Width - FramePadding * 2), double.PositiveInfinity));
@@ -207,8 +220,9 @@ internal sealed class FreeChatWindow : Window
 
     void Submit()
     {
-        if (_busy || !_sendingAllowed || string.IsNullOrWhiteSpace(_input.Text)) return;
-        Submitted?.Invoke(_input.Text);
+        if (!_send.IsEnabled) return;
+        if (Attachment.Image is not { } image) Submitted?.Invoke(_input.Text);
+        else ImageSubmitted?.Invoke(string.IsNullOrWhiteSpace(_input.Text) ? ChatAttachment.DefaultQuestion : _input.Text, image);
     }
 
     internal void SetStatus(string? message, bool busy = false)
@@ -242,12 +256,14 @@ internal sealed class FreeChatWindow : Window
     void UpdateSend()
     {
         _hint.Visibility = _input.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        _send.IsEnabled = _sendingAllowed && !_busy && !string.IsNullOrWhiteSpace(_input.Text);
+        Attachment.Add.IsEnabled = _sendingAllowed && !_busy && ImagesAllowed;
+        _send.IsEnabled = _sendingAllowed && !_busy && (!string.IsNullOrWhiteSpace(_input.Text) || Attachment.Image is not null);
     }
 
     internal void SetSendingAllowed(bool allowed)
     {
         _sendingAllowed = allowed;
+        if (!allowed) Attachment.Cancel();
         _input.IsReadOnly = _busy || !allowed;
         UpdateSend();
     }

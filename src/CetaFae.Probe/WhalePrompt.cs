@@ -19,12 +19,12 @@ internal sealed class WhalePrompt : Border
     internal const double BodyHeight = 36;
     internal static double BodyTop(double hostHeight, bool topAttached) =>
         topAttached ? 0 : Math.Max(0, (hostHeight - HeightDip) / 2) + HeightDip - BodyHeight;
-    internal const double InputLeft = 26;
+    internal const double InputLeft = 36;
     readonly Grid _body;
     internal readonly TextBox Answer = new() { MaxLength = 300, AcceptsReturn = false, BorderThickness = new Thickness(0),
         Background = Brushes.Transparent, Padding = new Thickness(0), VerticalContentAlignment = VerticalAlignment.Center,
         Foreground = GuideTheme.Ink, CaretBrush = GuideTheme.WhaleBlue,
-        FontSize = 13, MinWidth = 60, ToolTip = "点击输入，按 Enter 回答；最多300字" };
+        FontSize = 13, ToolTip = "点击输入，按 Enter 回答；最多300字" };
     readonly TextBlock _hint = new() { Text = "正在识别当前窗口…", VerticalAlignment = VerticalAlignment.Center,
         FontSize = 12, Foreground = GuideTheme.Muted, Margin = new Thickness(6, 0, 0, 0),
         IsHitTestVisible = false, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -32,10 +32,13 @@ internal sealed class WhalePrompt : Border
     internal readonly Button Dismiss;
     internal readonly PromptShell DragSurface;
     internal readonly Border InputSurface;
+    internal ChatAttachment Attachment { get; }
+    internal bool ImagesAllowed { get; set; } = true;
     internal bool CanAnswer { get; private set; }
     internal event Action? FocusRequested;
     internal event Action? DismissRequested;
     internal event Action<string>? Submitted;
+    internal event Action<string, ChatImage>? ImageSubmitted;
     internal WhalePrompt()
     {
         Height = HeightDip; VerticalAlignment = VerticalAlignment.Center;
@@ -47,6 +50,16 @@ internal sealed class WhalePrompt : Border
         AutomationProperties.SetName(DragSurface, "拖动蓝色背景换窗口或打开鲸汐菜单");
         body.Children.Add(DragSurface);
         var row = new DockPanel();
+        Attachment = new ChatAttachment(Answer);
+        Attachment.Opening += () => FocusRequested?.Invoke();
+        Attachment.Add.Foreground = Brushes.White;
+        Attachment.Add.HorizontalAlignment = HorizontalAlignment.Left;
+        Attachment.Add.Margin = new Thickness(12, 0, 0, 0);
+        body.Children.Add(Attachment.Add);
+        Attachment.Changed += UpdateHint;
+        Attachment.Preview.Margin = new Thickness(InputLeft, 0, 48, 0);
+        Attachment.Preview.VerticalAlignment = VerticalAlignment.Top;
+        root.Children.Add(Attachment.Preview);
         Send = Action("▶", "发送回答 · Enter", 26, GuideTheme.WhaleBlue, Brushes.Transparent, 15);
         Send.VerticalAlignment = VerticalAlignment.Center;
         Send.Margin = new Thickness(4, 0, 0, 0);
@@ -54,7 +67,7 @@ internal sealed class WhalePrompt : Border
         var input = new Grid(); input.Children.Add(Answer); input.Children.Add(_hint);
         row.Children.Add(input);
         InputSurface = new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12),
-            Margin = new Thickness(InputLeft, 4, 48, 4), Padding = new Thickness(10, 0, 6, 0), Child = row };
+            Margin = new Thickness(InputLeft, 4, 48, 4), Padding = new Thickness(3, 0, 3, 0), Child = row };
         body.Children.Add(InputSurface); root.Children.Add(body);
         Dismiss = Action("×", "结束本次指路，恢复鲸鱼", 26, Brushes.White, Brushes.Transparent, 20);
         Dismiss.Opacity = .75; Dismiss.Margin = new Thickness(0, 0, 12, 0);
@@ -88,18 +101,22 @@ internal sealed class WhalePrompt : Border
     void UpdateHint()
     {
         _hint.Visibility = Answer.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        Send.IsEnabled = CanAnswer && !string.IsNullOrWhiteSpace(Answer.Text);
+        Attachment.Add.IsEnabled = CanAnswer && ImagesAllowed;
+        Send.IsEnabled = CanAnswer && (!string.IsNullOrWhiteSpace(Answer.Text) || Attachment.Image is not null);
     }
     void Submit()
     {
-        if (!CanAnswer || string.IsNullOrWhiteSpace(Answer.Text)) return;
+        if (!Send.IsEnabled) return;
         var text = Answer.Text;
+        var image = Attachment.Image;
         SetQuestion(false);
-        Submitted?.Invoke(text);
+        if (image is null) Submitted?.Invoke(text);
+        else ImageSubmitted?.Invoke(string.IsNullOrWhiteSpace(text) ? ChatAttachment.DefaultQuestion : text, image);
     }
     internal void SetQuestion(bool available)
     {
         CanAnswer = available; Answer.Clear(); Answer.IsReadOnly = !available;
+        if (!available) Attachment.Cancel();
         Answer.Focusable = available;
         _hint.Text = available ? "告诉我你想做什么" : "正在识别当前窗口…";
         UpdateHint();
@@ -109,6 +126,7 @@ internal sealed class WhalePrompt : Border
     {
         VerticalAlignment = attached ? VerticalAlignment.Top : VerticalAlignment.Center;
         _body.VerticalAlignment = attached ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+        Attachment.Preview.VerticalAlignment = attached ? VerticalAlignment.Bottom : VerticalAlignment.Top;
         DragSurface.TopAttached = attached;
     }
 }

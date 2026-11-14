@@ -123,6 +123,11 @@ public static class Program
 
     static async Task RunAsync(string[] args)
     {
+        if (args.Contains("--chat-images"))
+        {
+            await ChatImageChecks.RunAsync(Check, render: true);
+            Console.WriteLine($"RESULT: {_passed} attachment checks passed."); return;
+        }
         if (args.Contains("--capability-tasks"))
         {
             await CapabilityTaskChecks.RunAsync(Check);
@@ -168,6 +173,7 @@ public static class Program
         PluginChecks.Run(Check);
         ThirdPartyPluginChecks.Run(Check);
         CheckChatLayout();
+        await ChatImageChecks.RunAsync(Check);
         await FreeChatChecksAsync();
         await ChatHistoryChecks.RunAsync(Check);
         GeneralGuideChecks.Run(Check);

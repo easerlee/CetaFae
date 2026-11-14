@@ -54,7 +54,7 @@ internal static class PromptChecks
                 $"attached prompt {state}/{width}: permanent triangle stays inside white input without overlapping text and enables only valid answers");
             check(prompt.Dismiss.Width == 26 &&
                 Bounds(prompt.DragSurface).Height == WhalePrompt.BodyHeight && WhalePrompt.BodyHeight == 36 &&
-                Math.Abs(Bounds(prompt.InputSurface).Left - Bounds(prompt.DragSurface).Left - 26) < .1 &&
+                Math.Abs(Bounds(prompt.InputSurface).Left - Bounds(prompt.DragSurface).Left - WhalePrompt.InputLeft) < .1 &&
                 (!topAttached || Bounds(prompt.DragSurface).Top == 0) &&
                 Math.Abs(Bounds(prompt.Dismiss).Top + Bounds(prompt.Dismiss).Height / 2 -
                     (Bounds(prompt.DragSurface).Top + Bounds(prompt.DragSurface).Height / 2)) < .1,

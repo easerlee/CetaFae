@@ -13,6 +13,7 @@ interface Identification {
   kind: string; state: string | null; nextCheck: string | null;
 }
 interface PluginInput {
+  imageAttached?: boolean;
   taskAvailable?: boolean;
   taskEvidence?: JsonValue;
   find?: string;

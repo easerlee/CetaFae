@@ -13,6 +13,7 @@ internal static class Native
     public const int WS_EX_NOACTIVATE = 0x08000000;
 
     public const uint GA_ROOT = 2;
+    internal const uint GA_ROOTOWNER = 3;
     public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 
     public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;

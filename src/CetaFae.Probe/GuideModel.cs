@@ -131,18 +131,34 @@ public sealed class GuideModel : IDisposable
 
     internal async Task<ConversationReply> ConverseAsync(IReadOnlyList<ChatTurn> history, string question, bool allowWindow,
         CancellationToken cancellationToken, string? activeGoal = null, GuideIdentification? previousUnderstanding = null,
-        bool taskAvailable = false, object? taskEvidence = null)
+        bool taskAvailable = false, object? taskEvidence = null, ChatImage? image = null)
     {
+        if (image is not null)
+        {
+            if (!_options.IncludeImage) throw new InvalidDataException("image_disabled");
+            allowWindow = taskAvailable = false;
+            activeGoal = null;
+            previousUnderstanding = null;
+            taskEvidence = null;
+        }
         var plugin = _plugins.ChatProvider ?? throw new InvalidDataException("plugin_program_unavailable");
         var messages = await GuideFeature.MessagesAsync(plugin, "chat", new
         {
             history = history.Select(turn => new { question = turn.Question, reply = turn.Reply }), question,
             allowWindow, windowGuidanceAvailable = _windowGuidanceAvailable, activeGoal,
-            previousUnderstanding = UnderstandingContext(previousUnderstanding), taskAvailable, taskEvidence
+            previousUnderstanding = UnderstandingContext(previousUnderstanding), taskAvailable, taskEvidence,
+            imageAttached = image is not null
         }, cancellationToken);
+        var outbound = messages.Select(m => new { role = m.Role, content = (object)m.Content }).ToArray();
+        if (image is not null)
+            outbound[^1] = new { role = "user", content = (object)new object[]
+            {
+                new { type = "text", text = messages[^1].Content },
+                new { type = "image_url", image_url = new { url = image.DataUrl() } }
+            } };
         var response = await SendAsync(new { model = _options.Model, stream = false,
             response_format = new { type = "json_object" },
-            messages = messages.Select(m => new { role = m.Role, content = m.Content }) }, cancellationToken);
+            messages = outbound }, cancellationToken);
         using var document = JsonDocument.Parse(response, new JsonDocumentOptions { MaxDepth = 8 });
         if (document.RootElement.ValueKind != JsonValueKind.Object) throw new InvalidDataException("chat_reply");
         var fields = document.RootElement.EnumerateObject().ToArray();
