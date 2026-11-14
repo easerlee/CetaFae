@@ -4,9 +4,11 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.27**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. You operate the target application. Release acceptance is pending.
+> Current development build: **0.3.1-preview.28**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. The first bounded inspection/file tasks are available with host previews and verification. Native desktop actions remain manual. Release acceptance is pending; this repository is private.
 
 ## Features
+
+- **Bounded task execution (development preview)**: use the existing conversation to inspect system/storage facts, summarize a selected folder, read a selected UTF-8 file, or preview and commit text writes, copies, moves and deletions. The host resolves objects through a picker, discloses added data scope and receiver, verifies actual file state and preserves encrypted recovery material. Open 操作记录 from either context menu to browse, reconcile and restore individual operations. Pure text replacement runs through the same restricted TS worker and commit path.
 
 - **Ask directly**: click the resting whale to open an input. Use the same input for computer/software questions and interface help without choosing a mode. Text-answerable questions receive a direct reply; questions that need the interface continue through selected-window collection. Conversations expand upward with a slim scrollbar for long content. Click outside to dismiss, then click the whale to restore the conversation. Completed text exchanges are encrypted locally for the current Windows user and survive restart until cleared with the brush. Drafts stay in memory for the current run. Only the last four exchanges for the same connection enter model context, separately from window guidance.
 - **Lightweight management**: the tray and whale right-click share one menu. Accept the agreement during installation. Settings provides the disclosure and a way to withdraw consent.
@@ -32,9 +34,12 @@ Representative human-tested flows include locating an Edge download toggle, expl
 - **Selected window only**: no full-desktop capture followed by cropping, and no automatic reading of other windows or background tabs.
 - **Limited outbound scope**: initial understanding and questions without a matching local rule may send the selected whole-window image. Matching local rules and user selections remain bounded; an unresolved declared local scope waits for selection without widening. Both system window capture and PrintWindow are bound to the selected window; scoped requests are cropped locally before sending.
 - **Best-effort sensitive-content checks**: detected password fields or recognizable credentials stop processing. Incomplete accessibility data does not block selected-window image interpretation. Checks can miss sensitive content: hide anything you do not want sent. There is no universal secret-detection or automatic-redaction guarantee.
-- **Separate local retention**: completed resting-chat text is encrypted for the current Windows user and retained until cleared. Withdrawing network consent still allows local reading and deletion, but prevents sending. Window images, raw control text and guidance tasks are not persisted. Old-service chat is not automatically sent to a new connection. Fixed metadata logs are retained for seven days; cleanup failures can delay deletion. Proxy and upstream retention policies remain unverified.
-- **User-controlled actions**: no automatic clicks, typing into target applications, settings changes, extraction, or document editing. Switching away, closing the target, revoking consent, or ending the session clears invalid results.
+- **Separate local retention**: completed resting-chat text is encrypted for the current Windows user and retained until cleared. Withdrawing network consent still allows local reading and deletion, but prevents sending. Window images and raw control text are not persisted. File actions have separate encrypted receipts and recovery material, unaffected by chat clearing. Old-service chat is not automatically sent to a new connection. Fixed metadata logs are retained for seven days; cleanup failures can delay deletion. Proxy and upstream retention policies remain unverified.
+- **User-controlled actions**: no automatic clicks, typing into target applications, system settings changes, extraction or complex document editing. Selected plain-file changes require the concrete effect preview described above. Switching away, closing the target, revoking consent, or ending the session clears invalid results.
 - **Plugin trust boundary**: enable only trusted packages. Interface and resource limits are not an operating-system security sandbox; independent hostile-code review remains pending.
+
+Task limits: eight steps and ten minutes, one selected source file/folder per task, repeated inspection scopes disclosed once, separate effect previews. Local regular-file snapshots are limited to4MiB; UTF-8 reads to24,000 bytes; writes to12,000 characters within the48KiB request envelope. Task receipts use current-user Windows encryption, max128 records/8MiB, plus the existing64MiB recovery archive. Settled receipts without recovery dependencies may expire after30 days; unresolved and recoverable actions are retained. Clearing chat does not delete action records. Restart never restores authority or automatically replays uncertain effects.
+
 
 ## Getting started
 
@@ -79,7 +84,7 @@ Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runt
 
 ## Technical implementation
 
-- **Generic system capability foundation (development API)**: scoped host grants, isolated execution, preconditions, postconditions and encrypted recovery support system/volume facts, bounded directory metadata, files/registry, processes, services/events, connectivity and window/control operations. TS features propose requests without native authority. Generated file/registry/process/loopback paths have automated coverage; native input, service changes and elevation still need dedicated acceptance. Conversation does not automatically dispatch these operations.
+- **Generic system capability foundation (development API)**: scoped host grants, isolated execution, preconditions, postconditions and encrypted recovery support system/volume facts, bounded directory metadata, files/registry, processes, services/events, connectivity and window/control operations. TS features propose requests without native authority. Generated file/registry/process/loopback paths have automated coverage; native input, service changes and elevation still need dedicated acceptance. Conversation exposes only the inspection and selected-file subset described above; other capabilities remain development APIs.
 
 - **Windows / C# / WPF / .NET 8**: native window management, preferring PrintWindow and trying system window capture when its image is unusable. Both are bound to the selected window. The fallback may show the Windows capture border.
 - **Host/plugin separation**: the C# host owns UI, consent, generic collection, model transport, trusted validation, persistence and lifecycle. TS plugins own request construction, interpretation/translation/error/follow-up policy and presentation. Matching and scope rules remain declarative. First-party packages have no private execution path.
@@ -103,7 +108,7 @@ Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runt
 
 - Complete consolidated native text-region, binding-switch, settings-recovery and input acceptance; cover single-display125%/150%/200% scaling before mixed-DPI multiple displays.
 - Improve generic understanding, translation and visible-error accuracy and failure recovery.
-- Complete real-application acceptance for bounded tasks and user-led follow-up; actions remain manual.
+- Complete real-application acceptance for bounded tasks and user-led follow-up, including the separately previewed file-action paths.
 - Complete consolidated privacy, platform, performance, and real-task acceptance. The 3000ms processing target and 90MB idle-memory gate have not passed full formal acceptance.
 - Validate independent author contributions, execution-isolation security review and real application integration, then stabilize the development API. A marketplace and arbitrary native extensions are not provided.
 - Add declarative themes/effects under one contract: the host owns layout, rendering and resource limits; themes provide assets, palettes and bounded motion settings. Only the boundary is designed; theme import is not implemented yet.
@@ -123,4 +128,4 @@ Report OS/application versions, reproduction steps, and actual messages through 
 
 See the [requirements](需求文档.md) for scope, [Tech-Spec](Tech-Spec.md) for design, [Test-Plan](Test-Plan.md) for coverage, and [verification records](验证记录.md) for executed evidence and limitations. Build outputs and diagnostics belong in the ignored `.artifacts/` directory.
 
-Public visibility does not grant an open-source license. No open-source license has been selected yet.
+The repository is currently private. No open-source license has been selected yet.

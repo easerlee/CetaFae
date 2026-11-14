@@ -13,6 +13,10 @@ interface Identification {
   kind: string; state: string | null; nextCheck: string | null;
 }
 interface PluginInput {
+  taskAvailable?: boolean;
+  taskEvidence?: JsonValue;
+  find?: string;
+  replacement?: string;
   capabilityIntent?: string;
   selectedFile?: string;
   identifyWindow?: boolean;
@@ -39,3 +43,12 @@ type PluginResult = { messages: Message[] } | { mode: string; explanation: strin
 /** Proposal only. The host supplies a separate expiring resource grant and verifies the operation. */
 interface PlatformRequest { apiVersion: 1; id: string; operation: string; parameters: { [key: string]: JsonValue } }
 declare function handle(request: PluginRequest): PluginResult;
+
+/** The host chooses actual resources, admission and postconditions; no path or grant is accepted here. */
+interface TaskProposal {
+  operation: "system.info" | "storage.list" | "directory.scan" | "file.info" | "file.readText" |
+    "file.write" | "file.copy" | "file.move" | "file.delete" | "text.replace";
+  text?: string;
+  find?: string;
+  replacement?: string;
+}

@@ -7,7 +7,7 @@ using CetaFae.Plugins;
 
 namespace CetaFae.Probe;
 
-public sealed class GuideSession : IDisposable
+public sealed partial class GuideSession : IDisposable
 {
     enum ProcessingStage { Activation, SourceValidation, Collection, TargetValidation, Payload, Model, ResultValidation }
     readonly BallWindow _ball;
@@ -55,10 +55,10 @@ public sealed class GuideSession : IDisposable
         _plugins = plugins;
         _model = new GuideModel(options, windowGuidanceAvailable:
             plugins.Plugins.Any(plugin => plugin.Kind is "general" or "application"), plugins: plugins);
-        _chat = new FreeChatSession(async (history, question, token) => await _model.ChatAsync(history, question, token));
+        _chat = new FreeChatSession(async (history, question, token) => await TaskReplyAsync(history, question, false, token));
         _chatHistory = new ChatHistoryStore(options);
         _questions = new FreeChatSession((history, question, token) =>
-            _model.RouteQuestionAsync(history, question, token, _followup.ActiveGoal, _understanding.ForWindow(_ball.BoundTarget)));
+            TaskReplyAsync(history, question, true, token));
         _panel = new GuidePanel(options);
         _panel.BindEntry(() => _ball.FeedbackBounds, () => _ball.Scale, () => _preview || _ball.HasTarget, () => _ball.TopAttached,
             () => _ball.Workspace);
@@ -70,10 +70,11 @@ public sealed class GuideSession : IDisposable
         var saved = preview || !restoreConsent ? default : _consent.Read();
         _gate.SetCloud(saved.Enabled);
         _panel.SetCloud(saved.Enabled);
-        _menu = new GuideMenu(ball, () => _ball.StopTracking("cancelled"), settings: settings);
+        _menu = new GuideMenu(ball, () => _ball.StopTracking("cancelled"), settings: settings, records: ShowTaskRecords);
         _menu.SetCloud(saved.Enabled);
         _panel.MenuRequested += OnMenuRequested;
         _panel.Cancelled += () => _ball.StopTracking("cancelled");
+        _panel.Card.Dismissed += () => _taskStop?.Cancel();
         _panel.AnswerSubmitted += OnAnswerSubmitted;
         _ball.AnswerSubmitted += OnAnswerSubmitted;
         _ball.HomeClicked += ToggleChat;
@@ -229,6 +230,7 @@ public sealed class GuideSession : IDisposable
 
     void RevokeConsent()
     {
+        _taskStop?.Cancel();
         if (_preview) { _panel.SetStatus("这是静态预览，不会更改使用同意。"); return; }
         CloseChat();
         _ball.StopTracking("consent_withdrawn");
@@ -241,6 +243,7 @@ public sealed class GuideSession : IDisposable
 
     void Cancel(string reason)
     {
+        _taskStop?.Cancel();
         var explain = reason == "target_changed" &&
             _context is { } context && Native.GetForegroundWindow() == context.Window;
         ResetRecognition();
@@ -283,7 +286,7 @@ public sealed class GuideSession : IDisposable
     void OnBindingSuspended()
     {
         _region.Invalidate();
-        if (_modelVersion is { } sent && _gate.Accepts(sent))
+        if (_taskActive || _modelVersion is { } sent && _gate.Accepts(sent))
         {
             _foregroundReturn ??= new(TaskCreationOptions.RunContinuationsAsynchronously);
             _panel.Hide();
@@ -303,6 +306,11 @@ public sealed class GuideSession : IDisposable
             _ball.ConfirmBinding();
             _ball.ResumeProcessing();
             waiting.TrySetResult();
+            if (_taskActive && _panel.Card.TaskActions.Visibility == Visibility.Visible)
+            {
+                _panel.Show();
+                _panel.Reposition();
+            }
         }
         else if (_retryInitialOnResume)
         {
@@ -1006,6 +1014,7 @@ public sealed class GuideSession : IDisposable
 
     public void Dispose()
     {
+        _taskStop?.Cancel();
         CloseChat();
         _questions.Reset();
         _lastBoundAnswer = null;

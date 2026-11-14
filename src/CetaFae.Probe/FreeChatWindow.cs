@@ -47,6 +47,8 @@ internal sealed class FreeChatWindow : Window
     internal Button ClearButton => _clear;
     internal ScrollViewer Transcript => _transcript;
     internal StackPanel Waiting => _waiting;
+    internal TaskActionSurface TaskActions { get; } = new();
+    internal bool ChoosingTaskResource { get; set; }
 
     internal FreeChatWindow()
     {
@@ -114,6 +116,7 @@ internal sealed class FreeChatWindow : Window
         _statusSurface = new Border { Child = _status, Background = Brushes.White, CornerRadius = new CornerRadius(InputRadius),
             Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 0, 0, 6) };
         body.Children.Add(_statusSurface);
+        body.Children.Add(TaskActions);
         body.Children.Add(row);
         Content = new Border { Child = body, Background = GuideTheme.WhaleBlue,
             CornerRadius = new CornerRadius(OuterRadius), Padding = new Thickness(FramePadding) };
@@ -130,7 +133,7 @@ internal sealed class FreeChatWindow : Window
             e.Handled = true;
             Dismiss();
         };
-        Deactivated += (_, _) => { if (IsVisible) Dismiss(); };
+        Deactivated += (_, _) => { if (IsVisible && !ChoosingTaskResource) Dismiss(); };
         Loaded += (_, _) => _input.Focus();
         Closed += (_, _) => SetWaiting(false);
         SetStatus(null);
@@ -169,6 +172,11 @@ internal sealed class FreeChatWindow : Window
         var bottom = Math.Min(work.Bottom, position.Y + inputFrameHeight);
         var available = Math.Min(ConversationMaxHeight, bottom - work.Top);
         var fixedHeight = inputFrameHeight;
+        if (TaskActions.Visibility == Visibility.Visible)
+        {
+            TaskActions.Measure(new Size(Math.Max(1, Width - FramePadding * 2), double.PositiveInfinity));
+            fixedHeight += TaskActions.DesiredSize.Height;
+        }
         if (_statusSurface.Visibility == Visibility.Visible)
         {
             _statusSurface.Measure(new Size(Math.Max(1, Width - FramePadding * 2), double.PositiveInfinity));

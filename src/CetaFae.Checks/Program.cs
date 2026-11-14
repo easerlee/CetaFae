@@ -123,11 +123,17 @@ public static class Program
 
     static async Task RunAsync(string[] args)
     {
+        if (args.Contains("--capability-tasks"))
+        {
+            await CapabilityTaskChecks.RunAsync(Check);
+            Console.WriteLine($"RESULT: {_passed} capability task checks passed. Desktop, real model and elevation: NOT RUN."); return;
+        }
         await PlatformChecks.RunAsync(Check);
         if (args.Contains("--platform-only"))
         {
             Console.WriteLine($"RESULT: {_passed} platform checks passed. Desktop, real model and elevation: NOT RUN."); return;
         }
+        await CapabilityTaskChecks.RunAsync(Check);
         if (args.Contains("--plugin-programs"))
         {
             TypeScriptPluginChecks.Run(Check);

@@ -30,6 +30,7 @@ internal sealed class GuideCard : Border
     readonly Button _followup;
     readonly Border _header;
     readonly StackPanel _body = new();
+    internal TaskActionSurface TaskActions { get; } = new();
     readonly StackPanel _pagination = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Visibility = Visibility.Collapsed };
     readonly TextBlock _pageLabel = new() { VerticalAlignment = VerticalAlignment.Center, Foreground = GuideTheme.Muted, FontSize = 12 };
     readonly List<string> _pages = [];
@@ -122,6 +123,7 @@ internal sealed class GuideCard : Border
         body.Children.Add(_disclosure);
         body.Children.Add(_status);
         body.Children.Add(_question);
+        body.Children.Add(TaskActions);
         BodyScroll = new ScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(16, 12, 16, 14) };
         _menu = Button("菜单", () => MenuRequested?.Invoke());
@@ -201,6 +203,7 @@ internal sealed class GuideCard : Border
     internal void ClearQuestion() { _answer.Clear(); _questionAvailable = false; Refresh(); }
     internal void Reset()
     {
+        TaskActions.Clear();
         _answer.Clear();
         _fullText = _status.Text = "";
         _pages.Clear(); _pageIndex = 0; _pagination.Visibility = Visibility.Collapsed;

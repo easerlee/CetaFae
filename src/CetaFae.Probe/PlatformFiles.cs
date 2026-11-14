@@ -70,15 +70,18 @@ internal static class PlatformFiles
         return new { files, directories, logicalBytes = bytes, skipped, truncated, complete = !truncated && skipped == 0 };
     }
 
-    internal static string SaveRecovery(string directory, Recovery recovery)
+    internal static string SaveRecovery(string directory, Recovery recovery, string? requestId = null)
     {
         PlatformScope.CheckAncestors(directory);
         Directory.CreateDirectory(directory);
         var existing = Directory.EnumerateFiles(directory, "*.dat").Take(257).Select(path => new FileInfo(path).Length).ToArray();
-        if (existing.Length > 256 || existing.Sum() > 64L * 1024 * 1024) throw new PlatformFailure("recovery_storage_limit");
-        var id = Guid.NewGuid().ToString("N");
+        if (existing.Length >= 256 || existing.Sum() >= 64L * 1024 * 1024) throw new PlatformFailure("recovery_storage_limit");
+        var id = requestId is not null && Guid.TryParseExact(requestId, "N", out _) ? requestId : Guid.NewGuid().ToString("N");
         var bytes = JsonSerializer.SerializeToUtf8Bytes(recovery, PlatformRequest.Json);
-        var protectedBytes = ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser);
+        byte[] protectedBytes;
+        try { protectedBytes = ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser); }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
+        if (existing.Sum() + protectedBytes.Length > 64L * 1024 * 1024) throw new PlatformFailure("recovery_storage_limit");
         using var file = new FileStream(Path.Combine(directory, id + ".dat"), FileMode.CreateNew, FileAccess.Write, FileShare.None);
         file.Write(protectedBytes); file.Flush(flushToDisk: true);
         return id;
@@ -138,7 +141,7 @@ internal static class PlatformFiles
         var afterHash = content is null ? "missing" : PlatformScope.Hash(content);
         var states = new List<FileState> { new(destination, before, afterHash) };
         if (call.Operation == "file.move") states.Add(new(source!, content, "missing"));
-        var recovery = SaveRecovery(journal, new(states.ToArray()));
+        var recovery = SaveRecovery(journal, new(states.ToArray()), call.Id);
         try
         {
             scope.Permit(call.Operation);

@@ -17,10 +17,11 @@ internal sealed class GuideMenu : IDisposable
     internal bool OwnsForeground(IntPtr window) => (_opening || Menu.IsOpen) &&
         (window == _ball.Handle || window == (PresentationSource.FromVisual(Menu) as HwndSource)?.Handle);
 
-    internal GuideMenu(BallWindow ball, Action clear, bool registerTray = true, Action? settings = null)
+    internal GuideMenu(BallWindow ball, Action clear, bool registerTray = true, Action? settings = null, Action? records = null)
     {
         _ball = ball;
         if (settings is not null) Menu.Items.Add(Item("鲸汐设置", settings));
+        if (records is not null) Menu.Items.Add(Item("操作记录", records));
         Menu.Items.Add(Item("清除标记", clear));
         Menu.Items.Add(new Separator());
         Menu.Items.Add(Item("退出鲸汐", () => Application.Current.Shutdown()));

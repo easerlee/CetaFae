@@ -64,6 +64,8 @@ public sealed record GuideAnswer(string Mode, string Explanation, int? Candidate
     }
 }
 
+internal sealed record ConversationReply(string? Reply, TaskProposal? Task);
+
 public sealed record GuideOptions(Uri BaseUrl, string Model, bool IncludeImage, TimeSpan Timeout)
 {
     public static GuideOptions Create(string baseUrl, string model, bool includeImage = true, int timeoutSeconds = 60)
@@ -125,25 +127,32 @@ public sealed class GuideModel : IDisposable
 
     async Task<string?> TextReplyAsync(IReadOnlyList<ChatTurn> history, string question, bool allowWindow, CancellationToken cancellationToken,
         string? activeGoal = null, GuideIdentification? previousUnderstanding = null)
+        => (await ConverseAsync(history, question, allowWindow, cancellationToken, activeGoal, previousUnderstanding)).Reply;
+
+    internal async Task<ConversationReply> ConverseAsync(IReadOnlyList<ChatTurn> history, string question, bool allowWindow,
+        CancellationToken cancellationToken, string? activeGoal = null, GuideIdentification? previousUnderstanding = null,
+        bool taskAvailable = false, object? taskEvidence = null)
     {
         var plugin = _plugins.ChatProvider ?? throw new InvalidDataException("plugin_program_unavailable");
         var messages = await GuideFeature.MessagesAsync(plugin, "chat", new
         {
             history = history.Select(turn => new { question = turn.Question, reply = turn.Reply }), question,
             allowWindow, windowGuidanceAvailable = _windowGuidanceAvailable, activeGoal,
-            previousUnderstanding = UnderstandingContext(previousUnderstanding)
+            previousUnderstanding = UnderstandingContext(previousUnderstanding), taskAvailable, taskEvidence
         }, cancellationToken);
         var response = await SendAsync(new { model = _options.Model, stream = false,
             response_format = new { type = "json_object" },
             messages = messages.Select(m => new { role = m.Role, content = m.Content }) }, cancellationToken);
-        using var document = JsonDocument.Parse(response, new JsonDocumentOptions { MaxDepth = 4 });
+        using var document = JsonDocument.Parse(response, new JsonDocumentOptions { MaxDepth = 8 });
         if (document.RootElement.ValueKind != JsonValueKind.Object) throw new InvalidDataException("chat_reply");
         var fields = document.RootElement.EnumerateObject().ToArray();
+        if (taskAvailable && fields.Length == 1 && fields[0].Name == "task")
+            return new(null, TaskProposal.Parse(fields[0].Value));
         if (fields.Length != 1 || fields[0].Name != "reply")
             throw new InvalidDataException("chat_reply");
-        if (allowWindow && fields[0].Value.ValueKind == JsonValueKind.Null) return null;
+        if (allowWindow && fields[0].Value.ValueKind == JsonValueKind.Null) return new(null, null);
         if (fields[0].Value.ValueKind != JsonValueKind.String) throw new InvalidDataException("chat_reply");
-        return FreeChatSession.ValidateReply(fields[0].Value.GetString());
+        return new(FreeChatSession.ValidateReply(fields[0].Value.GetString()), null);
     }
 
     async Task<string> CompleteAsync(string task, IReadOnlyList<GuideCandidate> candidates,
