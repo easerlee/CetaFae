@@ -16,7 +16,7 @@ internal sealed partial class TaskCoordinator
         var plan = await TaskConversion.PlanAsync(plugins, proposal, sourceFormat, token);
         if (plan is null) return new("denied", "这版暂不支持所选文件和目标格式的组合。可以换一张常见格式的图片，或告诉我用途。", null);
         if (plan.Tool is { Installed: false })
-            return new("denied", "已为你选好 " + plan.Format.ToUpperInvariant() + "。这台电脑还缺少转换工具，安装 Filee 2.4.0 便携组件后即可使用。", null);
+            return new("denied", "已为你选好 " + plan.Format.ToUpperInvariant() + "。这台电脑还缺少转换工具，请在“设置 → 功能 → 导入插件文件”安装 Filee 转换插件。", null);
 
         string sourceHash;
         using (var selected = TaskConversion.OpenSource(source, sourceFormat))

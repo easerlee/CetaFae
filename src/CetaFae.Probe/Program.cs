@@ -101,7 +101,8 @@ public static class Program
             session.EndForSettings();
             if (settings is not null) { settings.Activate(); return; }
             settings = new GuideSettingsWindow(preferences, shipped, () => session.CloudEnabled, Apply,
-                () => session.ManageConsent(), status => GuideDiagnostics.Create(preferences.AvailablePlugins(shipped), plugins, session.CloudEnabled, status), invalidPreferences);
+                () => session.ManageConsent(), status => GuideDiagnostics.Create(preferences.AvailablePlugins(shipped), plugins, session.CloudEnabled, status),
+                invalidPreferences, allowBundleInstall: !preview);
             settings.Closed += (_, _) => settings = null;
             settings.Show();
         }

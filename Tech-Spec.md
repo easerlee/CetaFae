@@ -1156,3 +1156,14 @@ One `TaskActionSurface` is hosted inline by the existing attached card or restin
 Both composers put a 24 DIP add button before the editor. A removable thumbnail sits above the resting input, or next to the docked bar on the side away from its seam. The add menu offers file selection and image paste. Ctrl+V attaches a clipboard bitmap when available. WPF handles ordinary text paste.
 
 The host validates image format and dimensions, downsizes the longest edge to 2048 and re-encodes the pixels. The preview discloses upload on send and identifies the existing receiver in its tooltip. The send action attaches the image to the last user message of that connection. The chat plugin gets `imageAttached` as a boolean with window routing and task proposals disabled for this request. Saved turns contain text only. Clear, revocation and binding termination release the corresponding draft.
+
+## Optional conversion bundle (FMT-04–05)
+
+The reviewed Filee recipe is reused with its official Windows x64 portable ZIP. A separate `.cetaplugin` distributes that unchanged ZIP, a host-readable version marker, the upstream license and notices, and the integration attribution. A source fork adds engine maintenance and is unnecessary to support optional installation. The main package continues to ship the small TypeScript conversion policy and references the approved native recipe.
+
+Implementation checkpoints:
+
+1. Define the archive contract and exercise an unapproved or altered package, missing components and cancellation with generated fixtures.
+2. Validate the exact archive and notice bytes, extract its pinned contents into a private staging directory, check the same tree digest as the worker, then move the verified release into the versioned tool directory. Serialize installers for the same recipe and keep an invalid prior directory as a backup during repair. A known valid installation remains usable. Continue to accept the prior exact portable tree.
+3. Route explicit `.cetaplugin` selection through the Settings import action, report status without blocking the dispatcher, and cancel when Settings closes. Existing JSON imports and saved plugin toggles retain their behavior. The package grants no native access to TypeScript programs.
+4. Build the separate archive, validate imports against a fresh test tool directory, run real-file conversion regressions and verify the main payload excludes every native Filee binary. New native recipes require host approval and a matching plugin release, with no automatic upstream upgrades.

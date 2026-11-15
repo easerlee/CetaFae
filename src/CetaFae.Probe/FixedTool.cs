@@ -24,7 +24,12 @@ internal sealed record FixedTool(string Id, string DirectoryName, string Executa
     internal static string ToolsRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "CetaFae", "tools");
 
-    internal string InstallDirectory => Path.Combine(ToolsRoot, DirectoryName);
+    internal string InstallDirectory => FindInstallation(ToolsRoot);
+    internal string FindInstallation(string toolRoot)
+    {
+        var bundle = Path.Combine(toolRoot, "bundles", DirectoryName);
+        return Directory.Exists(bundle) ? Path.Combine(bundle, "payload") : Path.Combine(toolRoot, DirectoryName);
+    }
     internal bool Installed => File.Exists(Path.Combine(InstallDirectory, Executable));
 
     internal static string DirectoryHash(string directory, CancellationToken token)
@@ -98,9 +103,10 @@ internal sealed record FixedTool(string Id, string DirectoryName, string Executa
         if (!File.Exists(source) || !Directory.Exists(output) || File.Exists(expected)) throw new InvalidDataException("tool_request");
         PlatformScope.CheckAncestors(source);
         PlatformScope.CheckAncestors(output);
-        if (DirectoryHash(InstallDirectory, default) != TreeHash) throw new InvalidDataException("tool_identity");
+        var installation = InstallDirectory;
+        if (DirectoryHash(installation, default) != TreeHash) throw new InvalidDataException("tool_identity");
 
-        var start = new ProcessStartInfo(Path.Combine(InstallDirectory, Executable))
+        var start = new ProcessStartInfo(Path.Combine(installation, Executable))
         {
             WorkingDirectory = scratch, StandardInputEncoding = Encoding.UTF8,
             StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8

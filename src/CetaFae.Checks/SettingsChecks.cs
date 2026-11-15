@@ -30,6 +30,20 @@ internal static class SettingsChecks
             check(PresentationSource.FromVisual(view) is null, "settings layout creates no native handle");
         }
         var edit = new GuideSettingsView(GuidePreferences.Default, catalog, false);
+        edit.SelectPage(2);
+        edit.SetConversionBundle(false);
+        Arrange(edit, new Size(500, 420));
+        var imports = 0; edit.ImportRequested += () => imports++;
+        edit.ImportButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        check(imports == 1 && Descendants<TextBlock>(edit).Any(t => t.Text.Contains(".cetaplugin")),
+            "settings offers the existing import action for a missing conversion component");
+        edit.SetConversionBundle(false, busy: true);
+        check(!edit.ImportButton.IsEnabled && Descendants<TextBlock>(edit).Any(t => t.Text.Contains("关闭设置可取消")),
+            "plugin import disables duplicate work and explains cancellation while installing");
+        edit.SetConversionBundle(true);
+        check(edit.ImportButton.IsEnabled && Descendants<TextBlock>(edit).Any(t => t.Text.Contains("Filee 转换组件已安装")),
+            "settings shows installed state and restores import");
+        edit.SelectPage(0);
         var imageRequests = 0; edit.ImageTestRequested += () => imageRequests++;
         edit.ImageTestButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         check(imageRequests == 1, "image capability checks require an explicit settings action without target collection");
@@ -242,6 +256,7 @@ internal static class SettingsChecks
                 var example = index < 2 ? PluginCatalog.Import(Path.Combine(AppContext.BaseDirectory, "examples", "example.chat.json")) : ThirdPartyPluginChecks.Example();
                 view.ImportPlugin(PluginCatalog.ParsePlugin(PluginCatalog.SerializePlugin(example)
                     .Replace(example.DisplayName, "Generated external editor guidance with a long wrapping display name")));
+                view.SetConversionBundle(index % 2 != 0);
                 view.SelectPage(2); Arrange(view, size);
                 if (index % 2 == 1) { view.BodyScroll.ScrollToEnd(); Arrange(view, size); }
                 var image = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32); image.Render(view);

@@ -41,6 +41,8 @@ internal sealed class GuideSettingsView : Border
     internal event Action? ExportRequested;
     internal event Action? CloseRequested;
     internal event Action? ImportRequested;
+    internal Button ImportButton { get; }
+    readonly TextBlock _conversionBundle = Text("");
 
     internal GuideSettingsView(GuidePreferences preferences, PluginCatalog shipped, bool cloudEnabled, bool invalid = false)
     {
@@ -96,8 +98,11 @@ internal sealed class GuideSettingsView : Border
         _pages[1].Children.Add(_disclosure);
 
         _pages[2].Children.Add(Title("功能与插件"));
-        _pages[2].Children.Add(Text("可导入软件适配规则或功能插件。导入或更新后默认停用，查看范围后勾选并保存才生效。作者信息未经核实。功能插件包含受限程序，不能自行读取窗口、联网或操作电脑；适配规则使用已启用的通用功能。"));
-        _pages[2].Children.Add(Action("导入插件文件", () => ImportRequested?.Invoke()));
+        _pages[2].Children.Add(Text("导入的 JSON 插件默认停用，勾选并保存后生效。作者信息未经核实，插件不能自行读取窗口、联网或操作电脑。"));
+        ImportButton = Action("导入插件文件", () => ImportRequested?.Invoke());
+        _pages[2].Children.Add(ImportButton);
+        _pages[2].Children.Add(_conversionBundle);
+        SetConversionBundle(FixedTool.ImageConverter.Installed);
         _pages[2].Children.Add(_pluginList);
         RenderPlugins(preferences.DisabledPlugins);
 
@@ -167,6 +172,14 @@ internal sealed class GuideSettingsView : Border
         }
     }
     internal void SetNotice(string message) => _notice.Text = message;
+    internal void SetConversionBundle(bool installed, bool busy = false)
+    {
+        ImportButton.IsEnabled = !busy;
+        _conversionBundle.Text = busy ? "正在安装 Filee，请稍候。关闭设置可取消安装。"
+            : !FixedToolBundle.Supported ? "Filee 转换组件当前仅支持 Windows x64。"
+            : installed ? "Filee 转换组件已安装。转换在本机完成，可在下方启停。"
+            : "要使用图片格式转换，从上方导入 Filee 的 .cetaplugin 安装包。";
+    }
     internal void SetConnection(ConnectionStatus status)
     {
         _connection.Text = GuideConnection.Message(status);

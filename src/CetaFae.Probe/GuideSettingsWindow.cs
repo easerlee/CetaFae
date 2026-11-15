@@ -33,14 +33,18 @@ internal sealed class GuideSettingsWindow : Window
     readonly Func<ConnectionStatus, byte[]> _diagnostics;
     GuidePreferences _saved;
     CancellationTokenSource? _test;
+    CancellationTokenSource? _bundleInstall;
+    readonly bool _allowBundleInstall;
     int _generation;
     bool _closed;
     ConnectionStatus _result;
 
     internal GuideSettingsWindow(GuidePreferences preferences, PluginCatalog shipped, Func<bool> cloudEnabled,
-        Func<GuidePreferences, string?> apply, Action cloudAction, Func<ConnectionStatus, byte[]> diagnostics, bool invalid)
+        Func<GuidePreferences, string?> apply, Action cloudAction, Func<ConnectionStatus, byte[]> diagnostics, bool invalid,
+        bool allowBundleInstall)
     {
         _saved = preferences; _cloudEnabled = cloudEnabled; _apply = apply; _diagnostics = diagnostics;
+        _allowBundleInstall = allowBundleInstall;
         Title = "鲸汐设置"; Width = 660; Height = 660; MinWidth = 500; MinHeight = 420;
         MaxHeight = SystemParameters.WorkArea.Height; MaxWidth = SystemParameters.WorkArea.Width;
         Width = Math.Min(Width, MaxWidth); Height = Math.Min(Height, MaxHeight);
@@ -57,7 +61,7 @@ internal sealed class GuideSettingsWindow : Window
         _view.SaveRequested += Apply;
         _view.ImportRequested += Import;
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { Close(); e.Handled = true; } };
-        Closed += (_, _) => { _closed = true; CancelDiagnostic(); };
+        Closed += (_, _) => { _closed = true; _bundleInstall?.Cancel(); CancelDiagnostic(); };
     }
 
     void CancelDiagnostic(ConnectionStatus status = ConnectionStatus.Unchecked)
@@ -93,11 +97,18 @@ internal sealed class GuideSettingsWindow : Window
         _view.SetNotice("设置已保存。配置变更已结束旧求助；使用范围改变后须重新运行安装程序确认协议，再重新拖入。");
     }
 
-    void Import()
+    async void Import()
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "导入鲸汐插件", Filter = "JSON 插件文件 (*.json)|*.json",
+        if (_bundleInstall is not null) return;
+        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "导入鲸汐插件",
+            Filter = "鲸汐插件 (*.json;*.cetaplugin)|*.json;*.cetaplugin|软件适配与功能 (*.json)|*.json|转换组件 (*.cetaplugin)|*.cetaplugin",
             Multiselect = false, CheckFileExists = true };
         if (dialog.ShowDialog(this) != true) return;
+        if (string.Equals(Path.GetExtension(dialog.FileName), FixedToolBundle.Extension, StringComparison.OrdinalIgnoreCase))
+        {
+            await InstallBundle(dialog.FileName);
+            return;
+        }
         try { _view.ImportPlugin(PluginCatalog.Import(dialog.FileName)); }
         catch (InvalidDataException ex)
         {
@@ -110,6 +121,38 @@ internal sealed class GuideSettingsWindow : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
         { _view.SetNotice("无法读取这个插件文件。请核对文件和读取权限；原列表保持不变。"); }
+    }
+
+    async Task InstallBundle(string file)
+    {
+        if (!_allowBundleInstall || !FixedToolBundle.Supported)
+        {
+            _view.SetNotice("当前无法安装 Filee 转换组件。此安装包适用于 Windows x64 正常运行模式。");
+            return;
+        }
+        using var install = new CancellationTokenSource();
+        _bundleInstall = install;
+        _view.SetConversionBundle(FixedTool.ImageConverter.Installed, busy: true);
+        string message;
+        try
+        {
+            var result = await Task.Run(() => FixedToolBundle.ImageConverter.Install(file, FixedTool.ToolsRoot, install.Token), install.Token);
+            message = result switch
+            {
+                BundleInstallResult.Repaired => "Filee 转换组件已修复。",
+                BundleInstallResult.AlreadyInstalled => "此版本的 Filee 转换组件已经安装。",
+                _ => "Filee 转换组件已安装。可在功能列表启用图片格式转换。"
+            };
+        }
+        catch (OperationCanceledException) { message = "已取消安装。"; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidDataException or PlatformFailure)
+        { message = "未能安装转换组件。请确认安装包与当前鲸汐版本匹配，并检查磁盘空间和文件权限。"; }
+        finally
+        {
+            _bundleInstall = null;
+            if (!_closed) _view.SetConversionBundle(FixedTool.ImageConverter.Installed);
+        }
+        if (!_closed) _view.SetNotice(message);
     }
 
     void Export()

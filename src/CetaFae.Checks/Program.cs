@@ -138,6 +138,11 @@ public static class Program
             await ConversionChecks.RunAsync(Check, requireTool: true);
             Console.WriteLine($"RESULT: {_passed} conversion checks passed. Desktop and real model: NOT RUN."); return;
         }
+        if (args is ["--conversion-bundle", var package])
+        {
+            ConversionBundleChecks.Run(Check, Path.GetFullPath(package));
+            Console.WriteLine($"RESULT: {_passed} conversion bundle checks passed. Desktop: NOT RUN."); return;
+        }
         await PlatformChecks.RunAsync(Check);
         if (args.Contains("--platform-only"))
         {
@@ -145,6 +150,7 @@ public static class Program
         }
         await CapabilityTaskChecks.RunAsync(Check);
         await ConversionChecks.RunAsync(Check, requireTool: false);
+        ConversionBundleChecks.Run(Check);
         if (args.Contains("--plugin-programs"))
         {
             TypeScriptPluginChecks.Run(Check);
