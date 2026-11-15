@@ -19,7 +19,7 @@ internal sealed class WhalePrompt : Border
     internal const double BodyHeight = 36;
     internal static double BodyTop(double hostHeight, bool topAttached) =>
         topAttached ? 0 : Math.Max(0, (hostHeight - HeightDip) / 2) + HeightDip - BodyHeight;
-    internal const double InputLeft = 36;
+    internal const double InputLeft = 18;
     readonly Grid _body;
     internal readonly TextBox Answer = new() { MaxLength = 300, AcceptsReturn = false, BorderThickness = new Thickness(0),
         Background = Brushes.Transparent, Padding = new Thickness(0), VerticalContentAlignment = VerticalAlignment.Center,
@@ -52,9 +52,7 @@ internal sealed class WhalePrompt : Border
         var row = new DockPanel();
         Attachment = new ChatAttachment(Answer);
         Attachment.Opening += () => FocusRequested?.Invoke();
-        Attachment.Add.Foreground = Brushes.White;
-        Attachment.Add.HorizontalAlignment = HorizontalAlignment.Left;
-        Attachment.Add.Margin = new Thickness(12, 0, 0, 0);
+        Attachment.Add.Visibility = Visibility.Collapsed;
         body.Children.Add(Attachment.Add);
         Attachment.Changed += UpdateHint;
         Attachment.Preview.Margin = new Thickness(InputLeft, 0, 48, 0);

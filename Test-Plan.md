@@ -578,7 +578,7 @@ Concentrated native batch A remains required: ordinary text explanation should n
 
 Run the full suite or `--chat-images` for generated-image decoding, orientation, metadata removal, limits, image-only submission, preview removal, composer bounds, and stub HTTP. Verify that the photo accompanies only the current turn and that the host rejects model replies requesting window routing or task dispatch. The focused command renders both composers offscreen.
 
-In the next native batch, select a generated photo and paste a generated bitmap through the plus menu and Ctrl+V. Confirm preview, replacement, removal, ordinary text paste, picker cancellation and return to the original bound window. Use a vision-enabled test connection to verify image-only and image-with-text replies on both composers. With image recognition disabled or consent withdrawn, verify that sending an attachment is unavailable.
+In the next native batch, select a generated photo and paste a generated bitmap through the resting plus menu and Ctrl+V. Confirm the bound composer shows no plus and its input reclaims the space. Confirm preview, replacement, removal, ordinary text paste, picker cancellation and return to the original bound window. Use a vision-enabled test connection to verify image-only and image-with-text replies on both composers. With image recognition disabled or consent withdrawn, verify that sending an attachment is unavailable.
 
 ## FMT-01–03 purpose-based conversion
 

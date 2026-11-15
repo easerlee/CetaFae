@@ -40,7 +40,6 @@ public sealed partial class GuideSession
             var actions = await UtilityMenuAsync(plugin, _utilityStop.Token);
             if (_utilityStop.IsCancellationRequested) return;
             _menu.SetTools(actions, RunUtility);
-            AddUtilityMenu(_ball.Prompt.Attachment, actions);
             _memoryMonitor = new(plugin, config,
                 () => _ball.FullscreenHiddenState || _ball.HasTarget || _chatWindow is { IsVisible: true } || _utilityWindows.Any(w => w.IsVisible),
                 reading =>

@@ -1,7 +1,7 @@
 {
   "name": "cetafae-plugin-workspace",
   "private": true,
-  "version": "0.3.1-preview.32",
+  "version": "0.3.1-preview.33",
   "scripts": { "build": "node tools/build-plugins.mjs", "check": "node tools/build-plugins.mjs --check" },
   "devDependencies": { "typescript": "5.9.3" }
 }

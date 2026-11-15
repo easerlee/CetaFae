@@ -89,8 +89,9 @@ internal static class ChatImageChecks
             CheckComposer(prompt, prompt.Answer, prompt.Send, prompt.Attachment);
             var preview = Bounds(prompt.Attachment.Preview, prompt);
             var row = Bounds(prompt.DragSurface, prompt);
-            check(top ? row.Bottom <= preview.Top : preview.Bottom <= row.Top,
-                "attached preview fits between the host edge and input in both dock orientations");
+            check(prompt.Attachment.Add.Visibility == Visibility.Collapsed &&
+                (top ? row.Bottom <= preview.Top : preview.Bottom <= row.Top),
+                "attached composer has no add button and its preview fits both dock orientations");
             var remove = (Button)((DockPanel)prompt.Attachment.Preview.Child).Children[0];
             remove.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             check(!prompt.Send.IsEnabled && prompt.Attachment.Preview.Visibility == Visibility.Collapsed,

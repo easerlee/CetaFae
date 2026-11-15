@@ -2,7 +2,9 @@
 
 - At 125% scaling, a WPF dock host can retain its old physical height even when its width scales. Use the shared prompt-body geometry for placement and card anchoring, restore the intended host height on dock, and permit edge contact for an ordinary attached reader. Preview.5 passes offline checks. Native seams and native control alignment are separate acceptance items. Initial snapshot cards and submitted guidance have separate page-change paths. A stable HWND/frame can retain an initial card after navigation, so the historical marker cleanup pass does not establish initial card freshness.
 
-Updated: 2026-11-15
+Updated: 2026-11-16
+
+- The user removed the plus button from the window-bound composer. Keep the resting composer plus for attachments/tools; the attached input reclaims its reserved space with an18DIP left inset. Whale/tray utility menus remain the entry while bound. This is a visibility/layout change; existing explicit image paste and draft lifetime remain available.
 
 - Preview.32 implements the bounded daily-tools candidate. TS providers choose tool labels, intent, text goals and reminder policy. The WPF host owns the selected window, local capture, copy/save, user-triggered text transfer, process identity and effects. An initial local capture leaves a usable bound input, and tools started from an existing binding preserve its explanation. Default-off reminders are read-only. Working-set release is an explicit single-process action with a durable receipt and a rebound check, with no restart or configuration effect. Filee download runs only in a conversion task with a missing component and uses fixed asset bytes plus the existing verified offline activation path. Keep the native, live download, real-model and performance findings tied to their respective gates in 验证记录.md.
 

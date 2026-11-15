@@ -1201,7 +1201,7 @@ One `TaskActionSurface` is hosted inline by the existing attached card or restin
 
 ## Chat image attachments
 
-Both composers put a 24 DIP add button before the editor. A removable thumbnail sits above the resting input, or next to the docked bar on the side away from its seam. The add menu offers file selection and image paste. Ctrl+V attaches a clipboard bitmap when available. WPF handles ordinary text paste.
+The resting composer puts a 24 DIP add button before the editor. The attached composer collapses that button and uses an 18 DIP left input inset. Utility menus appear in the whale/tray menu and the resting add menu. A removable thumbnail sits above the resting input, or next to the docked bar on the side away from its seam. The add menu offers file selection and image paste. Ctrl+V attaches a clipboard bitmap when available. WPF handles ordinary text paste.
 
 The host validates image format and dimensions, downsizes the longest edge to 2048 and re-encodes the pixels. The preview discloses upload on send and identifies the existing receiver in its tooltip. The send action attaches the image to the last user message of that connection. The chat plugin gets `imageAttached` as a boolean with window routing and task proposals disabled for this request. Saved turns contain text only. Clear, revocation and binding termination release the corresponding draft.
 
