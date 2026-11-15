@@ -113,9 +113,10 @@ public sealed class GuidePlugin
         string kind = "application", string? identityPolicy = null, InterpretationPolicy? interpretationPolicy = null,
         PluginProgram? program = null)
     {
-        if (schemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8) || kind is not ("application" or "general" or "identity" or "chat" or "conversion") ||
+        if (schemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10) || kind is not ("application" or "general" or "identity" or "chat" or "conversion" or "utility") ||
+            (schemaVersion == 9) != (kind == "utility") || kind == "utility" && program is null ||
             (schemaVersion == 7) != (kind == "chat") ||
-            (schemaVersion == 8) != (kind == "conversion") || kind == "conversion" && program is null ||
+            (schemaVersion is 8 or 10) != (kind == "conversion") || kind == "conversion" && program is null ||
             kind == "general" && schemaVersion is not (3 or 5 or 6) ||
             (schemaVersion is 5 or 6 ? kind != "general" || interpretationPolicy is null : interpretationPolicy is not null) ||
             schemaVersion != 6 && interpretationPolicy?.LocateTextRegions == true ||
@@ -137,9 +138,9 @@ public sealed class GuidePlugin
         DisplayName = displayName;
         Targets = Array.AsReadOnly(targets.ToArray());
         UiaView = uiaView;
-        TaskIds = PluginData.Texts(taskIds, 32, 64, allowEmpty: kind is "chat" or "conversion");
+        TaskIds = PluginData.Texts(taskIds, 32, 64, allowEmpty: kind is "chat" or "conversion" or "utility");
         if (TaskIds.Any(task => !PluginData.IsToken(task, 64)) ||
-            (kind is "chat" or "conversion") && (TaskIds.Count != 0 || uiaView != "control"))
+            (kind is "chat" or "conversion" or "utility") && (TaskIds.Count != 0 || uiaView != "control"))
             throw new InvalidDataException("plugin_task");
         BlockedPoints = Array.AsReadOnly(blockedPoints.ToArray());
         if (schemaVersion >= 2 && kind == "application" && observationScopes is not { Count: > 0 and <= 16 } ||
@@ -151,7 +152,7 @@ public sealed class GuidePlugin
         ObservationScopes = Array.AsReadOnly(observationScopes?.ToArray() ?? []);
     }
 
-    public bool Matches(string processName, string title) => Kind == "general" || Targets.Any(t => t.Matches(processName, title));
+    public bool Matches(string processName, string title) => Kind is "general" or "utility" || Targets.Any(t => t.Matches(processName, title));
 
     public bool AllowsPoint(string? intent, string candidateName) =>
         !string.IsNullOrWhiteSpace(intent) && !BlockedPoints.Any(rule => rule.Blocks(intent, candidateName));

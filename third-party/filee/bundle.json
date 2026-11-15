@@ -1,6 +1,8 @@
 {
   "id": "image.filee.win.x64.2.4.0",
   "source": "https://github.com/KnifeLemon/Filee/releases/tag/v2.4.0",
+  "downloadUrl": "https://github.com/KnifeLemon/Filee/releases/download/v2.4.0/Filee-2.4.0-win-Portable.zip",
+  "downloadBytes": 162684393,
   "archiveHash": "0ED05B876301F9BEA712B948B2A1D032FD451D284A413F39F3B1CA47DEE241C8",
   "licenseHash": "34209D059D78056E9A68C861AEBEE328C0651C909467479C49B3E2DD1BD9CECE",
   "noticesHash": "CDA1C7ECA872E64E682B0BAEE8A343993EBA62F578BFB73EC548823BCCB3D67D"

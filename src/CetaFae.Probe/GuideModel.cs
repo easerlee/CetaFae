@@ -118,6 +118,22 @@ public sealed class GuideModel : IDisposable
     internal async Task<string> ChatAsync(IReadOnlyList<ChatTurn> history, string question, CancellationToken cancellationToken)
         => (await TextReplyAsync(history, question, allowWindow: false, cancellationToken))!;
 
+    internal async Task<string> ProcessTextAsync(GuidePlugin plugin, string source, string question, CancellationToken token)
+    {
+        if (source.Length is < 1 or > 16000 || question.Length is < 1 or > 500) throw new InvalidDataException("utility_text_size");
+        GuidePrivacy.EnsureTextSafe(source); GuidePrivacy.EnsureTextSafe(question);
+        var messages = await GuideFeature.MessagesAsync(plugin, "text-process", new { source, question }, token);
+        var response = await SendAsync(new { model = _options.Model, stream = false, response_format = new { type = "json_object" },
+            messages = messages.Select(m => new { role = m.Role, content = m.Content }) }, token);
+        using var document = JsonDocument.Parse(response);
+        if (document.RootElement.EnumerateObject().Count() != 1 || !document.RootElement.TryGetProperty("reply", out var reply) ||
+            reply.ValueKind != JsonValueKind.String) throw new InvalidDataException("utility_reply");
+        var answer = FreeChatSession.ValidateReply(reply.GetString());
+        if (question == "translate" && !GuideTranslation.SameLiterals(source, answer))
+            throw new InvalidDataException("translation_literals");
+        return answer;
+    }
+
     internal Task<string?> RouteQuestionAsync(IReadOnlyList<ChatTurn> history, string question, CancellationToken cancellationToken)
         => TextReplyAsync(history, question, allowWindow: true, cancellationToken);
 
@@ -148,7 +164,7 @@ public sealed class GuideModel : IDisposable
             history = history.Select(turn => new { question = turn.Question, reply = turn.Reply }), question,
             allowWindow, windowGuidanceAvailable = _windowGuidanceAvailable, activeGoal,
             previousUnderstanding = UnderstandingContext(previousUnderstanding), taskAvailable, taskEvidence, conversionAvailable,
-            imageAttached = image is not null
+            imageAttached = image is not null, utilityAvailable = taskAvailable && _plugins.UtilityProvider is not null
         }, cancellationToken);
         var outbound = messages.Select(m => new { role = m.Role, content = (object)m.Content }).ToArray();
         if (image is not null)
@@ -166,7 +182,7 @@ public sealed class GuideModel : IDisposable
         if (taskAvailable && fields.Length == 1 && fields[0].Name == "task")
         {
             var task = TaskProposal.Parse(fields[0].Value);
-            if (task.Operation == "file.convert" && !conversionAvailable)
+            if (task.Operation is "file.convert" or "file.compress" && !conversionAvailable)
                 return new("当前没有启用文件转换插件。", null);
             return new(null, task);
         }

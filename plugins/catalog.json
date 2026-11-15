@@ -1,4 +1,13 @@
 {
   "schemaVersion": 1,
-  "enabled": ["cetafae.software-identity", "cetafae.visual-guide", "cetafae.windows-settings", "cetafae.edge", "cetafae.winrar", "cetafae.chat", "cetafae.filee"]
+  "enabled": [
+    "cetafae.software-identity",
+    "cetafae.visual-guide",
+    "cetafae.windows-settings",
+    "cetafae.edge",
+    "cetafae.winrar",
+    "cetafae.chat",
+    "cetafae.filee",
+    "cetafae.utilities"
+  ]
 }

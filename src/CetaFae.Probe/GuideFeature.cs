@@ -36,9 +36,9 @@ internal static class GuideFeature
                 role.GetString() is not ("system" or "user" or "assistant"))
                 throw new InvalidDataException("plugin_messages");
             if ((result.Count == 0) != (role.GetString() == "system")) throw new InvalidDataException("plugin_messages");
-            if ((result.Count == 0 || operation != "window") && text.Length > 24000)
+            if ((result.Count == 0 || operation is not ("window" or "text-process")) && text.Length > 24000)
                 throw new InvalidDataException("plugin_messages");
-            if (operation == "window" && result.Count == 1 && text.Length > 32 * 1024)
+            if (operation is "window" or "text-process" && result.Count == 1 && text.Length > 32 * 1024)
             {
                 // A bounded context aggregates many individually bounded names; do not treat it as one UI field.
                 using var context = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 16 });

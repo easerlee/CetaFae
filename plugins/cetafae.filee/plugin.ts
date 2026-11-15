@@ -1,6 +1,11 @@
 const supportedSources = ["jpg", "png", "webp", "heic", "heif", "bmp"];
 
 function handle(request: PluginRequest): PluginResult {
+  if (request.operation === "compression-plan" && request.input.compression) {
+    const c = request.input.compression;
+    return { action: ["jpg", "jpeg", "png", "bmp"].includes(c.sourceFormat) && c.maxBytes >= 65536 && c.maxBytes <= 4194304
+      ? "image.jpeg.bounded" : null };
+  }
   if (request.operation !== "conversion-plan" || !request.input.conversion) throw new Error("plugin_operation");
   const input = request.input.conversion;
   const source = input.sourceFormat === "jpeg" ? "jpg" : input.sourceFormat;

@@ -101,4 +101,25 @@ internal static class GuideTextRegions
         token.ThrowIfCancellationRequested();
         return Candidates(lines, region, (int)width, (int)height);
     }
+
+    internal static async Task<string> ExtractAsync(byte[] png, CancellationToken token)
+    {
+        var engine = OcrEngine.TryCreateFromUserProfileLanguages() ?? throw new InvalidDataException("ocr_language_unavailable");
+        using var stream = new InMemoryRandomAccessStream();
+        using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
+        { writer.WriteBytes(png); await writer.StoreAsync().AsTask(token); }
+        var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream).AsTask(token);
+        if (decoder.PixelWidth > OcrEngine.MaxImageDimension || decoder.PixelHeight > OcrEngine.MaxImageDimension)
+            throw new InvalidDataException("ocr_image_size");
+        var scale = Math.Min(4, Math.Max(1, 96d / decoder.PixelHeight));
+        scale = Math.Min(scale, OcrEngine.MaxImageDimension / (double)Math.Max(decoder.PixelWidth, decoder.PixelHeight));
+        using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied,
+            new BitmapTransform { ScaledWidth = (uint)(decoder.PixelWidth * scale), ScaledHeight = (uint)(decoder.PixelHeight * scale) },
+            ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage).AsTask(token);
+        var result = await engine.RecognizeAsync(bitmap).AsTask(token);
+        // Extraction preserves repeated lines and reading order; location candidates deliberately do not.
+        var text = string.Join("\n", result.Lines.Select(line => line.Text));
+        if (text.Length > 16000) throw new InvalidDataException("ocr_text_size");
+        return text;
+    }
 }

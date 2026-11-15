@@ -154,6 +154,10 @@ internal static class PlatformChecks
                 try
                 {
                     var childScope = scope with { Processes = [new(childId, started.Evidence.Value.GetProperty("startedAtTicks").GetInt64())] };
+                    var trimmedChild = await new PlatformSession(childScope, journal).ExecuteAsync(Call("process.trim", new { processId = childId }));
+                    check(trimmedChild.Status == "verified" && !child.HasExited &&
+                        trimmedChild.Evidence!.Value.GetProperty("applicationImprovementVerified").GetBoolean() == false,
+                        "owned hidden process working-set release verifies counters without closing it or claiming speed improvement");
                     var stoppedChild = await new PlatformSession(childScope, journal).ExecuteAsync(Call("process.stop", new { processId = childId }));
                     check(stoppedChild.Status == "verified" && child.HasExited, "scoped generated process stop independently verifies exit");
                 }

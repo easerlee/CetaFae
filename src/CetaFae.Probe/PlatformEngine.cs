@@ -23,6 +23,7 @@ internal static class PlatformEngine
         ["registry.read"] = ["key", "name"], ["registry.write"] = ["key", "name", "text", "expectedHash"],
         ["registry.delete"] = ["key", "name", "expectedHash"],
         ["process.inspect"] = ["processId"], ["process.start"] = ["executable", "arguments"], ["process.stop"] = ["processId"],
+        ["process.trim"] = ["processId"],
         ["service.inspect"] = ["service"], ["service.start"] = ["service"], ["service.stop"] = ["service"],
         ["events.query"] = ["log", "minutes", "limit"], ["network.resolve"] = ["host", "port"],
         ["network.connect"] = ["host", "port"], ["window.inspect"] = ["windowId"], ["window.activate"] = ["windowId"],
@@ -69,13 +70,14 @@ internal static class PlatformEngine
                 case "file.write": case "file.copy": case "file.move": case "file.delete": return PlatformFiles.Mutate(call, scope, journal);
                 case "recovery.restore": return PlatformFiles.Restore(call, scope, journal);
                 case "registry.read": case "registry.write": case "registry.delete": return RegistryOperation(call, scope, journal);
-                case "process.inspect": case "process.stop":
+                case "process.inspect": case "process.stop": case "process.trim":
                     var pid = Number(p, "processId", 1, int.MaxValue);
                     var identity = scope.Processes.SingleOrDefault(item => item.Id == pid) ?? throw new PlatformFailure("resource_denied");
                     using (var process = scope.Process(identity))
                     {
                         if (call.Operation == "process.inspect") return Result(call, "observed", "process_observed",
                             new { processId = pid, startedAtTicks = identity.StartedAtTicks, privateBytes = process.PrivateMemorySize64 });
+                        if (call.Operation == "process.trim") return MemoryDiagnostics.Trim(call, process, identity);
                         if (pid == Environment.ProcessId) throw new PlatformFailure("self_stop_denied");
                         process.Kill(entireProcessTree: false);
                         using var wait = new CancellationTokenSource(TimeSpan.FromSeconds(3));

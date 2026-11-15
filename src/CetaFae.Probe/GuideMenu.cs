@@ -44,6 +44,12 @@ internal sealed class GuideMenu : IDisposable
     {
         _tray.Text = enabled ? "鲸汐 · 可以求助" : "鲸汐 · 尚未同意";
     }
+    internal void SetTools(IReadOnlyList<(string Id, string Label)> actions, Action<string> run)
+    {
+        var tools = new MenuItem { Header = "实用工具" };
+        foreach (var item in actions) tools.Items.Add(Item(item.Label, () => run(item.Id)));
+        Menu.Items.Insert(0, tools);
+    }
     internal void Show()
     {
         _opening = true;

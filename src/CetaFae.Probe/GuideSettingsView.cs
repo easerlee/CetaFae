@@ -18,6 +18,9 @@ internal sealed class GuideSettingsView : Border
     readonly TextBox _endpoint = Input("模型服务地址");
     readonly TextBox _model = Input("模型名称");
     readonly CheckBox _image = new() { Content = "允许发送授权范围内的图片", Margin = new Thickness(0, 10, 0, 10) };
+    readonly CheckBox _monitor = new() { Content = "内存持续偏高时提醒我（默认关闭）", Margin = new Thickness(0, 10, 0, 6) };
+    readonly TextBox _high = Input("提醒阈值"), _low = Input("恢复阈值"),
+        _duration = Input("持续秒数"), _cooldown = Input("间隔分钟");
     readonly Dictionary<string, CheckBox> _plugins = new(StringComparer.Ordinal);
     readonly StackPanel _pluginList = new();
     readonly PluginCatalog _shipped;
@@ -98,6 +101,18 @@ internal sealed class GuideSettingsView : Border
         _pages[1].Children.Add(_disclosure);
 
         _pages[2].Children.Add(Title("功能与插件"));
+        _monitor.IsChecked = preferences.Monitor.Enabled;
+        _high.Text = preferences.Monitor.High.ToString(); _low.Text = preferences.Monitor.Low.ToString();
+        _duration.Text = preferences.Monitor.SustainedSeconds.ToString(); _cooldown.Text = preferences.Monitor.CooldownMinutes.ToString();
+        _pages[2].Children.Add(_monitor);
+        _pages[2].Children.Add(Text("只在本机每10秒读取总内存计数，不看屏幕、不读剪贴板、不发模型请求。全屏或正在求助时不打扰；关闭即停止。"));
+        var monitorFields = new StackPanel();
+        foreach (var (label, field) in new[] { ("占用超过多少百分比提醒（50–99）", _high),
+            ("降至多少百分比后重新提醒（20至提醒值以下）", _low), ("持续秒数（30–3600）", _duration),
+            ("两次提醒至少间隔多少分钟（5–1440）", _cooldown) })
+        { monitorFields.Children.Add(Text(label)); monitorFields.Children.Add(field); field.TextChanged += (_, _) => Edited(); }
+        _pages[2].Children.Add(new Expander { Header = "内存提醒参数", Content = monitorFields });
+        _monitor.Checked += (_, _) => Edited(); _monitor.Unchecked += (_, _) => Edited();
         _pages[2].Children.Add(Text("导入的 JSON 插件默认停用，勾选并保存后生效。作者信息未经核实，插件不能自行读取窗口、联网或操作电脑。"));
         ImportButton = Action("导入插件文件", () => ImportRequested?.Invoke());
         _pages[2].Children.Add(ImportButton);
@@ -122,7 +137,9 @@ internal sealed class GuideSettingsView : Border
     }
 
     GuidePreferences Draft() => new(_endpoint.Text.Trim(), _model.Text.Trim(), _image.IsChecked == true,
-        _plugins.Where(p => p.Value.IsChecked != true).Select(p => p.Key).ToArray(), _custom);
+        _plugins.Where(p => p.Value.IsChecked != true).Select(p => p.Key).ToArray(), _custom,
+        new MonitorSettings(_monitor.IsChecked == true, Number(_high), Number(_low), Number(_duration), Number(_cooldown)));
+    static int Number(TextBox field) => int.TryParse(field.Text, out var value) ? value : throw new ArgumentException("monitor_settings");
     internal GuidePreferences Read()
     {
         var next = Draft().Validate();
@@ -156,7 +173,7 @@ internal sealed class GuideSettingsView : Border
             enabled.Checked += (_, _) => Edited(); enabled.Unchecked += (_, _) => Edited();
             var custom = _custom.Any(p => p.Id == plugin.Id);
             var kind = plugin.Kind switch { "general" => "通用界面理解", "identity" => "本机软件身份", "chat" => "自由问答",
-                "conversion" => "本机文件转换", _ => "软件适配" };
+                "conversion" => "本机文件转换", "utility" => "日常工具与资源提醒", _ => "软件适配" };
             var item = new StackPanel(); item.Children.Add(enabled);
             item.Children.Add(Text($"{(custom ? "本地导入" : "随软件提供")} · {kind} · 版本 {plugin.Version}"));
             item.Children.Add(Text(plugin.Program is not null ? "功能插件：包含受限 JavaScript 程序（由 TypeScript 编译）" :
@@ -208,7 +225,7 @@ internal sealed class GuideSettingsView : Border
         try { SaveRequested?.Invoke(Read()); }
         catch (System.IO.InvalidDataException) { SetNotice("插件设置冲突或不兼容。相同能力或相交适配范围不能同时启用，请停用其中一个再保存；原配置尚未改变。"); }
         catch (ArgumentException)
-        { SetNotice("请核对服务地址和模型名称：远程服务须用 HTTPS，地址不能包含账号、密码、查询参数或片段。"); }
+        { SetNotice("请核对连接和内存提醒参数：恢复阈值应小于提醒阈值，数字须在标注范围内；远程服务须用 HTTPS。"); }
     }
     static TextBlock Text(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, LineHeight = 21,
         Margin = new Thickness(0, 5, 0, 5) };

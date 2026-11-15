@@ -84,6 +84,11 @@ public sealed partial class GuideSession
     async Task<string?> TaskReplyAsync(IReadOnlyList<ChatTurn> history, string question, bool attached, CancellationToken token)
     {
         if (_taskActive) return "上一个处理还未结束，请先停止或完成它。";
+        if (await UtilityIntentAsync(question, token) is { } utility)
+        {
+            _ = _ball.Dispatcher.BeginInvoke(() => RunUtility(utility));
+            return utility == "memory.inspect" ? "正在本机检查内存占用。" : "已打开工具；需要截图时，请把鲸鱼拖到要处理的窗口。";
+        }
         var plugin = _plugins.ChatProvider ?? throw new InvalidDataException("plugin_program_unavailable");
         var response = await _model.ConverseAsync(history, question, attached, token, attached ? _followup.ActiveGoal : null,
             attached ? _understanding.ForWindow(_ball.BoundTarget) : null, taskAvailable: true);
@@ -93,7 +98,8 @@ public sealed partial class GuideSession
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
         stop.CancelAfter(TimeSpan.FromMinutes(10));
         _taskStop = stop;
-        var task = new TaskCoordinator(_taskRecords, TaskInteractionFor(attached), _plugins);
+        var task = new TaskCoordinator(_taskRecords, TaskInteractionFor(attached), _plugins,
+            action => { _ = _ball.Dispatcher.BeginInvoke(() => RunUtility(action)); });
         try
         {
             return await TaskWorkflow.RunAsync(task, plugin, response,
@@ -109,7 +115,7 @@ public sealed partial class GuideSession
                 _ => "已停止后续处理。请先查看操作记录，核对已发出的操作。"
             };
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or JsonException or PlatformFailure or System.Security.Cryptography.CryptographicException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or JsonException or PlatformFailure or System.Security.Cryptography.CryptographicException or System.Net.Http.HttpRequestException)
         {
             var conversionMessage = ex.Message switch
             {
@@ -119,8 +125,13 @@ public sealed partial class GuideSession
                 "conversion_timeout" => "转换这次没有及时完成。原文件仍保留。",
                 "conversion_failed" or "conversion_invalid_output" => "这张图没能成功转换。请确认原图能打开，再试另一种支持的格式。",
                 "conversion_plan" or "conversion_conflict" => "当前无法确定可用的转换方案，请检查已启用的转换插件。",
+                "compression_target_unavailable" => "在不过度缩小或降低画质的前提下，暂时压不到这个大小。原图保留，可以调整大小要求。",
                 _ => null
             };
+            if (ex.Message.StartsWith("tool_download_", StringComparison.Ordinal))
+                return "转换组件这次没能下载完成，原文件和已有组件保留。可稍后再试，或在设置中导入离线包。";
+            if (ex is System.Net.Http.HttpRequestException)
+                return "识别服务暂时没有连通，已停止后续处理。已完成的操作可从操作记录查看，不会自动重复执行。";
             if (conversionMessage is not null) return conversionMessage;
             return "这一步未能可靠完成，已停止后续操作。" + (ex.Message switch
             {
@@ -150,11 +161,16 @@ public sealed partial class GuideSession
             {
                 var entry = entries[index];
                 var state = entry.State switch { "verified" => "已核验完成", "restored" => "已恢复", "denied" => "未执行", "failed" => "未完成", _ => "结果待核对" };
-                var operation = entry.Operation switch { "file.write" => "保存文字", "file.copy" => "复制文件", "file.move" => "移动文件", "file.delete" => "删除文件", "recovery.restore" => "恢复文件", _ => "文件处理" };
+                var operation = entry.Operation switch { "file.write" => "保存文字", "file.copy" => "复制文件", "file.move" => "移动文件", "file.delete" => "删除文件", "recovery.restore" => "恢复文件", "process.trim" => "释放暂用内存", _ => "文件处理" };
                 _panel.SetStatus($"操作记录 {index + 1}/{entries.Length} · {operation}\n" + entry.At.ToLocalTime().ToString("MM-dd HH:mm") + " · " + state);
                 var surface = _panel.Card.TaskActions;
-                surface.Present(string.Join("\n", entry.Resources), null, null, null);
-                if (entry.State is "pending" or "outcome_unknown") surface.AddAction("核对结果", () => Process(entry, reconcile: true));
+                surface.Present(entry.Operation == "process.trim" ? "这次明确选中的软件。释放内存不能撤销，也不能据此保证电脑会更快。" :
+                    string.Join("\n", entry.Resources), null, null, null);
+                if (entry.State is "pending" or "outcome_unknown")
+                {
+                    if (entry.Operation == "process.trim") surface.AddAction("重新查看内存", () => RunUtility("memory.inspect"));
+                    else surface.AddAction("核对结果", () => Process(entry, reconcile: true));
+                }
                 if (entry.RecoveryId is not null && entry.State is "verified" or "outcome_unknown")
                     surface.AddAction("查看恢复", () => Process(entry, reconcile: false));
                 if (index > 0) surface.AddAction("上一项", () => Show(index - 1));

@@ -16,7 +16,16 @@ internal sealed partial class TaskCoordinator
         var plan = await TaskConversion.PlanAsync(plugins, proposal, sourceFormat, token);
         if (plan is null) return new("denied", "这版暂不支持所选文件和目标格式的组合。可以换一张常见格式的图片，或告诉我用途。", null);
         if (plan.Tool is { Installed: false })
-            return new("denied", "已为你选好 " + plan.Format.ToUpperInvariant() + "。这台电脑还缺少转换工具，请在“设置 → 功能 → 导入插件文件”安装 Filee 转换插件。", null);
+        {
+            var bundle = FixedToolBundle.ImageConverter;
+            if (plan.Tool.Id != bundle.Tool.Id || !FixedToolBundle.Supported)
+                return new("denied", "这台电脑暂不支持该转换组件。", null);
+            if (!await interaction.Decide($"需要下载本机转换组件，约 {bundle.DownloadBytes / 1048576d:N0} MB，来自官方 GitHub 固定版本。安装后继续转换刚才选择的文件；不上传文件。也可从设置导入离线包。",
+                "下载并继续", token)) return new("denied", "已取消下载，原文件没有改变。", null);
+            var progress = new Progress<(long Done, long Total)>(p => interaction.Progress($"正在下载转换组件：{p.Done * 100 / p.Total}%（可停止）"));
+            await ToolDownload.InstallAsync(bundle, (done, total) => ((IProgress<(long, long)>)progress).Report((done, total)), token);
+            interaction.Progress("本机转换组件已就绪，继续原任务…");
+        }
 
         string sourceHash;
         using (var selected = TaskConversion.OpenSource(source, sourceFormat))

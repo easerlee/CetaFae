@@ -128,12 +128,12 @@ public static class Program
                 session.Dispose();
                 preferences = next; plugins = nextPlugins;
                 // A changed disclosure cannot reuse the previous grant; the store checks its exact hash.
-                session = new GuideSession(ball, next.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences);
+                session = new GuideSession(ball, next.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences, monitoring: next.Monitor);
             }
             invalidPreferences = false;
             return null;
         }
-        session = new GuideSession(ball, preferences.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences);
+        session = new GuideSession(ball, preferences.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences, monitoring: preferences.Monitor);
         if (invalidPreferences) ball.Dispatcher.InvokeAsync(session.ShowConfigurationWarning);
         app.Exit += (_, _) => { settings?.Close(); session.Dispose(); ball.Cleanup(); ProbeLog.Close(); };
         if (int.TryParse(ArgValue(args, "--exit-after"), out var exitAfter) && exitAfter > 0)

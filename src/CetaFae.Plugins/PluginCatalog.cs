@@ -24,7 +24,7 @@ public sealed class PluginCatalog
         if (definitions.Length > 32 || definitions.Any(p => p is null) ||
             definitions.Select(p => p.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != definitions.Length ||
             definitions.Count(p => p.Kind == "general") > 1 || definitions.Count(p => p.Kind == "identity") > 1 ||
-            definitions.Count(p => p.Kind == "chat") > 1)
+            definitions.Count(p => p.Kind == "chat") > 1 || definitions.Count(p => p.Kind == "utility") > 1)
             throw new InvalidDataException("plugin_catalog");
         Plugins = Array.AsReadOnly(definitions);
     }
@@ -35,6 +35,7 @@ public sealed class PluginCatalog
     public GuidePlugin? IdentityProvider => Plugins.SingleOrDefault(p => p.Kind == "identity");
     public GuidePlugin? GeneralProvider => Plugins.SingleOrDefault(p => p.Kind == "general");
     public GuidePlugin? ChatProvider => Plugins.SingleOrDefault(p => p.Kind == "chat");
+    public GuidePlugin? UtilityProvider => Plugins.SingleOrDefault(p => p.Kind == "utility");
 
     public GuidePlugin Resolve(string processName, string title)
     {

@@ -24,14 +24,14 @@ internal static class GuideTranslation
         var language = Text(root.GetProperty("language"), 8);
         if (!policy.Languages.Contains(language, StringComparer.Ordinal))
             throw new InvalidDataException("translation_language");
-        var preserved = Tokens(translation);
-        if (!Tokens(source).SequenceEqual(preserved))
+        if (!SameLiterals(source, translation))
             throw new InvalidDataException("translation_literals");
         return GuideFeature.Present("translation-result", new { source, translation, language }, feature, token);
     }
 
     static string[] Tokens(string text) => Literals.Matches(text).Select(m => m.Value)
         .Order(StringComparer.Ordinal).ToArray();
+    internal static bool SameLiterals(string source, string translated) => Tokens(source).SequenceEqual(Tokens(translated));
 
     static string Text(JsonElement value, int limit)
     {

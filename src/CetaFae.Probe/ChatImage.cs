@@ -75,7 +75,7 @@ internal sealed class ChatImage
             Math.Max(scale, 1d / bitmap.PixelHeight)));
     }
 
-    static BitmapSource Orient(BitmapSource bitmap, int orientation)
+    internal static BitmapSource Orient(BitmapSource bitmap, int orientation)
     {
         if (orientation is < 2 or > 8) return bitmap;
         var transform = new TransformGroup();

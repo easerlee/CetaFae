@@ -12,7 +12,7 @@ function build(manifestPath, outputPath, bundled = false) {
   const files = ["plugin-sdk/contracts.d.ts", "plugin-sdk/runtime.ts"];
   if (bundled) {
     files.push("plugins/shared/common.ts");
-    if (manifest.kind !== "identity" && manifest.kind !== "chat" && manifest.kind !== "conversion") files.push("plugins/shared/visual.ts");
+    if (!["identity", "chat", "conversion", "utility"].includes(manifest.kind)) files.push("plugins/shared/visual.ts");
   }
   files.push(path.join(dir, "plugin.ts"));
   const options = { strict: true, target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None,

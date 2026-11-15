@@ -68,6 +68,7 @@ public sealed class BallWindow : Window
         }
     }
     internal bool HasTarget => _target != IntPtr.Zero;
+    internal bool FullscreenHiddenState => _fullscreenHidden;
     internal IntPtr BoundTarget => _target;
     internal bool BindingSuspended => _binding.Suspended;
     internal bool BindingConfirmed => _binding.Confirmed;

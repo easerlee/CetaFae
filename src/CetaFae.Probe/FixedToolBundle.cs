@@ -12,7 +12,8 @@ namespace CetaFae.Probe;
 internal enum BundleInstallResult { Installed, AlreadyInstalled, Repaired }
 
 /// <summary>Imports a host-approved, versioned tool bundle without executing its contents.</summary>
-internal sealed record FixedToolBundle(FixedTool Tool, string Source, string ArchiveHash, string LicenseHash, string NoticesHash)
+internal sealed record FixedToolBundle(FixedTool Tool, string Source, string ArchiveHash, string LicenseHash, string NoticesHash,
+    string? DownloadUrl = null, long DownloadBytes = 0)
 {
     internal const string Extension = ".cetaplugin";
     const int ArchiveLimit = 256 * 1024 * 1024;
@@ -26,7 +27,7 @@ internal sealed record FixedToolBundle(FixedTool Tool, string Source, string Arc
     internal static bool Supported => RuntimeInformation.OSArchitecture == Architecture.X64;
     internal static FixedToolBundle ImageConverter { get; } = LoadImageConverter();
 
-    sealed record Release(string Id, string Source, string ArchiveHash, string LicenseHash, string NoticesHash);
+    sealed record Release(string Id, string Source, string ArchiveHash, string LicenseHash, string NoticesHash, string DownloadUrl, long DownloadBytes);
 
     static FixedToolBundle LoadImageConverter()
     {
@@ -35,7 +36,7 @@ internal sealed record FixedToolBundle(FixedTool Tool, string Source, string Arc
         var release = JsonSerializer.Deserialize<Release>(resource, PlatformRequest.Json)
             ?? throw new InvalidDataException("conversion_release");
         var tool = FixedTool.Resolve(release.Id) ?? throw new InvalidDataException("conversion_release");
-        return new(tool, release.Source, release.ArchiveHash, release.LicenseHash, release.NoticesHash);
+        return new(tool, release.Source, release.ArchiveHash, release.LicenseHash, release.NoticesHash, release.DownloadUrl, release.DownloadBytes);
     }
 
     internal BundleInstallResult Install(string file, string toolRoot, CancellationToken token)

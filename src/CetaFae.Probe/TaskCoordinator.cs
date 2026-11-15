@@ -11,7 +11,8 @@ internal sealed record TaskInteraction(
 internal sealed record TaskStepResult(string Status, string Message, object? Evidence, TaskReceipt? Receipt = null);
 
 /// <summary>Host-owned object resolution and evidence. Plugins select methods, never permissions.</summary>
-internal sealed partial class TaskCoordinator(TaskRecordStore records, TaskInteraction interaction, PluginCatalog? plugins = null)
+internal sealed partial class TaskCoordinator(TaskRecordStore records, TaskInteraction interaction, PluginCatalog? plugins = null,
+    Action<string>? utility = null)
 {
     readonly DateTimeOffset _expires = DateTimeOffset.UtcNow.AddMinutes(10);
     readonly HashSet<string> _disclosed = new(StringComparer.Ordinal);
@@ -62,6 +63,13 @@ internal sealed partial class TaskCoordinator(TaskRecordStore records, TaskInter
         GuidePrivacy.EnsureTextSafe(JsonSerializer.Serialize(proposal, PlatformRequest.Json));
         var op = proposal.Operation;
         if (op == "file.convert") return await ConvertFileAsync(proposal, token);
+        if (op == "file.compress") return await CompressFileAsync(proposal, token);
+        if (op == "utility.run")
+        {
+            if (plugins?.UtilityProvider is null || utility is null) return new("denied", "当前没有启用这项工具。", null);
+            utility(proposal.Action!);
+            return new("observed", "工具已打开，请在工具中继续。", null);
+        }
         if (op is "system.info" or "storage.list")
         {
             await Disclose(op, op == "system.info" ? "查看这台电脑的系统版本和基本情况，不读取文档。" :

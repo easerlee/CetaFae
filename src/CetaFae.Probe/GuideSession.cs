@@ -48,7 +48,7 @@ public sealed partial class GuideSession : IDisposable
     readonly bool _preview;
 
     public GuideSession(BallWindow ball, GuideOptions options, bool preview, PluginCatalog plugins,
-        Action? settings = null, bool restoreConsent = true)
+        Action? settings = null, bool restoreConsent = true, MonitorSettings? monitoring = null)
     {
         _ball = ball;
         _options = options;
@@ -88,6 +88,7 @@ public sealed partial class GuideSession : IDisposable
         _ball.TargetSelected += OnSelected;
         _ball.TrackingStopped += Cancel;
         _ball.TargetMoved += OnTargetChanged;
+        InitializeUtilities(monitoring ?? new());
         _ball.BindingSuspendedChanged += OnBindingSuspended;
         _ball.BindingResumed += OnBindingResumed;
         _ball.GuidanceCleared += OnGuidanceCleared;
@@ -137,6 +138,8 @@ public sealed partial class GuideSession : IDisposable
         var capsule = new FreeChatWindow { Owner = _ball, ImagesAllowed = _options.IncludeImage };
         capsule.Attachment.SetReceiver(_options.BaseUrl);
         _chatWindow = capsule;
+        if (_plugins.UtilityProvider is { } utilityProvider)
+            _ = AddChatUtilitiesAsync(capsule, utilityProvider);
         if (_chatHistory.Load())
         {
             _chat.RestoreHistory(_chatHistory.Context);
@@ -225,6 +228,7 @@ public sealed partial class GuideSession : IDisposable
     internal void EndForSettings() => ResetRecognition();
     internal void RevokeForConfiguration()
     {
+        CancelUtilityRequests();
         CloseChat();
         _ball.StopTracking("configuration_changed");
         _gate.SetCloud(false);
@@ -243,6 +247,7 @@ public sealed partial class GuideSession : IDisposable
     {
         _taskStop?.Cancel();
         if (_preview) { _panel.SetStatus("这是静态预览，不会更改使用同意。"); return; }
+        CancelUtilityRequests();
         CloseChat();
         _ball.StopTracking("consent_withdrawn");
         _gate.SetCloud(false); _panel.SetCloud(false); _menu.SetCloud(false);
@@ -254,6 +259,7 @@ public sealed partial class GuideSession : IDisposable
 
     void Cancel(string reason)
     {
+        _utilityCapture?.Cancel();
         _taskStop?.Cancel();
         var explain = reason == "target_changed" &&
             _context is { } context && Native.GetForegroundWindow() == context.Window;
@@ -492,6 +498,7 @@ public sealed partial class GuideSession : IDisposable
         ((_context is not null || _boundQuestionReady) && _gate.Accepts(_contextVersion) || _followup.WaitingForUser && _gate.Accepts(_followupVersion));
 
     bool IsAllowedForeground(IntPtr window) => IsInputForeground(window) ||
+        _utilityWindows.Any(w => window != IntPtr.Zero && new System.Windows.Interop.WindowInteropHelper(w).Handle == window) ||
         _chatWindow is { IsVisible: true } capsule && window != IntPtr.Zero && window == capsule.Handle ||
         _menu.OwnsForeground(window) ||
         _picker is not null && (window == _picker.Handle || window == IntPtr.Zero) ||
@@ -642,6 +649,8 @@ public sealed partial class GuideSession : IDisposable
     async void OnSelected(IntPtr window)
     {
         ResetRecognition();
+        if (_pendingUtility is { } action)
+        { _pendingUtility = null; await CaptureUtilityAsync(window, action); return; }
         await RecognizeAsync(window, null, null);
     }
 
@@ -1049,6 +1058,7 @@ public sealed partial class GuideSession : IDisposable
 
     public void Dispose()
     {
+        DisposeUtilities();
         _taskStop?.Cancel();
         CloseChat();
         _questions.Reset();

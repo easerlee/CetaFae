@@ -123,6 +123,8 @@ public static class Program
 
     static async Task RunAsync(string[] args)
     {
+        if (args.Contains("--utilities"))
+        { await UtilityChecks.RunAsync(Check, render: true); Console.WriteLine($"RESULT: {_passed} daily utility checks passed. Desktop and real model: NOT RUN."); return; }
         if (args.Contains("--chat-images"))
         {
             await ChatImageChecks.RunAsync(Check, render: true);
@@ -158,6 +160,7 @@ public static class Program
             Console.WriteLine($"RESULT: {_passed} plugin program checks passed. Desktop observation: NOT RUN.");
             return;
         }
+        await UtilityChecks.RunAsync(Check);
         Check(CultureInfo.GetCultureInfo(2052).Name == "zh-CN", "Chinese Windows input locale is available");
         // A console entry point has no WPF dispatcher until explicitly initialized.
         _ = Dispatcher.CurrentDispatcher;

@@ -6,15 +6,17 @@ namespace CetaFae.Probe;
 
 /// <summary>Non-secret user choices; this record can never grant collection permission.</summary>
 internal sealed record GuidePreferences(string BaseUrl, string Model, bool IncludeImage, IReadOnlyList<string> DisabledPlugins,
-    IReadOnlyList<GuidePlugin>? InstalledPlugins = null)
+    IReadOnlyList<GuidePlugin>? InstalledPlugins = null, MonitorSettings? Monitoring = null)
 {
     internal const int MaxBytes = 1024 * 1024;
     internal IReadOnlyList<GuidePlugin> CustomPlugins => InstalledPlugins ?? [];
     internal static GuidePreferences Default => new("http://127.0.0.1:8787/v1", "deepseek-v4.1-flash", true, []);
     internal GuideOptions Options => GuideOptions.Create(BaseUrl, Model, IncludeImage);
+    internal MonitorSettings Monitor => Monitoring ?? new();
 
     internal GuidePreferences Validate()
     {
+        Monitor.Validate();
         if (BaseUrl.Length > 2048 || BaseUrl.Any(char.IsControl) || DisabledPlugins.Count > 32 ||
             DisabledPlugins.Any(id => string.IsNullOrWhiteSpace(id) || id.Length > 64 ||
                 id.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not ('.' or '-' or '_'))) ||
@@ -78,31 +80,42 @@ internal sealed record GuidePreferences(string BaseUrl, string Model, bool Inclu
         if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException("preferences_shape");
         if (!root.TryGetProperty("version", out var versionField) || versionField.ValueKind != JsonValueKind.Number ||
             !versionField.TryGetInt32(out var version)) throw new InvalidDataException("preferences_shape");
-        var expected = version == 1 ? new[] { "version", "baseUrl", "model", "includeImage", "disabledPlugins" } :
-            new[] { "version", "baseUrl", "model", "includeImage", "disabledPlugins", "installedPlugins" };
-        if (root.ValueKind != JsonValueKind.Object || root.EnumerateObject().Count() != expected.Length ||
+        var expected = new List<string> { "version", "baseUrl", "model", "includeImage", "disabledPlugins" };
+        if (version >= 2) expected.Add("installedPlugins");
+        if (version >= 3) expected.Add("monitoring");
+        if (root.ValueKind != JsonValueKind.Object || root.EnumerateObject().Count() != expected.Count ||
             !root.EnumerateObject().Select(p => p.Name).Order().SequenceEqual(expected.Order()) ||
-            version is not (1 or 2))
+            version is not (1 or 2 or 3))
             throw new InvalidDataException("preferences_shape");
+        if (version == 3 && (root.GetProperty("monitoring").ValueKind != JsonValueKind.Object ||
+            !root.GetProperty("monitoring").EnumerateObject().Select(p => p.Name).Order().SequenceEqual(
+                new[] { "cooldownMinutes", "enabled", "high", "low", "sustainedSeconds" })))
+            throw new InvalidDataException("monitor_settings");
         return new GuidePreferences(root.GetProperty("baseUrl").GetString() ?? "",
             root.GetProperty("model").GetString() ?? "", root.GetProperty("includeImage").GetBoolean(),
             root.GetProperty("disabledPlugins").EnumerateArray().Select(e => e.GetString() ?? "").ToArray(),
             version == 1 ? [] : root.GetProperty("installedPlugins").EnumerateArray().Select(e =>
-                PluginCatalog.ParsePlugin(e.GetRawText())).ToArray()).Validate();
+                PluginCatalog.ParsePlugin(e.GetRawText())).ToArray(), version < 3 ? null :
+                root.GetProperty("monitoring").Deserialize<MonitorSettings>(new JsonSerializerOptions {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow })
+                ?? throw new InvalidDataException("monitor_settings")).Validate();
     }
 
     internal byte[] Serialize()
     {
         var valid = Validate();
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { version = 2, baseUrl = valid.BaseUrl,
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { version = 3, baseUrl = valid.BaseUrl,
             model = valid.Model, includeImage = valid.IncludeImage, disabledPlugins = valid.DisabledPlugins,
-            installedPlugins = valid.CustomPlugins.Select(p => JsonSerializer.Deserialize<JsonElement>(PluginCatalog.SerializePlugin(p))) });
+            installedPlugins = valid.CustomPlugins.Select(p => JsonSerializer.Deserialize<JsonElement>(PluginCatalog.SerializePlugin(p))),
+            monitoring = new { enabled = valid.Monitor.Enabled, high = valid.Monitor.High, low = valid.Monitor.Low,
+                sustainedSeconds = valid.Monitor.SustainedSeconds, cooldownMinutes = valid.Monitor.CooldownMinutes } });
         if (bytes.Length > MaxBytes) throw new InvalidDataException("preferences_size");
         return bytes;
     }
 
     internal bool SameAs(GuidePreferences other) => BaseUrl == other.BaseUrl && Model == other.Model &&
-        IncludeImage == other.IncludeImage && DisabledPlugins.SequenceEqual(other.DisabledPlugins, StringComparer.Ordinal) &&
+        IncludeImage == other.IncludeImage && Monitor == other.Monitor && DisabledPlugins.SequenceEqual(other.DisabledPlugins, StringComparer.Ordinal) &&
         CustomPlugins.Select(PluginCatalog.SerializePlugin).SequenceEqual(other.CustomPlugins.Select(PluginCatalog.SerializePlugin), StringComparer.Ordinal);
     internal bool RequiresNewConsent(GuidePreferences previous) =>
         GuidePanel.Disclosure(Options) != GuidePanel.Disclosure(previous.Options);

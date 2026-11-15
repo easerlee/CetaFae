@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 9,
+  "kind": "utility",
+  "id": "cetafae.utilities",
+  "version": "1.0.0",
+  "displayName": "日常工具与内存帮助",
+  "targets": [],
+  "uiaView": "control",
+  "taskIds": [],
+  "blockedPoints": []
+}

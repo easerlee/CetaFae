@@ -6,7 +6,9 @@ namespace CetaFae.Plugins;
 /// <summary>A feature's requested next step, with resource references resolved by the host.</summary>
 public sealed record TaskProposal(string Operation, string? Text = null, string? Find = null, string? Replacement = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Purpose = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Format = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Format = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxBytes = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Action = null)
 {
     public static TaskProposal Parse(JsonElement element)
     {
@@ -15,7 +17,7 @@ public sealed record TaskProposal(string Operation, string? Text = null, string?
         var names = element.EnumerateObject().Select(p => p.Name).ToArray();
         if (names.Distinct().Count() != names.Length || !names.Contains("operation") ||
             proposal.Operation is not ("system.info" or "storage.list" or "directory.scan" or "file.info" or
-                "file.readText" or "file.write" or "file.copy" or "file.move" or "file.delete" or "text.replace" or "file.convert"))
+                "file.readText" or "file.write" or "file.copy" or "file.move" or "file.delete" or "text.replace" or "file.convert" or "file.compress" or "utility.run"))
             throw new InvalidDataException("task_operation");
         if (proposal.Text is { Length: > 12000 } || proposal.Text?.Contains('\0') == true ||
             proposal.Find is { Length: > 300 } || proposal.Replacement is { Length: > 300 } ||
@@ -24,7 +26,9 @@ public sealed record TaskProposal(string Operation, string? Text = null, string?
             proposal.Operation != "file.write" && proposal.Text is not null ||
             proposal.Operation != "text.replace" && (proposal.Find is not null || proposal.Replacement is not null) ||
             (proposal.Operation == "file.convert" ? !ValidConversion(proposal) :
-                names.Contains("purpose") || names.Contains("format")))
+                names.Contains("purpose") || names.Contains("format")) ||
+            (proposal.Operation == "file.compress" ? proposal.MaxBytes is < 65536 or > 4194304 : names.Contains("maxBytes")) ||
+            (proposal.Operation == "utility.run" ? proposal.Action is not ("image.capture" or "text.extract" or "text.translate" or "text.paste" or "memory.inspect") : names.Contains("action")))
             throw new InvalidDataException("task_parameters");
         return proposal;
     }

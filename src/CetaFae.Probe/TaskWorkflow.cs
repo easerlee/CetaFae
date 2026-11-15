@@ -28,7 +28,7 @@ internal static class TaskWorkflow
             var result = await task.StepAsync(proposal, plugin, token);
             outcome = result.Message;
             // The local result may identify a user file; do not give it to the model or restart the workflow.
-            if (proposal.Operation == "file.convert") return Finish(result.Message);
+            if (proposal.Operation is "file.convert" or "file.compress" or "utility.run") return Finish(result.Message);
             if (result.Status == "verified") applied++;
             else if (result.Status != "observed") return Finish(result.Message);
             GuidePrivacy.EnsureTextSafe(JsonSerializer.Serialize(result.Evidence));

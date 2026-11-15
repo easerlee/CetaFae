@@ -129,9 +129,9 @@ internal static class SettingsChecks
             check(rejected, "settings reject unsafe receiver forms before persistence");
         }
         foreach (var json in new[] {
-            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":2", "\"version\":2,\"version\":2"),
-            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":2", "\"version\":2,\"key\":\"generated\""),
-            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":2", "\"version\":999") })
+            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":3", "\"version\":3,\"version\":3"),
+            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":3", "\"version\":3,\"key\":\"generated\""),
+            Encoding.UTF8.GetString(original.Serialize()).Replace("\"version\":3", "\"version\":999") })
         {
             var rejected = false;
             try { GuidePreferences.Parse(Encoding.UTF8.GetBytes(json)); } catch (InvalidDataException) { rejected = true; }
