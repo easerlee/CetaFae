@@ -142,11 +142,12 @@ public sealed class GuideModel : IDisposable
             taskEvidence = null;
         }
         var plugin = _plugins.ChatProvider ?? throw new InvalidDataException("plugin_program_unavailable");
+        var conversionAvailable = taskAvailable && _plugins.Plugins.Any(p => p.Kind == "conversion");
         var messages = await GuideFeature.MessagesAsync(plugin, "chat", new
         {
             history = history.Select(turn => new { question = turn.Question, reply = turn.Reply }), question,
             allowWindow, windowGuidanceAvailable = _windowGuidanceAvailable, activeGoal,
-            previousUnderstanding = UnderstandingContext(previousUnderstanding), taskAvailable, taskEvidence,
+            previousUnderstanding = UnderstandingContext(previousUnderstanding), taskAvailable, taskEvidence, conversionAvailable,
             imageAttached = image is not null
         }, cancellationToken);
         var outbound = messages.Select(m => new { role = m.Role, content = (object)m.Content }).ToArray();
@@ -163,7 +164,12 @@ public sealed class GuideModel : IDisposable
         if (document.RootElement.ValueKind != JsonValueKind.Object) throw new InvalidDataException("chat_reply");
         var fields = document.RootElement.EnumerateObject().ToArray();
         if (taskAvailable && fields.Length == 1 && fields[0].Name == "task")
-            return new(null, TaskProposal.Parse(fields[0].Value));
+        {
+            var task = TaskProposal.Parse(fields[0].Value);
+            if (task.Operation == "file.convert" && !conversionAvailable)
+                return new("当前没有启用文件转换插件。", null);
+            return new(null, task);
+        }
         if (fields.Length != 1 || fields[0].Name != "reply")
             throw new InvalidDataException("chat_reply");
         if (allowWindow && fields[0].Value.ValueKind == JsonValueKind.Null) return new(null, null);

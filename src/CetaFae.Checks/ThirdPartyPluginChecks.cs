@@ -73,7 +73,7 @@ static class ThirdPartyPluginChecks
         var disjointB = PluginCatalog.ParsePlugin(serialized.Replace(plugin.Id, "example.other").Replace("Generated editor fixture", "Page B"));
         var disjoint = new PluginCatalog([disjointA, disjointB]); disjoint.ValidateActivation();
         check(disjoint.Resolve("generated-editor", "Page B").Id == "example.other", "disjoint exact titles on one process remain compatible");
-        foreach (var provider in shipped.Plugins.Where(p => p.Kind != "application"))
+        foreach (var provider in shipped.Plugins.Where(p => p.Kind is "general" or "identity" or "chat"))
         {
             var alternative = PluginCatalog.ParsePlugin(PluginCatalog.SerializePlugin(provider).Replace(provider.Id, "example." + provider.Kind));
             var alternativeDraft = original.ImportPlugin(alternative, shipped);

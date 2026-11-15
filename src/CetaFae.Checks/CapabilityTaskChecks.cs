@@ -39,6 +39,9 @@ internal static class CapabilityTaskChecks
             "{\"operation\":\"text.replace\",\"find\":\"\",\"replacement\":\"b\"}" })
             await Reject(() => Parse(json), "task rejects malformed, duplicate or authority-bearing proposal " + json);
 
+        await Parse("{\"operation\":\"file.convert\",\"purpose\":\"compatible\"}");
+        check(true, "conversion admits a purpose without a supplied path or command");
+
         var inspected = await Create().StepAsync(new("file.info"), plugin, default);
         var inspectedJson = JsonSerializer.Serialize(inspected.Evidence);
         check(inspected.Status == "observed" && !inspectedJson.Contains("sha256") && !inspectedJson.Contains(root), "file facts sent to model exclude authority hashes and paths");

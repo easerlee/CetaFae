@@ -41,7 +41,9 @@ public sealed partial class GuideSession
         {
             var choice = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
             TaskStatus(attached, kind == "folder" ? "需要你指定要检查的文件夹，只统计这个范围。" :
-                kind == "destination" ? "请选择目标文件的位置和名称。" : "需要你指定这次处理的文件，不会自动读取其他文档。", "选择位置", () =>
+                kind == "destination" ? "请选择目标文件的位置和名称。" :
+                kind == "conversion-file" ? "请选择要转换的原文件。" : "需要你指定这次处理的文件，不会自动读取其他文档。",
+                kind == "conversion-file" ? "选文件" : "选择位置", () =>
             {
                 if (token.IsCancellationRequested) { choice.TrySetCanceled(token); return; }
                 string? path = null;
@@ -61,7 +63,8 @@ public sealed partial class GuideSession
                 }
                 else
                 {
-                    var picker = new OpenFileDialog { Title = "选择这次处理的文件", Multiselect = false, CheckFileExists = true };
+                    var picker = new OpenFileDialog { Title = kind == "conversion-file" ? "选择要转换的文件" : "选择这次处理的文件",
+                        Multiselect = false, CheckFileExists = true };
                     if (picker.ShowDialog() == true) path = picker.FileName;
                 }
                 }
@@ -90,7 +93,7 @@ public sealed partial class GuideSession
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
         stop.CancelAfter(TimeSpan.FromMinutes(10));
         _taskStop = stop;
-        var task = new TaskCoordinator(_taskRecords, TaskInteractionFor(attached));
+        var task = new TaskCoordinator(_taskRecords, TaskInteractionFor(attached), _plugins);
         try
         {
             return await TaskWorkflow.RunAsync(task, plugin, response,
@@ -99,11 +102,26 @@ public sealed partial class GuideSession
         }
         catch (OperationCanceledException)
         {
-            return "已停止后续处理。" + (task.LatestReceipt is { State: "verified" } ? "已完成的改动仍保留，可从操作记录恢复。" :
-                "若操作已经发出，请先查看操作记录核对结果，不要重复执行。");
+            return task.LatestReceipt switch
+            {
+                null => "已停止，未改动你选择的文件。",
+                { State: "verified" } => "已停止后续处理。已完成的改动仍保留，可从操作记录恢复。",
+                _ => "已停止后续处理。请先查看操作记录，核对已发出的操作。"
+            };
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or PlatformFailure or System.Security.Cryptography.CryptographicException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or JsonException or PlatformFailure or System.Security.Cryptography.CryptographicException)
         {
+            var conversionMessage = ex.Message switch
+            {
+                "conversion_file_limit" => "这张图超过 32 MB，请选择较小的图片。原文件仍保留。",
+                "conversion_output_limit" => "转出的图片超过这版可保存的 4 MB，请选择较小的原图。原文件仍保留。",
+                "conversion_invalid_source" => "这张图与文件名显示的格式不符，或文件已损坏。请先确认原图能打开。",
+                "conversion_timeout" => "转换这次没有及时完成。原文件仍保留。",
+                "conversion_failed" or "conversion_invalid_output" => "这张图没能成功转换。请确认原图能打开，再试另一种支持的格式。",
+                "conversion_plan" or "conversion_conflict" => "当前无法确定可用的转换方案，请检查已启用的转换插件。",
+                _ => null
+            };
+            if (conversionMessage is not null) return conversionMessage;
             return "这一步未能可靠完成，已停止后续操作。" + (ex.Message switch
             {
                 "task_needs_inspection" => "这个对象还有一项结果待核对的操作，请先查看操作记录。",

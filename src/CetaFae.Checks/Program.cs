@@ -133,12 +133,18 @@ public static class Program
             await CapabilityTaskChecks.RunAsync(Check);
             Console.WriteLine($"RESULT: {_passed} capability task checks passed. Desktop, real model and elevation: NOT RUN."); return;
         }
+        if (args.Contains("--file-conversion"))
+        {
+            await ConversionChecks.RunAsync(Check, requireTool: true);
+            Console.WriteLine($"RESULT: {_passed} conversion checks passed. Desktop and real model: NOT RUN."); return;
+        }
         await PlatformChecks.RunAsync(Check);
         if (args.Contains("--platform-only"))
         {
             Console.WriteLine($"RESULT: {_passed} platform checks passed. Desktop, real model and elevation: NOT RUN."); return;
         }
         await CapabilityTaskChecks.RunAsync(Check);
+        await ConversionChecks.RunAsync(Check, requireTool: false);
         if (args.Contains("--plugin-programs"))
         {
             TypeScriptPluginChecks.Run(Check);

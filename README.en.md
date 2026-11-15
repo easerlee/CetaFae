@@ -4,9 +4,11 @@ Drag a small whale onto a window to understand what it is, interpret its current
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.29**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. The first bounded inspection/file tasks are available with host previews and verification. Native desktop actions remain manual. Release acceptance is pending; this repository is private.
+> Current development build: **0.3.1-preview.30**. CetaFae explains the selected window, shows where to act, and answers computer/software questions. Bounded inspection and file tasks are available with previews and verification. Native desktop actions remain manual. Release acceptance is pending; this repository is private.
 
 ## Features
+
+- **Choose an image format by purpose (development preview)**: say that a phone photo will not open for someone else, or ask for a PDF to print. CetaFae recommends a format for the selected image and creates a copy in the same folder after one decision. Common still images can become JPG, PNG, WebP or PDF. The selected file stays on the PC and the original is retained. Requires a local Filee portable component.
 
 - **Bounded task execution (development preview)**: use the existing conversation to inspect system/storage facts, summarize a selected folder, read a selected UTF-8 file, or preview and commit text writes, copies, moves and deletions. The host resolves objects through a picker, discloses added data scope and receiver, verifies actual file state and preserves encrypted recovery material. Open 操作记录 from either context menu to browse, reconcile and restore individual operations. Pure text replacement runs through the same restricted TS worker and commit path.
 
@@ -59,6 +61,10 @@ The main branch builds a self-contained Windows x64 installer. It displays the s
 Drag onto the target, describe your goal when asked, and select a region if requested. Read the guidance and operate the target yourself, or end the session. Changed recipient, model, sending scope or terms require confirmation again.
 
 You can submit your next question directly from the result. If you want to do something yourself first, choose Continue asking. CetaFae pauses content reads until you submit. A request that has already been sent keeps running when you switch windows. CetaFae shows the result when you return to the original window and the result passes validation. Close the prompt or drag the whale away to end the binding. Closing the target or withdrawing consent also ends it. Changes to the disclosed sending scope or terms invalidate saved consent.
+
+**Enable local image conversion** by extracting the official [Filee 2.4.0 Windows portable package](https://github.com/KnifeLemon/Filee/releases/tag/v2.4.0) unchanged into `%LOCALAPPDATA%/CetaFae/tools/filee-2.4.0-win-x64/`, with `filee-cli.exe` directly in that directory. CetaFae verifies the component and can use it without launching the Filee app. Each source is limited to 32 MiB and each copy to 4 MiB.
+
+The conversion engine is by Myeonggu Kim (KnifeLemon) and the Filee contributors. CetaFae ships [third-party notices and licenses](THIRD-PARTY-NOTICES.md). The Filee portable program is obtained separately.
 
 ### Run from source
 

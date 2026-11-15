@@ -53,6 +53,8 @@ Name: "zh"; MessagesFile: "{#ChineseMessagesFile}"
 ; First in the solid stream because the agreement helper is extracted before installation.
 Source: "{#PayloadDir}\CetaFae.Probe.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\plugins\*"; DestDir: "{app}\plugins"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PayloadDir}\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PayloadDir}\third-party\*"; DestDir: "{app}\third-party"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\鲸汐 CetaFae"; Filename: "{app}\CetaFae.Probe.exe"; WorkingDir: "{app}"

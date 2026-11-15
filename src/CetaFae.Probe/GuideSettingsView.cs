@@ -150,7 +150,8 @@ internal sealed class GuideSettingsView : Border
             _plugins.Add(plugin.Id, enabled);
             enabled.Checked += (_, _) => Edited(); enabled.Unchecked += (_, _) => Edited();
             var custom = _custom.Any(p => p.Id == plugin.Id);
-            var kind = plugin.Kind switch { "general" => "通用界面理解", "identity" => "本机软件身份", "chat" => "自由问答", _ => "软件适配" };
+            var kind = plugin.Kind switch { "general" => "通用界面理解", "identity" => "本机软件身份", "chat" => "自由问答",
+                "conversion" => "本机文件转换", _ => "软件适配" };
             var item = new StackPanel(); item.Children.Add(enabled);
             item.Children.Add(Text($"{(custom ? "本地导入" : "随软件提供")} · {kind} · 版本 {plugin.Version}"));
             item.Children.Add(Text(plugin.Program is not null ? "功能插件：包含受限 JavaScript 程序（由 TypeScript 编译）" :

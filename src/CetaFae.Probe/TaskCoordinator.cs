@@ -11,7 +11,7 @@ internal sealed record TaskInteraction(
 internal sealed record TaskStepResult(string Status, string Message, object? Evidence, TaskReceipt? Receipt = null);
 
 /// <summary>Host-owned object resolution and evidence. Plugins select methods, never permissions.</summary>
-internal sealed class TaskCoordinator(TaskRecordStore records, TaskInteraction interaction)
+internal sealed partial class TaskCoordinator(TaskRecordStore records, TaskInteraction interaction, PluginCatalog? plugins = null)
 {
     readonly DateTimeOffset _expires = DateTimeOffset.UtcNow.AddMinutes(10);
     readonly HashSet<string> _disclosed = new(StringComparer.Ordinal);
@@ -61,6 +61,7 @@ internal sealed class TaskCoordinator(TaskRecordStore records, TaskInteraction i
         if (++_steps > MaxSteps || DateTimeOffset.UtcNow >= _expires) throw new InvalidDataException("task_limit");
         GuidePrivacy.EnsureTextSafe(JsonSerializer.Serialize(proposal, PlatformRequest.Json));
         var op = proposal.Operation;
+        if (op == "file.convert") return await ConvertFileAsync(proposal, token);
         if (op is "system.info" or "storage.list")
         {
             await Disclose(op, op == "system.info" ? "查看这台电脑的系统版本和基本情况，不读取文档。" :

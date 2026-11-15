@@ -9,7 +9,7 @@ internal static class PluginProcessLimits
 {
     internal const long MaxMemoryBytes = 256L * 1024 * 1024;
 
-    internal static SafeFileHandle Attach()
+    internal static SafeFileHandle Attach(uint activeProcesses = 1, long maxProcessMemory = MaxMemoryBytes, bool killOnClose = false)
     {
         var job = CreateJobObject(IntPtr.Zero, null);
         try
@@ -17,8 +17,8 @@ internal static class PluginProcessLimits
             if (job.IsInvalid) throw new Win32Exception();
             var limits = new ExtendedLimits
             {
-                Basic = new BasicLimits { Flags = 0x100 | 0x8, ActiveProcesses = 1 },
-                ProcessMemory = (UIntPtr)MaxMemoryBytes
+                Basic = new BasicLimits { Flags = 0x100 | 0x8 | (killOnClose ? 0x2000u : 0), ActiveProcesses = activeProcesses },
+                ProcessMemory = (UIntPtr)maxProcessMemory
             };
             if (!SetInformationJobObject(job, 9, ref limits, (uint)Marshal.SizeOf<ExtendedLimits>()) ||
                 !AssignProcessToJobObject(job, GetCurrentProcess())) throw new Win32Exception();

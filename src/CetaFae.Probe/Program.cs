@@ -14,6 +14,10 @@ public static class Program
         {
             Task.Run(PlatformWorker.Run).GetAwaiter().GetResult(); return;
         }
+        if (args.SequenceEqual(new[] { "--fixed-tool-worker" }))
+        {
+            Task.Run(FixedTool.Run).GetAwaiter().GetResult(); return;
+        }
         if (args.Length == 3 && args[0] == "--platform-elevated-worker")
         {
             Task.Run(() => PlatformWorker.RunElevated(args[1], args[2])).GetAwaiter().GetResult(); return;

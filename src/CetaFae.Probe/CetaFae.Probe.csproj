@@ -9,7 +9,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CetaFae.Probe</AssemblyName>
-    <Version>0.3.1-preview.29</Version>
+    <Version>0.3.1-preview.30</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>CetaFae</Product>
     <Description>Whale interaction and selected-window guidance</Description>
@@ -38,6 +38,12 @@
     </_PluginDefinition>
     <Content Include="@(_PluginDefinition->'../../.artifacts/plugin-build/%(RecursiveDir)%(Filename)%(Extension)')"
              ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md"
+             ExcludeFromSingleFile="true" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../third-party/filee/*" Link="third-party/filee/%(Filename)%(Extension)"
+             ExcludeFromSingleFile="true" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="BuildFeaturePlugins" BeforeTargets="PrepareForBuild">
     <Exec Command="node &quot;$(MSBuildProjectDirectory)/../../tools/build-plugins.mjs&quot;" />

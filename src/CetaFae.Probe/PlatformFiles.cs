@@ -99,7 +99,7 @@ internal static class PlatformFiles
             ?? throw new PlatformFailure("invalid_recovery");
     }
 
-    internal static void WriteAtomic(string path, byte[]? bytes)
+    internal static void WriteAtomic(string path, byte[]? bytes, bool overwrite = true)
     {
         PlatformScope.CheckAncestors(path);
         if (bytes is null) { File.Delete(path); return; }
@@ -109,7 +109,7 @@ internal static class PlatformFiles
             using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             { file.Write(bytes); file.Flush(flushToDisk: true); }
             PlatformScope.CheckAncestors(path);
-            File.Move(temporary, path, overwrite: true);
+            File.Move(temporary, path, overwrite);
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
@@ -147,7 +147,7 @@ internal static class PlatformFiles
             scope.Permit(call.Operation);
             Expect(State(destination), before is null ? "missing" : PlatformScope.Hash(before));
             if (source is not null) Expect(State(source), PlatformScope.Hash(content!));
-            WriteAtomic(destination, content);
+            WriteAtomic(destination, content, overwrite: before is not null);
             if (call.Operation == "file.move")
             {
                 scope.FilePath(source!, write: true);
