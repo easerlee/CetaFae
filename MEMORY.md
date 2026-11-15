@@ -4,6 +4,8 @@
 
 Updated: 2026-11-16
 
+- The user selected 0.3.2 for the next GitHub release, requested public repository visibility, and authorized synchronizing the installed copy. Keep the README pair beginner-facing: explain problems solved, actual supported tasks, installation, service prerequisites and safety in plain language; retain technical/build details in a collapsed maintainer section. Public source visibility does not establish an open-source license. Keep the numeric version separate from GitHub's preview designation until the existing release acceptance gates pass.
+
 - The user removed the plus button from the window-bound composer. Keep the resting composer plus for attachments/tools; the attached input reclaims its reserved space with an18DIP left inset. Whale/tray utility menus remain the entry while bound. This is a visibility/layout change; existing explicit image paste and draft lifetime remain available.
 
 - Preview.32 implements the bounded daily-tools candidate. TS providers choose tool labels, intent, text goals and reminder policy. The WPF host owns the selected window, local capture, copy/save, user-triggered text transfer, process identity and effects. An initial local capture leaves a usable bound input, and tools started from an existing binding preserve its explanation. Default-off reminders are read-only. Working-set release is an explicit single-process action with a durable receipt and a rebound check, with no restart or configuration effect. Filee download runs only in a conversion task with a missing component and uses fixed asset bytes plus the existing verified offline activation path. Keep the native, live download, real-model and performance findings tied to their respective gates in 验证记录.md.

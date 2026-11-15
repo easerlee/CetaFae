@@ -1,77 +1,79 @@
 # CetaFae · 鲸汐
 
-Drag a small whale onto a window to understand what it is, interpret its current state, and find the next control to use.
+**Something on your computer doesn't make sense? Drag the little whale over.**
+
+CetaFae is a desktop assistant for everyday computer problems. Ask about an unfamiliar interface, an error, or a file task. When it needs to see the situation, drag the whale onto that window. It explains what is happening, helps you find the next step, and handles supported tasks with you.
 
 [简体中文](README.md) | English
 
-> Current development build: **0.3.1-preview.33**. CetaFae explains selected windows, guides users, and offers local daily tools and bounded file tasks. New utilities are engineering candidates; consolidated desktop and formal release acceptance remain pending. Native desktop actions remain manual. This repository is private.
+**[Download installer · Windows x64](https://github.com/easerlee/CetaFae/releases/download/v0.3.2/CetaFae-0.3.2-win-x64-setup.exe)** · [Release notes](https://github.com/easerlee/CetaFae/releases/tag/v0.3.2)
 
-## Features
+> **Version 0.3.2 · Preview release.** The installer includes the runtime; no separate .NET installation is needed. AI chat and image understanding require a compatible model service, which is not bundled and may charge for usage. Testing has mainly used Chinese-language Windows 11. The application UI is currently in Chinese.
 
-- **Local image and text tools (development candidate)**: open utilities from the resting composer plus menu or the whale context menu. Capture only the selected window, then crop, draw arrows/rectangles, apply opaque covers, copy, save or pin a temporary image. Windows OCR extracts text locally. Review/edit it before explicitly translating, summarizing, rewriting or explaining it; only these processing actions send text. Pins support move, zoom, close and fullscreen hiding. Images are not automatically archived.
-- **Memory assistance (development candidate)**: inspect top local memory consumers and short-term changes. Release temporary working-set memory for one selected process and compare counters and rebound without closing it or promising a speed increase. Optional sustained-pressure reminders are disabled by default in Settings → 功能 and support ignore. Memory counters do not diagnose unobserved disk, GPU or internal application problems.
-- **Choose an image format or size by purpose (development preview)**: describe a compatibility or printing need. CetaFae recommends a format and creates a same-folder copy after a concrete preview, keeping the selected file local and retaining the original. Common still images can become JPG, PNG, WebP or PDF. A missing Filee dependency can be downloaded from its reviewed fixed official release before continuing; offline import remains available. Single JPG, PNG and BMP images can also become size-bounded JPG copies, with disclosed quality, transparency and dimension changes. Unachievable limits stop without modifying the source.
+## Highlights
 
-- **Bounded task execution (development preview)**: use the existing conversation to inspect system/storage facts, summarize a selected folder, read a selected UTF-8 file, or preview and commit text writes, copies, moves and deletions. The host resolves objects through a picker, discloses added data scope and receiver, verifies actual file state and preserves encrypted recovery material. Open 操作记录 from either context menu to browse, reconcile and restore individual operations. Pure text replacement runs through the same restricted TS worker and commit path.
+### Understand what you are looking at
 
-- **Ask directly**: click the resting whale to open an input. Use the same input for computer/software questions and interface help without choosing a mode. Text-answerable questions receive a direct reply; questions that need the interface continue through selected-window collection. Conversations expand upward with a slim scrollbar for long content. Click outside to dismiss, then click the whale to restore the conversation. Completed text exchanges are encrypted locally for the current Windows user and survive restart until cleared with the brush. Drafts stay in memory for the current run. Only the last four exchanges for the same connection enter model context, separately from window guidance.
-- **Lightweight management**: the tray and whale right-click share one menu. Accept the agreement during installation. Settings provides the disclosure and a way to withdraw consent.
-- **Unobtrusive presence**: dismiss transient notices with their header close button or an outside click. The idle whale hides while another foreground application is fullscreen and returns afterward. Ordinary maximization and active guidance remain available; fullscreen detection uses local window geometry without analyzing content.
-- **Drag to select**: the whale and input bar center on the target window, with the bar width adapting to the window. On-demand explanations and control highlights keep interaction close to the target. Ending a session restores the whale.
-- **Contextual feedback**: a repeating wave scan indicates recognition is pending; the reading card appears when a result is available. Cards join the input bar on ordinary windows and prefer its right side in top-attached layouts. They avoid validated controls or collapse when space is insufficient, with a reopen action. Baseline width follows the input bar; long text grows vertically before widening, then uses local pages at screen limits without a body scrollbar. Follow-up, region selection and details appear only when needed; the input bar close button ends guidance. Management stays in the tray and whale menu.
-- **Understand the current window**: selected-window images are primary; application adapters and control metadata are optional enhancements. Briefly introduce the software's purpose and supported name, then its content or state, usually in one or two sentences. Unknown names do not prevent explaining readable content or justify guessing missing facts. Initial explanations describe the captured view; submitting a goal reads fresh content. Distinguish collection from recognition-service failures without jargon or guessed root causes. Protected or inaccessible windows are not guaranteed to be readable.
-- **Explain and guide**: interpret visible state and ask one clarification if needed. Highlight controls only when their location is reliable; otherwise explain the limitation.
-- **Follow up without repeating the interface**: the initial same-window summary helps resolve references in later questions. This short text remains session-local; current-state advice and next steps still require fresh observation. It never enters resting chat or establishes that a previous error is still present.
-- **Analyze a region**: prefer reliable task scopes; questions without a matching local rule use the selected window directly. You can also select a region. Explanations, comparisons and advice do not require a control candidate.
-- **Text-region hints (development validation)**: the general plugin can obtain local text and position candidates from the selected image. The model chooses existing IDs rather than inventing coordinates. Hints distinguish text bounds from button hit areas. Duplicate text, unavailable OCR support or insufficient evidence produces no guessed marker. Native application coverage remains unaccepted.
-- **Chinese/English explanation and translation**: describe your translation goal and select a region when needed. Show the recognized original and translation; ask follow-up questions or request a simpler explanation. Subsequent image requests stay within that selection; an invalidated region requires reselection rather than a whole-window fallback. Check recognizable error-code, date, numeric and unit literals, including repeated occurrences. Unreadable content is reported honestly; the application's interface is not replaced.
-- **User-led error solutions**: briefly summarize the problem and prioritize one low-risk solution when the available facts support it, including save-first precautions when needed. Ask one necessary question when context is missing. Report the outcome to continue with fresh window evidence and adjusted advice, rather than repeating a failed step. No guaranteed fix, raw error dump, hidden log/process inspection or automatic action; consequential changes require explaining the risks and clarifying intent.
-- **Multi-step guidance in one window**: retain the user goal and four recent text steps. Ask directly after a result, or act yourself before submitting the next question. Current-state questions recheck the selected window; completion requires current evidence rather than a user's claimed action. Page changes and temporary foreground switches clear stale markers while preserving the goal; ending the session clears it. Bounded to eight steps, with native multi-step acceptance pending.
-- **Plugin-based capabilities**: first-party chat, window understanding, error help, translation and follow-up policy run as TypeScript plugins through the same invocation boundary as third-party features. Import, update, enable/disable and remove local packages in Settings. Imports start disabled for review and save; conflicts never resolve by load order. Programs run in restricted disposable processes, without arbitrary Node/npm, file or network APIs.
-- **Ask with an image**. Use the plus button in the resting composer to choose or paste one image, or press Ctrl+V in the editor. Preview or remove it before sending. The selected image goes to the configured vision service with the current message. Subsequent turns use text history. JPG, PNG and BMP are supported when image recognition is enabled.
-- **On-demand settings**: open settings from the tray or whale right-click menu to manage connection, privacy and shipped capabilities, explicitly check the service, or export content-free diagnostics. Changing recipient, model or image scope requires new consent.
+Drag the whale onto a window for a short explanation of the application and its visible content. Ask what an option, English text, or an error means. You can also select a small part of the window for explanation or translation.
 
-Representative human-tested flows include locating an Edge download toggle, explaining paused Windows Update status, finding the WinRAR extraction destination, and interpreting generated Notepad text within a selected region. These examples do not establish complete application support or full regression coverage of the latest source.
+### Work out what to do next
 
-## Safety
+Describe your goal, such as finding the option that asks where to save downloads. CetaFae explains the steps and highlights a control or text when it has reliable location evidence. Ask follow-up questions after acting. You can visit another window and return to continue. For errors, it summarizes the problem, suggests an initial approach, and adjusts its guidance based on your feedback.
 
-- **Explicit consent and revocation**: disclose payload scope, recipient, model, and retention before enabling cloud processing. Withdrawing consent in Settings stops new collection and requests and invalidates active sessions. Content already sent cannot be recalled from upstream services.
-- **Selected window only**: no full-desktop capture followed by cropping, and no automatic reading of other windows or background tabs.
-- **Limited outbound scope**: initial understanding and questions without a matching local rule may send the selected whole-window image. Matching local rules and user selections remain bounded; an unresolved declared local scope waits for selection without widening. Both system window capture and PrintWindow are bound to the selected window; scoped requests are cropped locally before sending.
-- **Best-effort sensitive-content checks**: detected password fields or recognizable credentials stop processing. Incomplete accessibility data does not block selected-window image interpretation. Checks can miss sensitive content: hide anything you do not want sent. There is no universal secret-detection or automatic-redaction guarantee.
-- **Separate local retention**: completed resting-chat text is encrypted for the current Windows user and retained until cleared. Withdrawing network consent still allows local reading and deletion, but prevents sending. Window images and raw control text are not persisted. File actions have separate encrypted receipts and recovery material, unaffected by chat clearing. Old-service chat is not automatically sent to a new connection. Fixed metadata logs are retained for seven days; cleanup failures can delay deletion. Proxy and upstream retention policies remain unverified.
-- **User-controlled actions**: no automatic clicks, typing into target applications, system settings changes, extraction or complex document editing. Selected plain-file changes require the concrete effect preview described above. Switching away, closing the target, revoking consent, or ending the session clears invalid results.
-- **Plugin trust boundary**: enable only trusted packages. Interface and resource limits are not an operating-system security sandbox; independent hostile-code review remains pending.
-- **Optional monitoring and local tools**: monitoring is off by default and has no periodic sampler while disabled. When enabled, it reads total-memory counters, without screen/clipboard collection or uploaded process lists. Process metadata is inspected on demand. Copy/save/pin actions are explicit; working-set release can rebound, cannot be undone and does not prove a repair or speed improvement.
+### Handle everyday tasks
 
-Task limits: eight steps and ten minutes, one selected source file/folder per task, repeated inspection scopes disclosed once, separate effect previews. Local regular-file snapshots are limited to4MiB; UTF-8 reads to24,000 bytes; writes to12,000 characters within the48KiB request envelope. Task receipts use current-user Windows encryption, max128 records/8MiB, plus the existing64MiB recovery archive. Settled receipts without recovery dependencies may expire after30 days; unresolved and recoverable actions are retained. Clearing chat does not delete action records. Restart never restores authority or automatically replays uncertain effects.
+- **Screenshots and text**: capture the selected window, crop, annotate, cover sensitive areas, copy, save, or pin the image for reference. Extract text locally, edit it, then translate, summarize, or rewrite it.
+- **Image conversion and compression**: explain what the image is for and get a format recommendation. Convert static images to JPG, PNG, WebP, or PDF. Compress a single JPG, PNG, or BMP into a size-limited JPG copy. Processing stays on your computer and preserves the original. An optional component may need downloading on first use.
+- **File help**: inspect disk space, total a selected folder, or read a selected UTF-8 text file. Preview supported text saves, file copies, moves, deletions, and literal text replacements. Changes are scoped and checked afterward; supported recovery is available through the operation history.
+- **Memory help**: see which applications use more memory, release a selected application's temporary working memory, and check whether it rebounds. Optional sustained-use reminders are off by default and never trigger automatic cleanup. Releasing memory does not guarantee better performance.
 
+Click the resting whale to ask about computers and software directly. Its “＋” button accepts an image from a file or the clipboard. The window-attached input stays compact; tools remain available through the whale's right-click menu or the system tray.
 
 ## Getting started
 
-Download a Windows x64 preview from [GitHub Releases](https://github.com/easerlee/CetaFae/releases), extract it, and run `CetaFae.Probe.exe`. Legacy extracted packages require Windows and the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) are required. Published packages may lag behind the main branch; consult the matching release notes.
+1. **Install**: download the Windows x64 installer above, read the agreement, and accept it yourself. An upgrade exits the installed copy before replacing it, then launches CetaFae. Installation uses your current-user directory and needs neither administrator access nor a separate .NET runtime.
+2. **Connect a model service**: right-click the whale → **鲸汐设置 → 连接** (Settings → Connection), then enter the service address and model. Window understanding requires image input support. “检测图片识别” sends a generated test image to check the connection and may consume model credits.
+3. **Ask for help**: click the whale to type, or drag it onto a window. Try “What does this message mean?”, “Where can I change the download folder?”, or “This image is too large to send. What can I do?”
 
-The default service is `http://127.0.0.1:8787/v1`, with model `deepseek-v4.1-flash`. Supply a compatible model service yourself; CetaFae bundles neither a model nor a proxy. Image understanding requires multimodal input support.
+**No model service yet?** This release does not include a ready-to-use AI service. You may need someone familiar with configuration to help. Services requiring a key currently use an environment variable, described in the maintenance section below. Local screenshots, text extraction, and image conversion with an installed component do not depend on an AI response.
 
-Recognition has a 60-second processing budget. Switching windows hides session effects while retaining the target binding. A request already sent keeps running; its result is shown only after returning to the original window and passing validation. No new content is collected in the background. A slow response does not establish a fault in the target application; latency and availability depend on the configured service route.
+The installer is not code-signed, so Windows may show an unknown-publisher warning. Check the download source; release assets include a `SHA256SUMS.txt` checksum file.
 
-The main branch provides advanced connection settings for saving the service address, model and image flag. Remote services require HTTPS; loopback HTTP is allowed. Connection checks explicitly request the displayed service's model list without reading a window; reachability does not prove image inference support. Credentials remain runtime-only and cannot be entered or saved in settings. The capabilities page manages shipped/local packages and optional memory reminders. Filee downloads require an explicit decision within a conversion task; there is no generic marketplace or silent update.
+### Everyday controls
 
-The image capability check explicitly sends a generated digit image and may consume one model request. It reads no user window and never retries automatically. Success confirms that specific basic image transport/reading test, not interpretation or pointing accuracy for all software. After a service failure, an explicit new question can recover without restarting CetaFae.
+- **Continue a conversation**: type in the same input without repeating the entire background.
+- **Hide desktop chat**: click elsewhere, then click the whale to reopen it. Completed text conversations are encrypted locally and survive restarts; the broom button deletes them.
+- **End window help**: use the “×” inside the input bar or drag the whale away. Window guidance is separate from desktop chat.
+- **Open settings and tools**: right-click the whale or use its system-tray icon.
+- **Fullscreen applications**: the resting whale hides automatically and returns when fullscreen ends.
 
-The main branch builds a self-contained Windows x64 installer. It displays the software license, privacy notice, and current connection settings. Choose Agree and install once, then drag the whale onto a window to ask for help. Launching the app does not read windows or repeat the prompt. View the agreement or withdraw consent in Settings under Privacy. Run the installer again if you withdraw consent, the recipient, model, sending scope or terms change, or the consent record becomes unavailable.
+## Safety
 
-Drag onto the target, describe your goal when asked, and select a region if requested. Read the guidance and operate the target yourself, or end the session. Changed recipient, model, sending scope or terms require confirmation again.
+- **Only the selected window**: CetaFae does not capture the entire desktop and crop it afterward, or automatically read other windows or background tabs. Initial understanding may send the complete selected window. A user-selected region is not silently enlarged.
+- **Know where content goes**: the installation agreement discloses the content scope and model service. Review or withdraw consent in settings. Changing the recipient, model, or image scope requires confirmation again. Content already sent cannot be recalled from upstream services.
+- **Sensitive-content checks have limits**: detected password fields or obvious credentials stop recognition. Checks can miss information; hide anything you do not want to send.
+- **Local work and AI requests are separate**: screenshots, text extraction, and image conversion run locally. Asking AI, sending an image, or requesting translation sends the relevant content to your configured service. Screenshots and raw control content are not saved to chat history. Desktop text conversations and file-recovery materials are encrypted for the current Windows user. Metadata logs normally remain for seven days; upstream retention policies have not been verified and should be checked before use.
+- **Changes have boundaries**: CetaFae does not freely click, type into other applications, or change system settings. Supported file changes use selection, preview, result checks, and applicable recovery. Not every action is reversible.
+- **Use trusted plugins**: the executor limits interfaces and resources; it is not a complete operating-system security sandbox.
 
-You can submit your next question directly from the result. If you want to do something yourself first, choose Continue asking. CetaFae pauses content reads until you submit. A request that has already been sent keeps running when you switch windows. CetaFae shows the result when you return to the original window and the result passes validation. Close the prompt or drag the whale away to end the binding. Closing the target or withdrawing consent also ends it. Changes to the disclosed sending scope or terms invalidate saved consent.
+## Current limitations
 
-**Enable local image conversion** by downloading the reviewed dependency when a task needs it, or import offline under CetaFae Settings → Features → Import plugin file. Select the separate `Filee-2.4.0-win-x64.cetaplugin`. CetaFae verifies and installs the files without manual extraction, a separate app launch or a restart. The existing feature toggle controls conversion. Each source is limited to 32 MiB and each copy to 4 MiB.
+CetaFae is still being refined. AI can misunderstand content; check advice involving important files, payments, deletion, or system settings. Protected windows, permission boundaries, changing interfaces, display scaling, and multiple monitors can affect recognition and highlighting.
 
-Maintainers can build the bundle with PowerShell 7 and `./installer/Build-ConversionBundle.ps1 -OfficialArchive <zip>` using the official [Filee 2.4.0 Windows x64 portable archive](https://github.com/KnifeLemon/Filee/releases/tag/v2.4.0). Output goes to `.artifacts/conversion-bundle/`. The main installer excludes Filee binaries. The engine is by Myeonggu Kim (KnifeLemon) and the Filee contributors. CetaFae ships [third-party notices and licenses](THIRD-PARTY-NOTICES.md). A new Filee release requires a matching reviewed recipe and bundle.
+Some utilities open separate tool windows. Conversion focuses on single static images, with no universal format support or batch processing. General automatic repair, arbitrary scripts, and full document editing are not available. Broad application compatibility, multi-step tasks, response time, memory use, and third-party plugin security still have acceptance work outstanding. This release does not claim all those checks have passed. See [executed verification](验证记录.md) and the [test plan](Test-Plan.md) for their distinct status.
 
-### Run from source
+## Technical implementation
 
-Install the .NET 8 SDK and Node.js 22 or newer on Windows for development, then run from the repository root:
+The **C# / WPF / .NET 8** Windows host owns interaction, selected-window collection, consent, model transport, result validation, and storage. **TypeScript plugins** implement feature policies. First-party and third-party features share the same contract.
+
+Understanding is screenshot-first, with optional controls and local text recognition supporting location evidence. Capture is bound to the selected window and does not inject code into the target application. The model selects from existing location candidates; unreliable coordinates are not invented. Some capture paths may show Windows' own capture border.
+
+Image conversion uses a local [Filee](https://github.com/KnifeLemon/Filee) component. A fixed version can be downloaded when needed or imported offline. Sources, licenses, and uses of third-party components are documented in [Third-party notices](THIRD-PARTY-NOTICES.md).
+
+<details>
+<summary>Maintenance and building from source</summary>
+
+Use Windows, the .NET 8 SDK, and a Node.js development environment. Node.js builds the plugins; end users do not need it.
 
 ```powershell
 npm ci
@@ -80,62 +82,37 @@ dotnet run --project src/CetaFae.Checks -c Debug --no-build
 dotnet run --project src/CetaFae.Probe -c Release -- --guide
 ```
 
-`npm ci` installs pinned development dependencies. The build strictly checks and compiles TS programs; the check command runs without desktop access, and the last command opens CetaFae. Installed users do not need Node. Override the current launch with `--base-url https://your-service.example/v1 --model your-model`; changes persist only after an explicit save in settings. Optional authentication is read only from the process environment variable `CETAFAE_API_KEY`; never commit credentials. Non-secret preferences are stored at `%LOCALAPPDATA%/CetaFae/settings.json`. Invalid configuration disables cloud processing until reviewed, saved and confirmed through the installer again.
+The final command opens the application UI. The development defaults are `http://127.0.0.1:8787/v1` and `deepseek-v4.1-flash`; no such service is bundled. Save your connection in settings. Remote services require HTTPS; loopback services may use HTTP. Optional authentication comes from the process environment variable `CETAFAE_API_KEY`; settings do not store keys. Never commit credentials.
 
-### Build the installer candidate
-
-On Windows, install Inno Setup 6.7.4 with the Simplified Chinese messages file and the .NET 8 SDK, with Node.js and `npm ci` prepared for development, then run:
+Building a self-contained installer requires Inno Setup 6.7.4 and its Simplified Chinese language file:
 
 ```powershell
 ./installer/Build-Installer.ps1 -Compiler 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' -ChineseMessagesFile 'C:/Program Files (x86)/Inno Setup 6/Languages/ChineseSimplified.isl'
 ```
 
-Output is under `.artifacts/installer/`. The bundled .NET 8 Windows Desktop Runtime allows offline installation without a preinstalled .NET runtime. After you choose Agree and install, Setup closes the installed copy running in the current session, installs the update and launches the new version. It installs per user without elevation and includes a Start menu shortcut and uninstall support. Its agreement reflects existing non-secret settings. Cancellation or failure creates no new consent, and silent installation cannot replace personal confirmation. A model service is still required. Extracting or launching source builds does not imply installation consent.
+Output goes to `.artifacts/installer/`. Main directories: `src/CetaFae.Probe` (host), `src/CetaFae.Plugins` (runtime), `plugins` (features), `plugin-sdk` (TS contract), and `src/CetaFae.Checks` (executable checks).
 
-## Technical implementation
+The [requirements](需求文档.md) define scope; the [technical specification](Tech-Spec.md) describes the design. Build output, screenshots, and diagnostic artifacts belong in the ignored `.artifacts/` directory.
 
-- **Generic system capability foundation (development API)**: scoped host grants, isolated execution, preconditions, postconditions and encrypted recovery support system/volume facts, bounded directory metadata, files/registry, processes, services/events, connectivity and window/control operations. TS features propose requests without native authority. Generated file/registry/process/loopback paths have automated coverage; native input, service changes and elevation still need dedicated acceptance. Conversation exposes only the inspection and selected-file subset described above; other capabilities remain development APIs.
-
-- **Windows / C# / WPF / .NET 8**: native window management, preferring PrintWindow and trying system window capture when its image is unusable. Both are bound to the selected window. The fallback may show the Windows capture border.
-- **Host/plugin separation**: the C# host owns UI, consent, generic collection, model transport, trusted validation, persistence and lifecycle. TS plugins own request construction, interpretation/translation/error/follow-up policy and presentation. Matching and scope rules remain declarative. First-party packages have no private execution path.
-- **Image-first understanding, optional controls**: the initial explanation describes the captured view without requiring a complete control tree. Controls assist precise pointing; their absence does not prevent image interpretation. Local software identity remains separate from visual interpretation.
-- **Independent text geometry**: Windows OCR supplies local text evidence without an additional engine installation. Coordinate conversion, duplicate rejection, scope limits and presentation-time checks run locally. Text bounds do not prove a nearby control's clickable area.
-- **Constrained model output**: structured results, candidate/scope validation, and checks before display prevent cancelled requests from restoring stale results.
-- **Isolated collection**: short-lived helper processes perform native reads and can be reclaimed after cancellation or timeout. Helpers count toward resource acceptance.
-- **Independent feedback**: the input bar and edge overlays do not inject code into target applications.
-
-| Directory | Purpose |
-|---|---|
-| `src/CetaFae.Probe` | Windows host, interaction, consent, and collection |
-| `src/CetaFae.Plugins` | Plugin contracts, manifest validation and restricted JS executor |
-| `plugins` | First-party TS features, shared business code, adapter rules and enabled catalog |
-| `plugin-sdk` | TS contract and JSON entry point; compiler at `tools/build-plugins.mjs` |
-| `src/CetaFae.Checks` | Executable checks and generated fixtures |
+</details>
 
 ## Roadmap
 
-- Validate desktop operations, elevation and concurrent-change behavior, then add concrete operation previews, authorization and result confirmation. Give plugins evidence and verifiable actions for completing tasks rather than generic advice. Foundation mechanisms are not a shipped automatic-repair feature.
+- Improve general window understanding, error troubleshooting, and multi-step guidance around real tasks.
+- Complete common-application, high-DPI, and multi-monitor verification; improve waiting, recovery, and resource use.
+- Simplify model-service setup and distribution for people unfamiliar with configuration.
+- Complete end-to-end screenshot, text, image-conversion, and memory-help workflows.
+- Extend scoped local actions with verifiable results and suitable recovery.
+- Stabilize plugin interfaces and complete security review; later support themes and effects under a shared declarative contract.
 
-- Complete consolidated native text-region, binding-switch, settings-recovery and input acceptance; cover single-display125%/150%/200% scaling before mixed-DPI multiple displays.
-- Improve generic understanding, translation and visible-error accuracy and failure recovery.
-- Complete real-application acceptance for bounded tasks and user-led follow-up, including the separately previewed file-action paths.
-- Complete consolidated privacy, platform, performance, and real-task acceptance. The 3000ms processing target and 90MB idle-memory gate have not passed full formal acceptance.
-- Validate independent author contributions, execution-isolation security review and real application integration, then stabilize the development API. A marketplace and arbitrary native extensions are not provided.
-- Add declarative themes/effects under one contract: the host owns layout, rendering and resource limits; themes provide assets, palettes and bounded motion settings. Only the boundary is designed; theme import is not implemented yet.
-- Develop constrained document editing only after explicit task intent, confirmation, snapshot, and rollback gates are met; it is not currently provided.
+## Third-party plugin interface
 
-Most native validation targets Simplified Chinese Windows 11, one display, and 100% scaling. Protected windows, restricted interfaces, faulty accessibility providers, and dynamic custom rendering may be unsupported. Multiple displays, high DPI, and broad compatibility need further acceptance testing.
+Authors can use TypeScript for features or JSON for adaptation rules. Import through **鲸汐设置 → 功能 → 导入插件文件** (Settings → Features → Import plugin), review the declared scope, then enable and save. The API is under development and does not expose arbitrary Node/npm modules or direct computer control outside the host.
 
-## Third-party plugin API
+Start with the [Plugin API](Plugin-API.md), [adaptation example](examples/plugins/example.editor.json), and [TypeScript feature example](examples/plugins/example.chat/plugin.ts). There is currently no plugin marketplace or general silent updating.
 
-The development TS feature API and JSON adapter contract support business policy, application matching, local scopes and marker guards without host changes. Authors compile TS to a single importable JSON package. Open the whale's context menu → 鲸汐设置 → 功能 → 导入插件文件, review the scope, enable and save. Custom packages can be updated or removed; updates return to disabled for review. Program upgrades preserve saved user packages. Utilities and memory policies use the same restricted TS boundary. Plugins have no DLL, arbitrary download, network or desktop authority; reviewed Filee acquisition is a separate host mechanism. Restricted program execution is not an OS security sandbox; unrestricted untrusted distribution still needs security review.
+## Feedback and licensing
 
-See [Plugin-API](Plugin-API.md) for author fields, limits, installation and conflicts, and the [adapter example](examples/plugins/example.editor.json) and [TS feature example](examples/plugins/example.chat/plugin.ts). It is not an adapter claim for a real product. First-party and community packages share validation and authority; disable an existing overlapping adapter or capability before enabling its replacement.
+Report problems through [Issues](https://github.com/easerlee/CetaFae/issues), including the CetaFae version, application name, steps, and actual message. Remove personal information from screenshots; do not upload passwords, keys, or private files.
 
-## Maintenance and contributions
-
-Report OS/application versions, reproduction steps, and actual messages through [Issues](https://github.com/easerlee/CetaFae/issues). Do not upload screenshots or logs containing passwords, tokens, or private content.
-
-See the [requirements](需求文档.md) for scope, [Tech-Spec](Tech-Spec.md) for design, [Test-Plan](Test-Plan.md) for coverage, and [verification records](验证记录.md) for executed evidence and limitations. Build outputs and diagnostics belong in the ignored `.artifacts/` directory.
-
-The repository is currently private. No open-source license has been selected yet.
+The source is publicly visible, but the project has not selected an open-source license. Third-party components retain their own licenses; see [Third-party notices](THIRD-PARTY-NOTICES.md).
