@@ -194,7 +194,16 @@ static class IdentificationChecks
             }
             finally { Console.SetOut(previous); }
             var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
-            var rows = lines.Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
+            var allRows = lines.Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
+            var rows = allRows.Where(r => r.GetProperty("evt").GetString() == "guide_model_transport").ToArray();
+            var pluginRows = allRows.Where(r => r.GetProperty("evt").GetString() == "guide_plugin_timing").ToArray();
+            check(pluginRows.Length == 1 && allRows.Length == rows.Length + pluginRows.Length &&
+                  pluginRows.All(r => r.EnumerateObject().Select(p => p.Name).Order().SequenceEqual(
+                      new[] { "callMs", "evt", "queueMs", "reused", "ts" }.Order()) &&
+                      r.GetProperty("reused").ValueKind is JsonValueKind.True or JsonValueKind.False &&
+                      double.IsFinite(r.GetProperty("queueMs").GetDouble()) && r.GetProperty("queueMs").GetDouble() >= 0 &&
+                      double.IsFinite(r.GetProperty("callMs").GetDouble()) && r.GetProperty("callMs").GetDouble() >= 0),
+                "plugin timing logs only fixed bounded metadata alongside transport diagnostics: " + scenario);
             var expected = scenario switch
             {
                 "success" => new[] { "started", "headers", "body", "completed" },

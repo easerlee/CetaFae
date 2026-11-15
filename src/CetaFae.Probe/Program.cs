@@ -22,9 +22,9 @@ public static class Program
         {
             Task.Run(() => PlatformWorker.RunElevated(args[1], args[2])).GetAwaiter().GetResult(); return;
         }
-        if (args.SequenceEqual(new[] { "--plugin-worker" }))
+        if (args.Length == 1 && args[0] is "--plugin-worker" or "--plugin-session")
         {
-            PluginWorker.Run();
+            PluginWorker.Run(session: args[0] == "--plugin-session");
             return;
         }
         if (args.Length == 2 && args[0] == "--stop-installed")
@@ -135,7 +135,12 @@ public static class Program
         }
         session = new GuideSession(ball, preferences.Options, preview, plugins, OpenSettings, restoreConsent: !invalidPreferences, monitoring: preferences.Monitor);
         if (invalidPreferences) ball.Dispatcher.InvokeAsync(session.ShowConfigurationWarning);
-        app.Exit += (_, _) => { settings?.Close(); session.Dispose(); ball.Cleanup(); ProbeLog.Close(); };
+        app.Exit += (_, _) =>
+        {
+            settings?.Close(); session.Dispose();
+            PluginWorker.ClearIdleAsync().GetAwaiter().GetResult();
+            ball.Cleanup(); ProbeLog.Close();
+        };
         if (int.TryParse(ArgValue(args, "--exit-after"), out var exitAfter) && exitAfter > 0)
             app.Dispatcher.InvokeAsync(async () =>
             {

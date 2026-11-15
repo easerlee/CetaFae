@@ -123,6 +123,13 @@ public static class Program
 
     static async Task RunAsync(string[] args)
     {
+        if (args is ["--plugin-worker-benchmark", var workerExecutable])
+        { await PluginWorkerChecks.BenchmarkAsync(workerExecutable); return; }
+        if (args.Contains("--plugin-worker-checks"))
+        {
+            await PluginWorkerChecks.RunAsync(Check);
+            Console.WriteLine($"RESULT: {_passed} warm plugin worker checks passed. Desktop and model: NOT RUN."); return;
+        }
         if (args.Contains("--utilities"))
         { await UtilityChecks.RunAsync(Check, render: true); Console.WriteLine($"RESULT: {_passed} daily utility checks passed. Desktop and real model: NOT RUN."); return; }
         if (args.Contains("--chat-images"))
@@ -185,6 +192,7 @@ public static class Program
         LogRetentionChecks.Run(Check);
         TypeScriptPluginChecks.Run(Check);
         await TypeScriptPluginChecks.RunAsync(Check);
+        await PluginWorkerChecks.RunAsync(Check);
         PluginChecks.Run(Check);
         ThirdPartyPluginChecks.Run(Check);
         CheckChatLayout();
