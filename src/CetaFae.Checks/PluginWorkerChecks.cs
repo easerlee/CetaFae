@@ -17,6 +17,122 @@ internal static class PluginWorkerChecks
         catch (ArgumentException) { return true; }
     }
 
+    internal static async Task<int> OwnerFixtureAsync()
+    {
+        var output = Console.Out;
+        Console.SetOut(TextWriter.Null);
+        try
+        {
+            var id = 0;
+            await PluginWorker.InvokeAsync(Counter, "generated", new { }, default, value => id = value);
+            await output.WriteLineAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            await output.FlushAsync();
+            await Console.In.ReadLineAsync();
+            return 0;
+        }
+        finally { await PluginWorker.ClearIdleAsync(); }
+    }
+
+    internal static async Task SoakAsync(Action<bool, string> check)
+    {
+        var samples = new List<object>();
+        var owners = new List<object>();
+        var calls = new List<int>();
+        var completed = false;
+        var started = Stopwatch.StartNew();
+        await PluginWorker.ClearIdleAsync();
+        try
+        {
+            for (var call = 0; call < PluginWorker.MaxCalls * 5; call++)
+            {
+                var id = 0;
+                var question = new string('水', 10_000) + call;
+                var reply = await PluginWorker.InvokeAsync(Counter, "generated", new { question }, default, value => id = value);
+                calls.Add(id);
+                using var json = JsonDocument.Parse(reply);
+                if (json.RootElement.GetProperty("count").GetInt32() != 1 ||
+                    json.RootElement.GetProperty("dirty").GetBoolean() ||
+                    json.RootElement.GetProperty("question").GetString() != question)
+                    throw new InvalidOperationException("soak_request_isolation");
+                if (call % PluginWorker.MaxCalls is 0 or 15 or 30)
+                {
+                    using var child = Process.GetProcessById(id);
+                    child.Refresh();
+                    samples.Add(new { call = call + 1, id, privateBytes = child.PrivateMemorySize64, handles = child.HandleCount });
+                    if (child.PrivateMemorySize64 > PluginProcessLimits.MaxMemoryBytes)
+                        throw new InvalidOperationException("soak_worker_memory_limit");
+                }
+            }
+            check(calls.Chunk(PluginWorker.MaxCalls).All(group => group.Distinct().Count() == 1) &&
+                  calls.Distinct().Count() == 5 && calls.All(Exited),
+                "160 generated calls retain fresh state and retire all five 32-call workers");
+
+            var age = Stopwatch.StartNew();
+            var first = 0;
+            var ageCalls = new List<int>();
+            for (var call = 0; call < 8; call++)
+            {
+                if (call > 0) await Task.Delay(TimeSpan.FromSeconds(10));
+                var id = 0;
+                await PluginWorker.InvokeAsync(Counter, "generated", new { }, default, value => id = value);
+                ageCalls.Add(id);
+                if (call == 0) first = id;
+                if (id != first) break;
+            }
+            check(age.Elapsed >= TimeSpan.FromSeconds(60) && ageCalls.Count >= 7 &&
+                  ageCalls.Take(ageCalls.Count - 1).All(id => id == first) && ageCalls[^1] != first && Exited(first),
+                "an active lease is replaced after its real 60-second age limit before 32 calls");
+            await PluginWorker.ClearIdleAsync();
+            check(ageCalls.All(Exited), "explicit owner cleanup reaps the final age-test worker");
+
+            foreach (var crash in new[] { false, true })
+            {
+                var start = PluginWorker.StartInfo(Environment.ProcessPath!, typeof(PluginWorkerChecks).Assembly.Location);
+                start.ArgumentList.Clear();
+                start.ArgumentList.Add(typeof(PluginWorkerChecks).Assembly.Location);
+                start.ArgumentList.Add("--plugin-owner-fixture");
+                using var owner = new Process { StartInfo = start };
+                Process? child = null;
+                owner.Start();
+                try
+                {
+                    var line = await owner.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(8));
+                    if (!int.TryParse(line, out var id)) throw new InvalidDataException("soak_owner_ready");
+                    child = Process.GetProcessById(id);
+                    var elapsed = Stopwatch.StartNew();
+                    if (crash) owner.Kill();
+                    else { await owner.StandardInput.WriteLineAsync("stop"); await owner.StandardInput.FlushAsync(); }
+                    await owner.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(8));
+                    await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(25));
+                    owners.Add(new { crash, exitMs = elapsed.Elapsed.TotalMilliseconds, ownerExit = owner.ExitCode, childExited = child.HasExited });
+                    check(child.HasExited && (crash || owner.ExitCode == 0), crash
+                        ? "abrupt owner exit closes actual pipes and its idle plugin worker exits without replay"
+                        : "normal owner exit reaps its idle plugin worker before returning");
+                }
+                finally
+                {
+                    if (!owner.HasExited) { owner.Kill(); await owner.WaitForExitAsync(); }
+                    if (child is not null)
+                    {
+                        if (!child.HasExited) { child.Kill(); await child.WaitForExitAsync(); }
+                        child.Dispose();
+                    }
+                }
+            }
+            completed = true;
+        }
+        finally
+        {
+            await PluginWorker.ClearIdleAsync();
+            var path = Path.Combine(Environment.CurrentDirectory, ".artifacts", "checks", "warm-worker-soak.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(new { completed, elapsedMs = started.Elapsed.TotalMilliseconds,
+                calls = calls.Count, workers = calls.Distinct().Count(), samples, owners, desktop = false, model = false,
+                limitations = "Helper-only counters; no forced GC, leak threshold, aggregate idle-memory or native acceptance." },
+                new JsonSerializerOptions { WriteIndented = true }));
+        }
+    }
+
     internal static async Task RunAsync(Action<bool, string> check)
     {
         await PluginWorker.ClearIdleAsync();

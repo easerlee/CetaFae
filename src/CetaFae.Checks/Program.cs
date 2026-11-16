@@ -26,6 +26,7 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Length == 2 && args[0] == "--worker-fixture") return LifetimeChecks.Fixture(args[1]);
+        if (args is ["--plugin-owner-fixture"]) return PluginWorkerChecks.OwnerFixtureAsync().GetAwaiter().GetResult();
         if (args.Contains("--capture-desktop")) return CaptureChecks.Run();
         if (args.Contains("--scroll-desktop")) return ScrollChecks.Run();
         if (args.Contains("--privacy-desktop")) return PrivacyDesktopChecks.Run();
@@ -123,6 +124,11 @@ public static class Program
 
     static async Task RunAsync(string[] args)
     {
+        if (args is ["--plugin-worker-soak"])
+        {
+            await PluginWorkerChecks.SoakAsync(Check);
+            Console.WriteLine($"RESULT: {_passed} long-run plugin worker checks passed. Desktop and model: NOT RUN."); return;
+        }
         if (args is ["--plugin-worker-benchmark", var workerExecutable])
         { await PluginWorkerChecks.BenchmarkAsync(workerExecutable); return; }
         if (args.Contains("--plugin-worker-checks"))
