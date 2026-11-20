@@ -6,6 +6,33 @@ internal static class BindingChecks
 {
     internal static async Task RunAsync(Action<bool, string> check)
     {
+        var card = new GuideCard(GuideOptions.Create("http://127.0.0.1:1/v1/", "generated-fixture"));
+        card.SetCloud(true);
+        card.SetStatus("Generated completed answer");
+        card.ShowQuestion(); card.SetRegionAvailable(true); card.SetFollowupAvailable(true);
+        var retained = GuideSession.RetainBoundAnswer(null, card);
+        card.Reset();
+        check(retained == "Generated completed answer" && !card.HasSession && !card.HasQuestion && !card.HasRegion && !card.HasFollowup,
+            "suspension retains actual displayed reply even before the result cache commits, without retaining actions");
+        card.SetStatus("上次回答\n" + retained);
+        check(GuideSession.RetainBoundAnswer(retained, card) == retained,
+            "repeated binding returns do not accumulate previous-answer labels");
+        card.SetStatus("Generated clarification");
+        check(GuideSession.RetainBoundAnswer(null, card) == "Generated clarification",
+            "a visible clarification without a completed cache survives a foreground switch");
+        check(GuideSession.RetainBoundAnswer(retained, card) == retained,
+            "temporary follow-up instructions cannot replace the last completed answer");
+        card.Reset();
+        check(GuideSession.RetainBoundAnswer(retained, card) == retained,
+            "an empty processing surface cannot erase the completed reply");
+        card.SetStatus("Generated unrelated disclosure"); card.ShowConsent();
+        check(GuideSession.RetainBoundAnswer(null, card) is null,
+            "disclosure with a retained session cannot become a conversation reply");
+        check(GuideSession.RetainBoundAnswer(retained, card) == retained,
+            "disclosure is not remembered as a window conversation");
+        card.Reset();
+        check(GuideSession.RetainBoundAnswer(null, card) is null,
+            "an explicit binding reset cannot resurrect completed text");
         var binding = new GuideBinding();
         var target = new IntPtr(41);
         binding.Begin(target, 42);

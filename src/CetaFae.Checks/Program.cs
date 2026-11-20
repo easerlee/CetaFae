@@ -124,6 +124,11 @@ public static class Program
 
     static async Task RunAsync(string[] args)
     {
+        if (args is ["--binding-checks"])
+        {
+            await BindingChecks.RunAsync(Check);
+            Console.WriteLine($"RESULT: {_passed} binding checks passed. Desktop and model: NOT RUN."); return;
+        }
         if (args is ["--plugin-worker-soak"])
         {
             await PluginWorkerChecks.SoakAsync(Check);

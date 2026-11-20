@@ -311,8 +311,19 @@ public sealed partial class GuideSession : IDisposable
             return;
         }
         var retry = _initialCollectionVersion is { } collecting && _gate.Accepts(collecting);
+        _lastBoundAnswer = RetainBoundAnswer(_lastBoundAnswer, _panel.Card);
         ResetRecognition(preserveConversation: true);
         _retryInitialOnResume = retry;
+    }
+
+    internal static string? RetainBoundAnswer(string? previous, GuideCard card)
+    {
+        // Snapshot the displayed conversation before ResetRecognition clears its surface.
+        // Some presentation paths do not write the final-answer cache.
+        if (card.View != GuideCardView.Session || !card.HasSession || string.IsNullOrWhiteSpace(card.FullText))
+            return previous;
+        // Follow-up/selection instructions must not replace an already completed answer.
+        return previous ?? card.FullText;
     }
 
     async void OnBindingResumed()
@@ -836,7 +847,9 @@ public sealed partial class GuideSession : IDisposable
             _ball.SetProcessing(false);
             var textRegion = answer.CandidateId is { } selected &&
                 observation.Candidates.Single(c => c.Id == selected).ControlType == GuideTextRegions.ControlType;
-            _panel.SetStatus(textRegion ? "这里标出的是文字所在区域，不是按钮的点击范围。\n" + answer.Explanation : answer.Explanation);
+            var explanation = textRegion ? "这里标出的是文字所在区域，不是按钮的点击范围。\n" + answer.Explanation : answer.Explanation;
+            if (intent is not null && answer.Mode != "ask") _lastBoundAnswer = explanation;
+            _panel.SetStatus(explanation);
             _panel.SetPoint(bounds is not null && _marker.IsVisible);
             if (identification is not null) _understanding.Remember(flowTarget, identification);
             if (intent is not null && _plugins.ChatProvider is not null)
@@ -864,7 +877,6 @@ public sealed partial class GuideSession : IDisposable
                 _activeFollowup = null;
             }
             resultToken.ThrowIfCancellationRequested();
-            if (intent is not null && answer.Mode != "ask") _lastBoundAnswer = answer.Explanation;
             ProbeLog.Log("guide_result", ("mode", answer.Mode), ("candidates", observation.Candidates.Count),
                 ("observeMs", observeMs), ("modelMs", modelMs), ("totalMs", total.ElapsedMilliseconds),
                 ("withinThreeSeconds", total.ElapsedMilliseconds <= 3000), ("image", _options.IncludeImage));
